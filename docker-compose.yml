@@ -1,0 +1,48 @@
+# Production stack: the app + Caddy (automatic HTTPS via Let's Encrypt).
+#   1. cp .env.example .env   and set DOMAIN / SITE_URL
+#   2. docker compose up -d --build
+#   3. docker compose exec app node scripts/create-owner.ts <username>
+name: fieldnotes
+
+services:
+  app:
+    build:
+      context: .
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:-node:24-bookworm-slim}
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmjs.org}
+    image: ${APP_IMAGE:-fieldnotes:latest}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 4321
+      DATA_DIR: /data
+      TRUST_PROXY: 'true'
+    volumes:
+      - ./data:/data
+    expose:
+      - '4321'
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }
+
+  caddy:
+    image: ${CADDY_IMAGE:-caddy:2-alpine}
+    restart: unless-stopped
+    depends_on: [app]
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
