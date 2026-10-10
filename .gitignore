@@ -1,0 +1,28 @@
+# dependencies & build
+node_modules/
+dist/
+.astro/
+
+# runtime data (database, uploads, backups) — never commit
+data/
+.e2e-data/
+*.db
+*.db-wal
+*.db-shm
+
+# secrets
+.env
+.env.*
+!.env.example
+
+# test artifacts
+test-results/
+playwright-report/
+coverage/
+
+# misc
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
