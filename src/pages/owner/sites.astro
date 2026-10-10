@@ -1,0 +1,31 @@
+---
+import OwnerLayout from '../../layouts/OwnerLayout.astro';
+import SitesManager from '../../components/owner/SitesManager';
+import { siteTree } from '../../server/services/sites';
+import { getDb } from '../../server/db';
+
+const counts = Object.fromEntries(
+  (getDb().prepare('SELECT category_id AS id, COUNT(*) AS n FROM posts GROUP BY category_id').all() as { id: string; n: number }[]).map((r) => [r.id, r.n]),
+);
+const tree = siteTree().map((s) => ({ ...s, categories: s.categories.map((c) => ({ ...c, postCount: counts[c.id] ?? 0 })) }));
+---
+
+<OwnerLayout title="分站与栏目" heading="分站与栏目" subtitle="左侧轮盘中的分站，以及每个分站顶部的栏目。">
+  <SitesManager client:load initial={tree} />
+</OwnerLayout>
+
+<style is:global>
+  .sm-top { margin-bottom: 16px; }
+  .sm-top .hint { margin: 0; max-width: 640px; }
+  .sm-site-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 8px; }
+  .sm-icon { color: var(--accent); }
+  .sm-icon svg { width: 22px; height: 22px; }
+  .sm-site-title { flex: 1; min-width: 200px; }
+  .sm-site-title h2 { margin: 0; }
+  .sm-cats td { vertical-align: middle; }
+  .sm-cats .right { text-align: right; }
+  .sm-addcat { margin-top: 10px; }
+  .sm-icons .icon-btn.sel { background: var(--accent); color: var(--surface); }
+  .nowrap { white-space: nowrap; }
+  .small { font-size: 12px; }
+</style>

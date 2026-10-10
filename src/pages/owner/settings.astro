@@ -1,0 +1,36 @@
+---
+import OwnerLayout from '../../layouts/OwnerLayout.astro';
+import SettingsManager from '../../components/owner/SettingsManager';
+import { getAllSettings } from '../../server/services/settings';
+import { listProgressOptions, listTemplates } from '../../server/services/config';
+import { listUploads } from '../../server/services/uploads';
+
+const s = getAllSettings();
+const props = {
+  settings: { site: s.site, profile: s.profile, appearance: s.appearance, previewBall: s.previewBall },
+  templates: listTemplates(),
+  progress: listProgressOptions().map((p) => p.label),
+  uploads: listUploads(),
+  username: Astro.locals.owner!.username,
+};
+---
+
+<OwnerLayout title="设置" heading="设置" subtitle="站点信息、个人资料、外观、模板、文件与账号。">
+  <SettingsManager client:load {...props} />
+</OwnerLayout>
+
+<style is:global>
+  .st-nav { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+  .st-links li { display: grid; grid-template-columns: 1fr 2fr auto; gap: 6px; padding: 4px 0; border: 0; }
+  .st-uploads { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .st-uploads figure { margin: 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--pane); }
+  .st-uploads img { width: 100%; height: 100px; object-fit: cover; display: block; }
+  .st-uploads figcaption { padding: 6px 8px; font-size: 11px; display: grid; gap: 4px; }
+  .st-uploads code { font-size: 10px; word-break: break-all; }
+  .st-tpl { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 12px; }
+  .st-tpl textarea { font-family: var(--mono); font-size: 12px; }
+  .st-choice { display: flex; gap: 8px; flex-wrap: wrap; }
+  .st-choice label { display: inline-flex; gap: 6px; align-items: center; border: 1px solid var(--line); border-radius: 4px; padding: 5px 10px; font-size: 13px; cursor: pointer; }
+  .st-choice label:has(input:checked) { border-color: var(--accent); color: var(--accent); }
+  .st-choice input { accent-color: var(--accent); }
+</style>

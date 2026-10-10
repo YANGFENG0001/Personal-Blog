@@ -1,0 +1,32 @@
+---
+import OwnerLayout from '../../layouts/OwnerLayout.astro';
+import KnowledgeManager from '../../components/owner/KnowledgeManager';
+import { knowledgeTree } from '../../server/services/knowledge';
+import { listPosts } from '../../server/services/posts';
+
+const posts = listPosts({ limit: 2000 }).items.map((p) => ({
+  id: p.id,
+  title: p.title,
+  where: `${p.siteName} / ${p.categoryName}`,
+  hidden: p.hiddenReason,
+}));
+---
+
+<OwnerLayout title="知识库" heading="知识库" subtitle="按主题层级组织文章。节点可公开为知识地图，也可只留给自己。">
+  <KnowledgeManager client:load initial={knowledgeTree()} posts={posts} />
+</OwnerLayout>
+
+<style is:global>
+  .km { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: start; }
+  .km .panel + .panel { margin-top: 0; }
+  .km-tree li { border: 0; padding-top: 2px; padding-bottom: 2px; }
+  .km-node { border: 0; background: none; text-align: left; width: 100%; padding: 5px 8px; border-radius: 4px; font-size: 14px; display: flex; gap: 6px; align-items: center; }
+  .km-node:hover { background: var(--tint); }
+  .km-tree li.sel .km-node { background: var(--tint); color: var(--accent); font-weight: 600; }
+  .km-h3 { font: 600 13px var(--sans); color: var(--muted); margin: 18px 0 4px; }
+  .km-add { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); display: grid; gap: 8px; justify-items: start; }
+  .km-add .input { max-width: 420px; }
+  .km-add ul { width: 100%; }
+  .small { font-size: 12px; }
+  @media (max-width: 900px) { .km { grid-template-columns: 1fr; } }
+</style>

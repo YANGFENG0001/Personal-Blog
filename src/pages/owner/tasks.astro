@@ -1,0 +1,11 @@
+---
+import OwnerLayout from '../../layouts/OwnerLayout.astro';
+import TaskBoards from '../../components/owner/TaskBoards';
+import { listBoards } from '../../server/services/tasks';
+
+const boards = listBoards();
+---
+
+<OwnerLayout title="任务" heading="任务板" subtitle="自由创建、重命名、排序任务板；任务可设置截止日期、备注，完成后会计入学习活动。仅你可见。">
+  <TaskBoards client:load initial={boards} />
+</OwnerLayout>

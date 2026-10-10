@@ -1,0 +1,141 @@
+---
+import OwnerLayout from '../../layouts/OwnerLayout.astro';
+import { listAllTags, listPosts, type OwnerListOptions } from '../../server/services/posts';
+import { siteTree } from '../../server/services/sites';
+import { listTemplates } from '../../server/services/config';
+import { fmtDate, relativeTime } from '../../lib/format';
+
+const q = Astro.url.searchParams;
+const PER = 30;
+const page = Math.max(1, Number(q.get('page')) || 1);
+const filters: OwnerListOptions = {
+  q: q.get('q') || undefined,
+  siteId: q.get('site') || undefined,
+  categoryId: q.get('category') || undefined,
+  tag: q.get('tag') || undefined,
+  status: (q.get('status') as OwnerListOptions['status']) || undefined,
+  templateId: q.get('template') || undefined,
+  limit: PER,
+  offset: (page - 1) * PER,
+};
+const { items, total } = listPosts(filters);
+const tree = siteTree();
+const tags = listAllTags();
+const templates = listTemplates();
+const tplName = Object.fromEntries(templates.map((t) => [t.id, t.name]));
+const pages = Math.max(1, Math.ceil(total / PER));
+const pageHref = (p: number) => {
+  const u = new URLSearchParams(q);
+  u.set('page', String(p));
+  return `?${u}`;
+};
+---
+
+<OwnerLayout title="文章库" heading="文章库" subtitle={`共 ${total} 篇`}>
+  <Fragment slot="actions">
+    <a class="btn" href="/api/owner/posts/export">导出全部为 Markdown</a>
+    <a class="btn btn-primary" href="/owner/editor">写新文章</a>
+  </Fragment>
+
+  <form class="filters" method="get">
+    <input class="input" type="search" name="q" value={filters.q ?? ''} placeholder="搜索标题、摘要、正文、标签" aria-label="搜索" />
+    <select class="select" name="site" aria-label="分站">
+      <option value="">全部分站</option>
+      {tree.map((s) => <option value={s.id} selected={s.id === filters.siteId}>{s.name}</option>)}
+    </select>
+    <select class="select" name="category" aria-label="栏目">
+      <option value="">全部栏目</option>
+      {
+        tree.map((s) => (
+          <optgroup label={s.name}>
+            {s.categories.map((c) => <option value={c.id} selected={c.id === filters.categoryId}>{c.name}</option>)}
+          </optgroup>
+        ))
+      }
+    </select>
+    <select class="select" name="status" aria-label="状态">
+      <option value="">全部状态</option>
+      <option value="draft" selected={filters.status === 'draft'}>草稿</option>
+      <option value="published" selected={filters.status === 'published'}>已发布</option>
+      <option value="archived" selected={filters.status === 'archived'}>已归档</option>
+      <option value="public" selected={filters.status === 'public'}>游客可见</option>
+      <option value="hidden" selected={filters.status === 'hidden'}>游客不可见</option>
+    </select>
+    <select class="select" name="template" aria-label="模板">
+      <option value="">全部模板</option>
+      {templates.map((t) => <option value={t.id} selected={t.id === filters.templateId}>{t.name}</option>)}
+    </select>
+    <select class="select" name="tag" aria-label="标签">
+      <option value="">全部标签</option>
+      {tags.map((t) => <option value={t} selected={t === filters.tag}>{t}</option>)}
+    </select>
+    <button class="btn" type="submit">筛选</button>
+    {[...q.keys()].length > 0 && <a class="btn btn-ghost" href="/owner/posts">清除</a>}
+  </form>
+
+  <div class="panel table-wrap">
+    {
+      items.length === 0 ? (
+        <p class="empty-note">没有符合条件的文章。</p>
+      ) : (
+        <table class="table">
+          <thead>
+            <tr>
+              <th>标题</th>
+              <th>位置</th>
+              <th>状态</th>
+              <th>模板 / 进度</th>
+              <th>发布</th>
+              <th>更新</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((p) => (
+              <tr>
+                <td class="title-cell">
+                  <a href={`/owner/editor/${p.id}`}>{p.title}</a>
+                  {p.tags.length > 0 && <div class="faint tags">{p.tags.map((t) => `#${t}`).join(' ')}</div>}
+                </td>
+                <td class="nowrap">
+                  {p.siteName} / {p.categoryName}
+                </td>
+                <td class="nowrap">
+                  {p.hiddenReason ? (
+                    <span class="pill">{p.hiddenReason}</span>
+                  ) : (
+                    <a class="pill pill-accent" href={`/${p.siteSlug}/${p.categorySlug}/${p.slug}`} target="_blank" rel="noopener">
+                      公开 ↗
+                    </a>
+                  )}
+                </td>
+                <td class="nowrap faint">
+                  {tplName[p.templateId ?? ''] ?? '—'}
+                  {p.progress && <span class="pill">{p.progress}</span>}
+                </td>
+                <td class="nowrap faint">{fmtDate(p.publishedAt) || '—'}</td>
+                <td class="nowrap faint" title={p.updatedAt}>{relativeTime(p.updatedAt)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )
+    }
+  </div>
+  {
+    pages > 1 && (
+      <nav class="row pager" aria-label="分页">
+        {page > 1 && <a class="btn btn-sm" href={pageHref(page - 1)}>上一页</a>}
+        <span class="faint">{page} / {pages}</span>
+        {page < pages && <a class="btn btn-sm" href={pageHref(page + 1)}>下一页</a>}
+      </nav>
+    )
+  }
+</OwnerLayout>
+
+<style>
+  .nowrap { white-space: nowrap; }
+  .tags { font-size: 11px; margin-top: 2px; }
+  .pager { justify-content: center; margin-top: 16px; }
+  td .pill + .pill, td .pill { margin-left: 4px; }
+  td .pill:first-child { margin-left: 0; }
+</style>

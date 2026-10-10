@@ -1,0 +1,33 @@
+---
+import OwnerLayout from '../../../layouts/OwnerLayout.astro';
+import PostEditor from '../../../components/owner/PostEditor';
+import { getPost, listAllTags } from '../../../server/services/posts';
+import { siteTree } from '../../../server/services/sites';
+import { listProgressOptions, listTemplates } from '../../../server/services/config';
+import 'katex/dist/katex.min.css';
+import '../../../styles/prose.css';
+import '../../../styles/editor.css';
+
+const id = Astro.params.id;
+const post = id ? getPost(id) : null;
+if (id && !post) return Astro.redirect('/owner/posts');
+const sites = siteTree().map((s) => ({
+  id: s.id,
+  name: s.name,
+  visibility: s.visibility,
+  categories: s.categories.map((c) => ({ id: c.id, name: c.name, visibility: c.visibility })),
+}));
+const props = {
+  post: post ?? null,
+  sites,
+  templates: listTemplates(),
+  progressOptions: listProgressOptions().map((p) => p.label),
+  allTags: listAllTags(),
+  initialTemplate: Astro.url.searchParams.get('template'),
+  defaultCategoryId: Astro.url.searchParams.get('category'),
+};
+---
+
+<OwnerLayout title={post ? `编辑：${post.title}` : '写新文章'} wide>
+  <PostEditor client:load {...props} />
+</OwnerLayout>

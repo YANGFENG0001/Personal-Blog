@@ -1,0 +1,40 @@
+---
+import OwnerLayout from '../../layouts/OwnerLayout.astro';
+import DisplayManager from '../../components/owner/DisplayManager';
+import { listModules, listQuotes } from '../../server/services/config';
+import { ownerStats } from '../../server/services/stats';
+import { getSetting } from '../../server/services/settings';
+import { listSites } from '../../server/services/sites';
+
+const props = {
+  modules: listModules().filter((m) => m.zone !== 'owner-editor'),
+  stats: ownerStats(),
+  sites: listSites().map((s) => ({ id: s.id, name: s.name })),
+  encourage: getSetting('encourage'),
+  easter: getSetting('easter'),
+  quotes: listQuotes(),
+};
+---
+
+<OwnerLayout title="展示与模块" heading="展示与模块" subtitle="决定游客能看到什么，以及工作台里放什么。">
+  <Fragment slot="actions">
+    <a class="btn" href="/" target="_blank" rel="noopener">以游客视角查看 ↗</a>
+  </Fragment>
+  <DisplayManager client:load {...props} />
+</OwnerLayout>
+
+<style is:global>
+  .stack > .panel + .panel { margin-top: 0; }
+  .dm-zone h3, .dm-qform h3 { font: 600 13px var(--sans); color: var(--muted); letter-spacing: 0.06em; margin: 8px 0 4px; }
+  .dm-mod { display: flex; align-items: center; gap: 8px; }
+  .dm-name { padding: 4px 8px !important; font-size: 13px !important; max-width: 200px; }
+  .dm-vis { width: auto !important; padding: 4px 6px !important; font-size: 12px !important; }
+  .dm-date { margin-top: 4px; padding: 4px 8px !important; font-size: 12px !important; max-width: 200px; }
+  .dm-switches { gap: 20px; margin: 4px 0 16px; }
+  .dm-quotes blockquote { margin: 0; font-size: 15px; line-height: 1.8; }
+  .dm-quotes li.off { opacity: 0.5; }
+  .dm-qform { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+  .small { font-size: 12px; }
+  .nowrap { white-space: nowrap; }
+  .warn { color: var(--warn); }
+</style>

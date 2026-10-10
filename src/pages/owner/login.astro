@@ -1,0 +1,84 @@
+---
+import Base from '../../layouts/Base.astro';
+import { ownerExists } from '../../server/auth/session';
+import { getSetting } from '../../server/services/settings';
+import '../../styles/owner.css';
+
+if (Astro.locals.owner) return Astro.redirect('/owner');
+const site = getSetting('site');
+const hasOwner = ownerExists();
+---
+
+<Base title="登录" noindex>
+  <main class="login">
+    <form class="login-box" data-login-form novalidate>
+      <a href="/" class="login-mark" aria-label="返回网站">{site.title.slice(0, 1)}</a>
+      <h1>站主登录</h1>
+      <p class="muted">{site.title} · 私人工作台</p>
+      {
+        !hasOwner && (
+          <div class="login-warn" role="alert">
+            尚未创建站主账号。请在服务器上运行 <code>npm run owner:create -- 用户名</code>（Docker：
+            <code>docker compose exec app node scripts/create-owner.ts 用户名</code>）。
+          </div>
+        )
+      }
+      <div class="field">
+        <label for="username">用户名</label>
+        <input id="username" name="username" autocomplete="username" required maxlength="80" />
+      </div>
+      <div class="field">
+        <label for="password">密码</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required />
+      </div>
+      <label class="check"><input type="checkbox" name="remember" checked /> 在此设备上保持登录 30 天</label>
+      <p class="login-error" role="alert" data-login-error></p>
+      <button class="btn btn-primary login-submit" type="submit">登录</button>
+      <p class="hint">会话保存在服务器端，浏览器只保存一个 HttpOnly 会话凭证，不保存密码。</p>
+    </form>
+  </main>
+</Base>
+
+<style>
+  .login { min-height: 100vh; display: grid; place-items: center; padding: 40px 16px; }
+  .login-box { width: min(400px, 100%); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 36px 34px 28px; box-shadow: var(--shadow-sm); animation: rise calc(0.5s * var(--dur)) var(--ease) both; }
+  .login-mark { width: 38px; height: 38px; display: grid; place-items: center; border: 1px solid var(--accent); color: var(--accent); font: italic 20px Georgia, var(--serif); margin-bottom: 18px; }
+  .login-box h1 { font: 500 26px var(--serif); margin: 0 0 4px; }
+  .login-box > p.muted { font-size: 13px; margin-bottom: 22px; }
+  .login-warn { font-size: 12px; line-height: 1.8; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent); color: var(--warn); border-radius: 4px; margin-bottom: 18px; }
+  .login-warn code { font-size: 11px; }
+  .login-error { color: var(--danger); font-size: 13px; min-height: 1.5em; margin: 12px 0 6px; }
+  .login-submit { width: 100%; padding: 10px; font-size: 14px; }
+  .hint { margin: 16px 0 0; }
+</style>
+
+<script>
+  const form = document.querySelector<HTMLFormElement>('[data-login-form]')!;
+  const err = form.querySelector<HTMLElement>('[data-login-error]')!;
+  const btn = form.querySelector<HTMLButtonElement>('button[type=submit]')!;
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    err.textContent = '';
+    const fd = new FormData(form);
+    const username = String(fd.get('username') ?? '').trim();
+    const password = String(fd.get('password') ?? '');
+    if (!username || !password) { err.textContent = '请输入用户名和密码'; return; }
+    btn.disabled = true;
+    btn.textContent = '正在验证…';
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ username, password, remember: fd.get('remember') === 'on' }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || '登录失败');
+      const next = new URLSearchParams(location.search).get('next');
+      location.href = next && next.startsWith('/owner') && !next.startsWith('//') ? next : '/owner';
+    } catch (e) {
+      err.textContent = e instanceof Error ? e.message : '登录失败';
+      btn.disabled = false;
+      btn.textContent = '登录';
+    }
+  });
+</script>

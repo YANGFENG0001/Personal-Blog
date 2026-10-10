@@ -1,0 +1,19 @@
+---
+import OwnerLayout from '../../layouts/OwnerLayout.astro';
+import PaperTracker from '../../components/owner/PaperTracker';
+import { listPapers } from '../../server/services/knowledge';
+import { listPosts } from '../../server/services/posts';
+
+const posts = listPosts({ limit: 2000 }).items.map((p) => ({ id: p.id, title: p.title }));
+---
+
+<OwnerLayout title="论文" heading="论文追踪" subtitle="记录论文信息、阅读与复现进度，并关联到精读笔记。仅你可见。">
+  <PaperTracker client:load initial={listPapers()} posts={posts} />
+</OwnerLayout>
+
+<style is:global>
+  .pt-kpis { margin-bottom: 16px; }
+  .pt-sel { width: auto !important; padding: 3px 6px !important; font-size: 12px !important; }
+  .small { font-size: 12px; }
+  .nowrap { white-space: nowrap; }
+</style>
