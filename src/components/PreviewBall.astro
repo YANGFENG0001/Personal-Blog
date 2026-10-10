@@ -1,0 +1,55 @@
+---
+/**
+ * Floating ball for the authenticated owner only. It is rendered server-side
+ * solely when a valid owner session exists, so visitors never receive it.
+ * In the workspace it opens the live public site; on the public site it returns.
+ */
+interface Props {
+  mode: 'owner' | 'visitor';
+  position: 'right' | 'left';
+}
+const { mode, position } = Astro.props;
+const href = mode === 'owner' ? '/' : '/owner';
+const label = mode === 'owner' ? '以游客视角预览网站' : '返回站主工作台';
+---
+
+<a class="pball" href={href} data-pos={position} data-mode={mode} aria-label={label} title={label}>
+  <span class="pball-core" aria-hidden="true">
+    {
+      mode === 'owner' ? (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+          <path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z" />
+        </svg>
+      )
+    }
+  </span>
+  <span class="pball-label">{mode === 'owner' ? '游客预览' : '预览中 · 返回工作台'}</span>
+</a>
+
+<style>
+  .pball {
+    position: fixed; bottom: 26px; z-index: 120; display: flex; align-items: center; gap: 0; height: 48px;
+    border-radius: 999px; background: var(--ink); color: var(--bg); box-shadow: var(--shadow);
+    padding: 0; overflow: hidden; transition: gap calc(0.35s * var(--dur)) var(--ease), padding calc(0.35s * var(--dur)) var(--ease);
+  }
+  .pball[data-pos='right'] { right: 26px; }
+  .pball[data-pos='left'] { left: 26px; }
+  .pball[data-mode='visitor'] { background: var(--accent); color: var(--surface); }
+  .pball-core { width: 48px; height: 48px; display: grid; place-items: center; flex: none; }
+  .pball-core svg { width: 20px; height: 20px; transition: transform calc(0.5s * var(--dur)) var(--ease); }
+  .pball-label { max-width: 0; white-space: nowrap; font-size: 12px; opacity: 0; transition: max-width calc(0.35s * var(--dur)) var(--ease), opacity calc(0.25s * var(--dur)); }
+  .pball:hover, .pball:focus-visible { padding-right: 16px; }
+  .pball:hover .pball-label, .pball:focus-visible .pball-label { max-width: 180px; opacity: 1; }
+  .pball:hover .pball-core svg { transform: rotate(-12deg) scale(1.06); }
+  .pball[data-mode='visitor']::before {
+    content: ''; position: absolute; inset: -4px; border-radius: inherit; border: 1px solid var(--accent); opacity: 0.5;
+    animation: pball-pulse calc(2.4s * var(--dur)) ease-out infinite; pointer-events: none;
+  }
+  @keyframes pball-pulse { from { transform: scale(0.96); opacity: 0.55; } to { transform: scale(1.18); opacity: 0; } }
+  @media print { .pball { display: none; } }
+</style>

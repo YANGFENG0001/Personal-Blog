@@ -1,0 +1,44 @@
+---
+import PublicLayout from '../../layouts/PublicLayout.astro';
+import PostList from '../../components/public/PostList.astro';
+import { findNode, publicKnowledgeTree } from '../../server/services/knowledge';
+import { listPublicArchive } from '../../server/services/posts';
+
+const hit = findNode(publicKnowledgeTree(), Astro.params.slug!);
+if (!hit) return Astro.rewrite('/404');
+const { node, trail } = hit;
+const all = new Map(listPublicArchive().map((p) => [p.id, p]));
+const posts = node.postIds.map((id) => all.get(id)).filter((p) => !!p);
+---
+
+<PublicLayout title={`${node.title} · 知识库`} canonical={`/knowledge/${node.slug}`} description={node.description}>
+  <section class="page-head">
+    <nav class="crumbs" aria-label="位置">
+      <a href="/knowledge">知识库</a>
+      {trail.map((t) => <><span>/</span><a href={`/knowledge/${t.slug}`}>{t.title}</a></>)}
+    </nav>
+    <h1>{node.title}</h1>
+    {node.description && <p class="muted">{node.description}</p>}
+  </section>
+  {
+    node.children.length > 0 && (
+      <nav class="subnodes" aria-label="子主题">
+        {node.children.map((c) => (
+          <a href={`/knowledge/${c.slug}`} class="pill">
+            {c.title}
+          </a>
+        ))}
+      </nav>
+    )
+  }
+  <PostList posts={posts} showSite empty="这个主题下还没有公开的文章。" />
+</PublicLayout>
+
+<style>
+  .page-head { padding: 40px 0 12px; }
+  .page-head h1 { font: 500 32px var(--serif); margin: 10px 0 6px; }
+  .crumbs { display: flex; gap: 8px; font-size: 12px; color: var(--faint); }
+  .crumbs a:hover { color: var(--accent); }
+  .subnodes { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 12px; }
+  .subnodes a:hover { color: var(--accent); border-color: var(--accent); }
+</style>

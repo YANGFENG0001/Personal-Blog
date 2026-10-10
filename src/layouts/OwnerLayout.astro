@@ -1,0 +1,88 @@
+---
+import Base from './Base.astro';
+import PreviewBall from '../components/PreviewBall.astro';
+import { getAllSettings } from '../server/services/settings';
+import '../styles/owner.css';
+
+interface Props {
+  title: string;
+  heading?: string;
+  subtitle?: string;
+  wide?: boolean;
+}
+const { title, heading, subtitle, wide = false } = Astro.props;
+const settings = getAllSettings();
+const owner = Astro.locals.owner!;
+const path = Astro.url.pathname;
+const NAV = [
+  { href: '/owner', label: '总览' },
+  { href: '/owner/posts', label: '文章库' },
+  { href: '/owner/editor', label: '写作' },
+  { href: '/owner/knowledge', label: '知识库' },
+  { href: '/owner/papers', label: '论文' },
+  { href: '/owner/tasks', label: '任务' },
+  { href: '/owner/sites', label: '分站栏目' },
+  { href: '/owner/display', label: '展示与模块' },
+  { href: '/owner/settings', label: '设置' },
+];
+const active = (href: string) => (href === '/owner' ? path === '/owner' || path === '/owner/' : path.startsWith(href));
+---
+
+<Base title={`${title} · 工作台`} noindex bodyClass="owner-body">
+  <meta slot="head" name="csrf-token" content={owner.csrfToken} />
+  <a class="skip-link" href="#owner-main">跳到内容</a>
+  <header class="owner-header">
+    <div class:list={['owner-wrap', { wide }]}>
+      <div class="owner-top">
+        <a class="owner-brand" href="/owner">
+          <span class="owner-mark" aria-hidden="true">{settings.site.title.slice(0, 1)}</span>
+          <span>
+            <strong>{settings.site.title}</strong>
+            <small>站主工作台</small>
+          </span>
+        </a>
+        <div class="owner-user">
+          <span class="faint">{owner.username}</span>
+          <button class="btn btn-sm btn-ghost" type="button" data-theme-toggle aria-label="切换深浅色">◐</button>
+          <button class="btn btn-sm" type="button" data-logout>退出</button>
+        </div>
+      </div>
+      <nav class="owner-nav" aria-label="工作台导航">
+        {
+          NAV.map((n) => (
+            <a href={n.href} class:list={{ active: active(n.href) }} aria-current={active(n.href) ? 'page' : undefined}>
+              {n.label}
+            </a>
+          ))
+        }
+      </nav>
+    </div>
+  </header>
+  <main id="owner-main" class:list={['owner-wrap', 'owner-main', { wide }]}>
+    {
+      heading && (
+        <div class="owner-heading">
+          <div>
+            <h1>{heading}</h1>
+            {subtitle && <p>{subtitle}</p>}
+          </div>
+          <div class="owner-heading-actions">
+            <slot name="actions" />
+          </div>
+        </div>
+      )
+    }
+    <slot />
+  </main>
+  {settings.previewBall.enabled && <PreviewBall mode="owner" position={settings.previewBall.position} />}
+</Base>
+
+<script>
+  import { api } from '../lib/client';
+  import { initThemeToggle } from '../lib/theme';
+  initThemeToggle();
+  document.querySelector('[data-logout]')?.addEventListener('click', async () => {
+    await api.post('/api/auth/logout');
+    location.href = '/owner/login';
+  });
+</script>

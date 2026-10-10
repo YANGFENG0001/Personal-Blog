@@ -1,0 +1,55 @@
+/* Long-form reading typography. Shared by public articles and the editor preview. */
+.prose {
+  font-size: 16px;
+  line-height: 2;
+  color: var(--ink);
+  max-width: 740px;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+}
+.prose > :first-child { margin-top: 0; }
+.prose p, .prose ul, .prose ol, .prose blockquote, .prose pre, .prose table, .prose .katex-display, .prose figure { margin: 0 0 1.25em; }
+.prose h1, .prose h2, .prose h3, .prose h4 { font-family: var(--serif); font-weight: 600; letter-spacing: -0.01em; scroll-margin-top: calc(var(--header-h) + 20px); }
+.prose h1 { font-size: 1.7em; margin: 2em 0 0.8em; }
+.prose h2 { font-size: 1.4em; margin: 2.2em 0 0.8em; padding-bottom: 0.3em; border-bottom: 1px solid var(--line); }
+.prose h3 { font-size: 1.18em; margin: 1.8em 0 0.6em; }
+.prose h4 { font-size: 1.02em; margin: 1.5em 0 0.5em; }
+.prose a { color: var(--accent); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+.prose a:hover { text-decoration-color: var(--accent); }
+.prose strong { font-weight: 650; }
+.prose ul, .prose ol { padding-left: 1.5em; }
+.prose li { margin: 0.3em 0; }
+.prose li > ul, .prose li > ol { margin: 0.2em 0; }
+.prose li::marker { color: var(--faint); }
+.prose blockquote { border-left: 2px solid var(--accent); padding: 0.1em 0 0.1em 1.2em; color: var(--muted); }
+.prose blockquote > :last-child { margin-bottom: 0; }
+.prose hr { margin: 2.5em auto; width: 40%; }
+.prose img { display: block; margin: 1.5em auto; border-radius: var(--radius); }
+.prose input[type='checkbox'] { accent-color: var(--accent); margin-right: 0.4em; }
+.prose .contains-task-list { list-style: none; padding-left: 0.2em; }
+
+.prose code {
+  font-family: var(--mono); font-size: 0.86em; background: var(--pane); padding: 0.15em 0.4em;
+  border-radius: 3px; border: 1px solid var(--line);
+}
+.prose pre {
+  font-family: var(--mono); font-size: 13.5px; line-height: 1.7; padding: 16px 18px; overflow-x: auto;
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--pane);
+}
+.prose pre code { background: none; border: 0; padding: 0; font-size: inherit; }
+
+/* Shiki dual themes (defaultColor: false → CSS variables). */
+.prose pre.shiki { background-color: var(--shiki-light-bg); }
+.prose pre.shiki span { color: var(--shiki-light); }
+:root[data-theme='dark'] .prose pre.shiki { background-color: var(--shiki-dark-bg); }
+:root[data-theme='dark'] .prose pre.shiki span { color: var(--shiki-dark); }
+@media (prefers-color-scheme: dark) {
+  :root[data-theme='auto'] .prose pre.shiki { background-color: var(--shiki-dark-bg); }
+  :root[data-theme='auto'] .prose pre.shiki span { color: var(--shiki-dark); }
+}
+
+.prose table { display: block; overflow-x: auto; border-collapse: collapse; font-size: 14px; line-height: 1.7; max-width: 100%; }
+.prose th, .prose td { border: 1px solid var(--line); padding: 7px 12px; text-align: left; }
+.prose th { background: var(--pane); font-weight: 600; }
+.prose .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.4em 0; }
+.prose .katex { font-size: 1.05em; }

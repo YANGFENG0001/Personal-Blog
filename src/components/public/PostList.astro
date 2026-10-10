@@ -1,0 +1,74 @@
+---
+import { fmtDate, postUrl } from '../../lib/format';
+import type { PostSummary } from '../../server/services/posts';
+
+interface Props {
+  posts: PostSummary[];
+  layout?: 'list' | 'cards' | 'compact';
+  showSite?: boolean;
+  empty?: string;
+}
+const { posts, layout = 'list', showSite = false, empty = '这里还没有公开的文章。' } = Astro.props;
+---
+
+{
+  posts.length === 0 ? (
+    <p class="empty">{empty}</p>
+  ) : (
+    <ol class:list={['posts', `posts-${layout}`]} role="list">
+      {posts.map((p, i) => (
+        <li class="post reveal" style={`animation-delay:${Math.min(i, 8) * 40}ms`}>
+          <a class="post-link" href={postUrl(p)}>
+            <div class="post-main">
+              <div class="post-kicker">
+                {showSite && <span>{p.siteName}</span>}
+                <span>{p.categoryName}</span>
+                {p.featured && <span class="pill pill-accent">精选</span>}
+                {p.progressPublic && p.progress && <span class="pill">{p.progress}</span>}
+              </div>
+              <h3 class="post-title">{p.title}</h3>
+              {layout !== 'compact' && p.summary && <p class="post-summary">{p.summary}</p>}
+              {layout !== 'compact' && p.tags.length > 0 && (
+                <div class="post-tags">
+                  {p.tags.slice(0, 4).map((t) => (
+                    <span>#{t}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div class="post-side">
+              <time datetime={p.publishedAt ?? undefined}>{fmtDate(p.publishedAt)}</time>
+              {layout !== 'compact' && <span>{p.readingMinutes} 分钟</span>}
+            </div>
+          </a>
+        </li>
+      ))}
+    </ol>
+  )
+}
+
+<style>
+  .posts { list-style: none; margin: 0; padding: 0; }
+  .post { border-bottom: 1px solid var(--line); }
+  .post-link { display: grid; grid-template-columns: minmax(0, 1fr) 96px; gap: 16px; padding: 22px 0; }
+  .post-link:hover .post-title { color: var(--accent); }
+  .post-kicker { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; font-size: 11px; color: var(--accent); letter-spacing: 0.04em; margin-bottom: 6px; }
+  .post-title { font: 600 18px/1.6 var(--serif); margin: 0 0 6px; transition: color calc(0.2s * var(--dur)); }
+  .post-summary { color: var(--muted); font-size: 14px; line-height: 1.9; margin: 0 0 8px; max-width: 640px; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .post-tags { display: flex; flex-wrap: wrap; gap: 12px; font-size: 11px; color: var(--faint); }
+  .post-side { display: grid; align-content: start; justify-items: end; gap: 2px; font-size: 12px; color: var(--faint); padding-top: 22px; }
+  .posts-compact .post-link { padding: 12px 0; }
+  .posts-compact .post-title { font-size: 15px; margin: 0; }
+  .posts-compact .post-side { padding-top: 4px; }
+  .posts-compact .post-kicker { margin-bottom: 2px; }
+  .posts-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+  .posts-cards .post { border: 1px solid var(--line); border-radius: 6px; background: var(--surface); transition: border-color calc(0.2s * var(--dur)), transform calc(0.3s * var(--dur)) var(--ease); }
+  .posts-cards .post:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); transform: translateY(-2px); }
+  .posts-cards .post-link { grid-template-columns: 1fr; padding: 18px 20px; height: 100%; }
+  .posts-cards .post-side { justify-items: start; padding-top: 0; grid-auto-flow: column; justify-content: start; gap: 12px; }
+  .empty { padding: 48px 4px; color: var(--muted); }
+  @media (max-width: 600px) {
+    .post-link { grid-template-columns: 1fr; gap: 4px; }
+    .post-side { justify-items: start; grid-auto-flow: column; justify-content: start; gap: 12px; padding-top: 0; }
+  }
+</style>

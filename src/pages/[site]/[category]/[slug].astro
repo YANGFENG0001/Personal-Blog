@@ -1,0 +1,256 @@
+---
+import PublicLayout from '../../../layouts/PublicLayout.astro';
+import Sidebar from '../../../components/public/Sidebar.astro';
+import { fmtDate } from '../../../lib/format';
+import { iconSvg } from '../../../lib/icons';
+import { isModuleActive } from '../../../server/services/config';
+import { findPublicPostPath, getPublicPost, listPublicPosts } from '../../../server/services/posts';
+import { getSiteBySlug, getCategoryBySlug } from '../../../server/services/sites';
+import 'katex/dist/katex.min.css';
+import '../../../styles/prose.css';
+
+const { site: siteSlug, category: catSlug, slug } = Astro.params;
+const post = getPublicPost(siteSlug!, catSlug!, slug!);
+if (!post) {
+  // Renamed slug or moved category → permanent redirect to the canonical URL.
+  const path = findPublicPostPath(slug!);
+  if (path && path !== Astro.url.pathname) return Astro.redirect(path, 301);
+  return Astro.rewrite('/404');
+}
+const site = getSiteBySlug(post.siteSlug)!;
+const category = getCategoryBySlug(site.id, post.categorySlug)!;
+const showToc = isModuleActive('public-article', 'toc') && post.toc.length >= 2;
+const showReflection = isModuleActive('public-article', 'reflection') && !!post.reflectionHtml;
+const hasLinks = post.links.length > 0;
+
+const siblings = listPublicPosts({ categoryId: post.categoryId, limit: 100 }).items;
+const idx = siblings.findIndex((p) => p.id === post.id);
+const newer = idx > 0 ? siblings[idx - 1] : undefined;
+const older = idx >= 0 ? siblings[idx + 1] : undefined;
+const KIND: Record<string, string> = { paper: '论文', code: '代码', project: '项目', docs: '文档', blog: '博客', dataset: '数据集', other: '链接' };
+const host = (u: string) => { try { return new URL(u).host.replace(/^www\./, ''); } catch { return ''; } };
+---
+
+<PublicLayout
+  title={post.title}
+  description={post.summary}
+  canonical={`/${post.siteSlug}/${post.categorySlug}/${post.slug}`}
+  ogType="article"
+  site={site}
+  category={category}
+  isArticle
+>
+  <Fragment slot="head">
+    <meta property="article:published_time" content={post.publishedAt} />
+    <meta property="article:modified_time" content={post.updatedAt} />
+    {post.tags.map((t) => <meta property="article:tag" content={t} />)}
+  </Fragment>
+
+  <div class="article-shell">
+    <article class="article reveal" aria-labelledby="post-title">
+      <header class="article-head">
+        <nav class="crumbs" aria-label="位置">
+          <a href={`/${site.slug}`}>{site.name}</a><span>/</span><a href={`/${site.slug}/${category.slug}`}>{category.name}</a>
+        </nav>
+        <h1 id="post-title">{post.title}</h1>
+        {post.summary && <p class="lead">{post.summary}</p>}
+        <div class="meta">
+          <time datetime={post.publishedAt}>{fmtDate(post.publishedAt)}</time>
+          {post.updatedAt.slice(0, 10) !== post.publishedAt?.slice(0, 10) && <span>更新于 {fmtDate(post.updatedAt)}</span>}
+          <span>约 {post.readingMinutes} 分钟</span>
+          {post.progress && <span class="pill pill-accent">{post.progress}</span>}
+        </div>
+        {post.coverUrl && <img class="cover" src={post.coverUrl} alt="" loading="eager" />}
+      </header>
+
+      {
+        showToc && (
+          <details class="toc toc-inline">
+            <summary>目录</summary>
+            <ol>
+              {post.toc.map((t) => (
+                <li class={`d${t.depth}`}>
+                  <a href={`#${t.id}`}>{t.text}</a>
+                </li>
+              ))}
+            </ol>
+          </details>
+        )
+      }
+
+      <div class="prose" set:html={post.bodyHtml} />
+
+      {
+        showReflection && (
+          <section class="reflection" aria-labelledby="reflection-title">
+            <h2 id="reflection-title">我的心得</h2>
+            <div class="prose" set:html={post.reflectionHtml} />
+          </section>
+        )
+      }
+
+      {/* On narrow screens related links flow naturally after the body. */}
+      {
+        hasLinks && (
+          <section class="links links-mobile" aria-label="相关资料">
+            <h2>相关资料</h2>
+            <ul role="list">
+              {post.links.map((l) => (
+                <li>
+                  <a href={l.url} target="_blank" rel="noopener noreferrer nofollow">
+                    <span class="lk-kind">{KIND[l.kind] ?? '链接'}</span>
+                    <span class="lk-label">{l.label}</span>
+                    <span class="lk-host">{host(l.url)}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )
+      }
+
+      {
+        post.tags.length > 0 && (
+          <div class="tags">
+            {post.tags.map((t) => (
+              <a class="pill" href={`/tags/${encodeURIComponent(t)}`}>
+                #{t}
+              </a>
+            ))}
+          </div>
+        )
+      }
+
+      <nav class="adjacent" aria-label="相邻文章">
+        {older ? <a href={`/${older.siteSlug}/${older.categorySlug}/${older.slug}`} rel="prev"><small>← 上一篇</small>{older.title}</a> : <span />}
+        {newer ? <a class="next" href={`/${newer.siteSlug}/${newer.categorySlug}/${newer.slug}`} rel="next"><small>下一篇 →</small>{newer.title}</a> : <span />}
+      </nav>
+    </article>
+
+    <div class="article-aside"><div class="aside-sticky">
+      {
+        showToc && (
+          <nav class="toc toc-side" aria-label="文章目录">
+            <div class="aside-heading">目录</div>
+            <ol>
+              {post.toc.map((t) => (
+                <li class={`d${t.depth}`}>
+                  <a href={`#${t.id}`} data-toc-link={t.id}>
+                    {t.text}
+                  </a>
+                </li>
+              ))}
+            </ol>
+          </nav>
+        )
+      }
+      {
+        hasLinks ? (
+          <aside class="links links-side" aria-label="相关资料">
+            <div class="aside-heading">相关资料</div>
+            <ul role="list">
+              {post.links.map((l) => (
+                <li>
+                  <a href={l.url} target="_blank" rel="noopener noreferrer nofollow">
+                    <span class="lk-kind">{KIND[l.kind] ?? '链接'}</span>
+                    <span class="lk-label">
+                      {l.label}
+                      <Fragment set:html={iconSvg('external', 'lk-ext')} />
+                    </span>
+                    <span class="lk-host">{host(l.url)}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </aside>
+        ) : (
+          <div class="default-side">
+            <Sidebar site={site} />
+          </div>
+        )
+      }
+    </div></div>
+  </div>
+</PublicLayout>
+
+<style>
+  .article-shell { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 64px; padding-top: 36px; }
+  .crumbs { display: flex; gap: 8px; font-size: 12px; color: var(--faint); margin-bottom: 14px; }
+  .crumbs a:hover { color: var(--accent); }
+  .article-head h1 { font: 500 clamp(26px, 3.4vw, 36px)/1.55 var(--serif); letter-spacing: -0.025em; margin: 0 0 14px; }
+  .lead { font-size: 15px; line-height: 2; color: var(--muted); margin: 0 0 16px; max-width: 700px; }
+  .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; font-size: 12px; color: var(--faint); padding-bottom: 26px; border-bottom: 1px solid var(--line); margin-bottom: 32px; }
+  .cover { display: block; margin: -8px 0 32px; border-radius: 6px; max-height: 420px; width: 100%; object-fit: cover; }
+  .reflection { margin: 44px 0 0; padding: 22px 26px; background: var(--pane); border-left: 2px solid var(--accent); border-radius: 0 6px 6px 0; max-width: 740px; }
+  .reflection h2 { font: 600 15px var(--serif); margin: 0 0 10px; color: var(--accent); letter-spacing: 0.08em; }
+  .reflection .prose { font-size: 15px; }
+  .tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 40px 0 0; }
+  .tags a:hover { color: var(--accent); border-color: var(--accent); }
+  .adjacent { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--line); max-width: 740px; }
+  .adjacent a { display: grid; gap: 4px; font: 500 14px/1.7 var(--serif); }
+  .adjacent a:hover { color: var(--accent); }
+  .adjacent small { font: 11px var(--sans); color: var(--faint); }
+  .adjacent .next { text-align: right; }
+
+  .article-aside { align-self: stretch; }
+  .aside-sticky { position: sticky; top: calc(var(--header-h) + 76px); display: flex; flex-direction: column; gap: 28px; }
+  .aside-sticky:has(.links-side) { height: calc(100vh - var(--header-h) - 110px); }
+  .aside-heading { font-size: 10px; font-weight: 700; letter-spacing: 0.18em; color: var(--faint); margin-bottom: 12px; }
+  .toc ol { list-style: none; margin: 0; padding: 0; }
+  .toc li { margin: 0; }
+  .toc a { display: block; font-size: 12.5px; line-height: 1.6; padding: 4px 0 4px 12px; color: var(--muted); border-left: 1px solid var(--line); transition: color 0.15s, border-color 0.15s; }
+  .toc .d3 a { padding-left: 24px; font-size: 12px; }
+  .toc .d4 a { padding-left: 36px; font-size: 12px; }
+  .toc a:hover, .toc a[aria-current='true'] { color: var(--accent); border-left-color: var(--accent); }
+  .toc-side { max-height: 52vh; overflow-y: auto; min-height: 0; }
+  .toc-inline { display: none; margin: 0 0 24px; border: 1px solid var(--line); border-radius: 6px; padding: 10px 16px; }
+  .toc-inline summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+  .toc-inline ol { margin-top: 10px; }
+
+  /* Related links REPLACE the default sidebar, anchored toward the lower right. */
+  .links-side { margin-top: auto; border-left: 1px solid var(--line); padding-left: 22px; animation: rise calc(0.6s * var(--dur)) var(--ease) both; overflow-y: auto; min-height: 0; }
+  .links ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+  .links a { display: grid; grid-template-columns: auto 1fr; gap: 0 10px; padding: 9px 0; border-bottom: 1px dashed var(--line); }
+  .links li:last-child a { border-bottom: 0; }
+  .lk-kind { grid-row: span 2; font-size: 10px; letter-spacing: 0.1em; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); border-radius: 3px; padding: 0 5px; align-self: start; margin-top: 3px; }
+  .lk-label { font-size: 13px; line-height: 1.6; display: inline-flex; gap: 4px; align-items: center; }
+  .lk-label :global(.lk-ext) { width: 11px; height: 11px; opacity: 0.5; flex: none; }
+  .lk-host { font-size: 11px; color: var(--faint); }
+  .links a:hover .lk-label { color: var(--accent); }
+  .links-mobile { display: none; margin-top: 40px; padding: 18px 20px; border: 1px solid var(--line); border-radius: 6px; }
+  .links-mobile h2 { font: 600 15px var(--serif); margin: 0 0 8px; }
+  .default-side { display: contents; }
+
+  @media (max-width: 960px) {
+    .article-shell { grid-template-columns: 1fr; gap: 0; }
+    .toc-inline { display: block; }
+    .toc-side, .links-side { display: none; }
+    .links-mobile { display: block; }
+    .aside-sticky { position: static; height: auto !important; }
+    .article-aside:not(:has(.default-side)) { display: none; }
+    .default-side { display: block; margin-top: 40px; }
+  }
+</style>
+
+<script>
+  // Highlight the current section in the side TOC.
+  const links = [...document.querySelectorAll<HTMLAnchorElement>('[data-toc-link]')];
+  if (links.length && 'IntersectionObserver' in window) {
+    const map = new Map(links.map((a) => [a.dataset.tocLink!, a]));
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            links.forEach((a) => a.removeAttribute('aria-current'));
+            map.get(e.target.id)?.setAttribute('aria-current', 'true');
+          }
+        }
+      },
+      { rootMargin: '-15% 0px -70% 0px' },
+    );
+    map.forEach((_a, id) => {
+      const h = document.getElementById(id);
+      if (h) io.observe(h);
+    });
+  }
+</script>

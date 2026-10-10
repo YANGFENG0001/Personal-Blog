@@ -1,0 +1,99 @@
+---
+import { activeModules } from '../../server/services/config';
+import { getAllSettings } from '../../server/services/settings';
+import { listPublicTags } from '../../server/services/posts';
+import { publicStats } from '../../server/services/stats';
+import type { Site } from '../../server/services/sites';
+
+interface Props {
+  site?: Site | null;
+}
+const { site = null } = Astro.props;
+const settings = getAllSettings();
+const modules = activeModules('public-sidebar');
+const stats = modules.some((m) => m.type === 'stats') ? publicStats(site?.id) : [];
+const tags = modules.some((m) => m.type === 'tags') ? listPublicTags().slice(0, 18) : [];
+---
+
+<aside class="sidebar" aria-label="侧栏">
+  {
+    modules.map((m) => {
+      if (m.type === 'about' && settings.profile.public)
+        return (
+          <section class="side-block">
+            <h2 class="side-heading">{m.name}</h2>
+            {site ? (
+              <>
+                <div class="side-name">{site.name}</div>
+                {site.description && <p class="side-desc">{site.description}</p>}
+              </>
+            ) : (
+              <>
+                <div class="side-name">{settings.profile.name}</div>
+                <p class="side-desc">{settings.profile.bio}</p>
+              </>
+            )}
+          </section>
+        );
+      if (m.type === 'stats' && stats.length > 0)
+        return (
+          <section class="side-block">
+            <h2 class="side-heading">{m.name}</h2>
+            <dl class="metrics">
+              {stats.map((s) => (
+                <div class="metric" title={s.description}>
+                  <dt>{s.label}</dt>
+                  <dd>
+                    {s.value}
+                    <small>{s.unit}</small>
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        );
+      if (m.type === 'tags' && tags.length > 0)
+        return (
+          <section class="side-block">
+            <h2 class="side-heading">{m.name}</h2>
+            <div class="side-tags">
+              {tags.map((t) => (
+                <a href={`/tags/${encodeURIComponent(t.tag)}`}>
+                  {t.tag}
+                  <small>{t.count}</small>
+                </a>
+              ))}
+            </div>
+          </section>
+        );
+      if (m.type === 'colophon')
+        return (
+          <section class="side-block">
+            <h2 class="side-heading">{m.name}</h2>
+            <p class="side-note">{settings.site.intro}</p>
+          </section>
+        );
+      return null;
+    })
+  }
+</aside>
+
+<style>
+  .sidebar { align-self: start; position: sticky; top: calc(var(--header-h) + 60px); border-left: 1px solid var(--line); padding-left: 26px; }
+  .side-block { margin-bottom: 26px; padding-bottom: 26px; border-bottom: 1px solid var(--line); }
+  .side-block:last-child { border: 0; margin: 0; padding: 0; }
+  .side-heading { font-size: 10px; font-weight: 700; letter-spacing: 0.18em; color: var(--faint); margin: 0 0 12px; }
+  .side-name { font: 500 17px var(--serif); }
+  .side-desc, .side-note { margin: 8px 0 0; color: var(--muted); font-size: 13px; line-height: 1.95; }
+  .metrics { margin: 0; }
+  .metric { display: flex; justify-content: space-between; align-items: baseline; padding: 9px 0; border-bottom: 1px solid var(--line); }
+  .metric:last-child { border: 0; }
+  .metric dt { font-size: 12px; color: var(--muted); }
+  .metric dd { margin: 0; font: 500 19px Georgia, var(--serif); }
+  .metric small { font: 11px var(--sans); color: var(--faint); margin-left: 3px; }
+  .side-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .side-tags a { font-size: 12px; color: var(--muted); border: 1px solid var(--line); padding: 1px 8px; border-radius: 3px; }
+  .side-tags a:hover { color: var(--accent); border-color: var(--accent); }
+  .side-tags small { color: var(--faint); margin-left: 4px; font-size: 10px; }
+  @media (max-width: 960px) { .sidebar { position: static; border-left: 0; padding-left: 0; border-top: 1px solid var(--line); padding-top: 28px; } }
+</style>

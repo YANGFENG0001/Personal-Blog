@@ -1,0 +1,54 @@
+---
+import PublicLayout from '../../layouts/PublicLayout.astro';
+import { publicKnowledgeTree, type KnowledgeNode } from '../../server/services/knowledge';
+
+const tree = publicKnowledgeTree();
+const count = (n: KnowledgeNode): number => n.postIds.length + n.children.reduce((a, c) => a + count(c), 0);
+---
+
+<PublicLayout title="知识库" canonical="/knowledge" description="按主题组织的学习与研究知识体系。">
+  <section class="page-head">
+    <div class="eyebrow">KNOWLEDGE</div>
+    <h1>知识库</h1>
+    <p class="muted">按主题组织的学习与研究笔记，像一张慢慢长大的地图。</p>
+  </section>
+  {tree.length === 0 && <p class="muted">知识库正在整理中。</p>}
+  <div class="kgrid">
+    {
+      tree.map((n) => (
+        <section class="kcard">
+          <a class="ktitle" href={`/knowledge/${n.slug}`}>
+            {n.title}
+            <small>{count(n)} 篇</small>
+          </a>
+          {n.description && <p>{n.description}</p>}
+          {n.children.length > 0 && (
+            <ul role="list">
+              {n.children.map((c) => (
+                <li>
+                  <a href={`/knowledge/${c.slug}`}>{c.title}</a>
+                  <small>{count(c)}</small>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ))
+    }
+  </div>
+</PublicLayout>
+
+<style>
+  .page-head { padding: 40px 0 24px; }
+  .page-head h1 { font: 500 34px var(--serif); margin: 8px 0 6px; }
+  .kgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+  .kcard { border: 1px solid var(--line); border-radius: 6px; padding: 18px 20px; background: var(--surface); }
+  .ktitle { font: 600 17px var(--serif); display: flex; justify-content: space-between; align-items: baseline; }
+  .ktitle:hover { color: var(--accent); }
+  .ktitle small, .kcard li small { font: 11px var(--sans); color: var(--faint); }
+  .kcard p { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
+  .kcard ul { list-style: none; padding: 0; margin: 12px 0 0; border-top: 1px solid var(--line); }
+  .kcard li { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; border-bottom: 1px dashed var(--line); }
+  .kcard li:last-child { border: 0; }
+  .kcard li a:hover { color: var(--accent); }
+</style>

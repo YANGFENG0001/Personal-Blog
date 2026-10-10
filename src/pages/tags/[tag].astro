@@ -1,0 +1,23 @@
+---
+import PublicLayout from '../../layouts/PublicLayout.astro';
+import PostList from '../../components/public/PostList.astro';
+import { listPublicPosts } from '../../server/services/posts';
+
+const tag = Astro.params.tag!;
+const { items } = listPublicPosts({ tag, limit: 200 });
+if (items.length === 0) return Astro.rewrite('/404');
+---
+
+<PublicLayout title={`#${tag}`} canonical={`/tags/${encodeURIComponent(tag)}`}>
+  <section class="page-head">
+    <div class="eyebrow"><a href="/tags">TAGS</a></div>
+    <h1>#{tag}</h1>
+    <p class="muted">{items.length} 篇文章</p>
+  </section>
+  <PostList posts={items} showSite />
+</PublicLayout>
+
+<style>
+  .page-head { padding: 40px 0 8px; }
+  .page-head h1 { font: 500 34px var(--serif); margin: 8px 0 6px; }
+</style>

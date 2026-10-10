@@ -1,0 +1,105 @@
+---
+import PublicLayout from '../layouts/PublicLayout.astro';
+import PostList from '../components/public/PostList.astro';
+import Sidebar from '../components/public/Sidebar.astro';
+import { iconSvg } from '../lib/icons';
+import { activeModules } from '../server/services/config';
+import { getSetting } from '../server/services/settings';
+import { listPublicPosts } from '../server/services/posts';
+import { publicSiteTree } from '../server/services/sites';
+
+const site = getSetting('site');
+const modules = activeModules('public-home');
+const tree = publicSiteTree();
+const recent = listPublicPosts({ limit: 8 });
+const featured = listPublicPosts({ featured: true, limit: 3 }).items;
+---
+
+<PublicLayout title={site.title} canonical="/">
+  <section class="hero reveal">
+    <div class="eyebrow hero-eyebrow">{site.subtitle}</div>
+    <h1>{site.intro}</h1>
+    <div class="hero-meta">
+      <span>{tree.length} 个分站</span>
+      <span>{recent.total} 篇公开文章</span>
+      <span>按 Alt + S 或移向左侧切换分站</span>
+    </div>
+  </section>
+
+  <div class="content-shell">
+    <div class="main-col">
+      {
+        modules.map((m) => {
+          if (m.type === 'featured' && featured.length > 0)
+            return (
+              <section class="block">
+                <div class="block-head">
+                  <h2>{m.name}</h2>
+                </div>
+                <PostList posts={featured} layout="cards" showSite />
+              </section>
+            );
+          if (m.type === 'recent')
+            return (
+              <section class="block">
+                <div class="block-head">
+                  <h2>{m.name}</h2>
+                  <a href="/archive">全部归档 →</a>
+                </div>
+                <PostList posts={recent.items} showSite />
+              </section>
+            );
+          if (m.type === 'sites' && tree.length > 0)
+            return (
+              <section class="block">
+                <div class="block-head">
+                  <h2>{m.name}</h2>
+                </div>
+                <ul class="site-grid" role="list">
+                  {tree.map((s) => (
+                    <li>
+                      <a href={`/${s.slug}`} class="site-card">
+                        <span class="site-icon" set:html={iconSvg(s.icon)} />
+                        <span class="site-name">
+                          {s.name}
+                          <small>{s.enName}</small>
+                        </span>
+                        <span class="site-desc">{s.description}</span>
+                        <span class="site-cats">{s.categories.map((c) => c.name).join(' · ')}</span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            );
+          return null;
+        })
+      }
+    </div>
+    <Sidebar />
+  </div>
+</PublicLayout>
+
+<style>
+  .hero { padding: 64px 0 48px; border-bottom: 1px solid var(--line); }
+  .hero-eyebrow { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; }
+  .hero-eyebrow::before { content: ''; width: 24px; height: 1px; background: var(--accent); }
+  .hero h1 { font: 400 clamp(24px, 3vw, 36px)/1.7 var(--serif); letter-spacing: -0.01em; margin: 0; max-width: 820px; }
+  .hero-meta { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-top: 28px; font-size: 12px; color: var(--faint); }
+  .hero-meta span + span::before { content: '·'; margin-right: 22px; color: var(--accent); }
+  .content-shell { display: grid; grid-template-columns: minmax(0, 1fr) 236px; gap: 64px; padding-top: 40px; }
+  .block { margin-bottom: 44px; }
+  .block-head { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--line); padding-bottom: 10px; }
+  .block-head h2 { font: 600 19px var(--serif); margin: 0; }
+  .block-head a { font-size: 12px; color: var(--accent); }
+  .site-grid { list-style: none; padding: 0; margin: 18px 0 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+  .site-card { display: grid; gap: 6px; padding: 18px; border: 1px solid var(--line); border-radius: 6px; height: 100%; transition: border-color calc(0.2s * var(--dur)); }
+  .site-card:hover { border-color: var(--accent); }
+  .site-icon { color: var(--accent); }
+  .site-icon :global(svg) { width: 20px; height: 20px; }
+  .site-name { font: 600 16px var(--serif); display: flex; gap: 8px; align-items: baseline; }
+  .site-name small { font: 9px var(--sans); letter-spacing: 0.18em; color: var(--faint); }
+  .site-desc { font-size: 13px; color: var(--muted); line-height: 1.8; }
+  .site-cats { font-size: 11px; color: var(--faint); }
+  @media (max-width: 960px) { .content-shell { grid-template-columns: 1fr; gap: 24px; } }
+</style>

@@ -1,0 +1,151 @@
+---
+import Base from './Base.astro';
+import SiteDial from '../components/public/SiteDial.astro';
+import AvatarCard from '../components/public/AvatarCard.astro';
+import Ambient from '../components/public/Ambient.astro';
+import PreviewBall from '../components/PreviewBall.astro';
+import { iconSvg } from '../lib/icons';
+import { publicSiteTree, type Site, type Category } from '../server/services/sites';
+import { getAllSettings } from '../server/services/settings';
+
+interface Props {
+  title: string;
+  description?: string;
+  canonical?: string;
+  ogType?: 'website' | 'article';
+  site?: Site | null;
+  category?: Category | null;
+  isArticle?: boolean;
+  noindex?: boolean;
+}
+
+const { title, description, canonical, ogType, site: current = null, category = null, isArticle = false, noindex } = Astro.props;
+const settings = getAllSettings();
+const tree = publicSiteTree();
+const currentTree = current ? tree.find((s) => s.id === current.id) : null;
+const monogram = settings.site.title.slice(0, 1).toUpperCase();
+const owner = Astro.locals.owner;
+---
+
+<Base title={title} description={description} canonical={canonical} ogType={ogType} noindex={noindex}>
+  <a class="skip-link" href="#main">跳到正文</a>
+  <div class="topline" aria-hidden="true"></div>
+  <header class="site-header">
+    <div class="wrap header-row">
+      <a class="brand" href="/" aria-label={`${settings.site.title} 首页`}>
+        <span class="brandmark" data-brandmark aria-hidden="true">{monogram}</span>
+        <span class="brand-text">
+          <span class="brand-title">{settings.site.title}</span>
+          <span class="brand-sub">{settings.site.subtitle}</span>
+        </span>
+      </a>
+      {current && <div class="header-site" aria-hidden="true">{current.name}<span>{current.enName}</span></div>}
+      <div class="header-actions">
+        <a class="icon-btn" href="/search" aria-label="搜索" title="搜索 (/)" data-search-link set:html={iconSvg('search')} />
+        <button class="icon-btn" type="button" aria-label="切换深浅色" title="切换深浅色" data-theme-toggle>
+          <Fragment set:html={iconSvg('sun', 'i-sun')} /><Fragment set:html={iconSvg('moon', 'i-moon')} />
+        </button>
+        {settings.profile.public && <AvatarCard profile={settings.profile} />}
+      </div>
+    </div>
+    {
+      currentTree && currentTree.categories.length > 0 && (
+        <nav class="wrap category-bar" aria-label={`${current!.name}栏目`}>
+          <a href={`/${current!.slug}`} class:list={{ active: !category }} aria-current={!category ? 'page' : undefined}>
+            全部
+          </a>
+          {currentTree.categories.map((c) => (
+            <a
+              href={`/${current!.slug}/${c.slug}`}
+              class:list={{ active: category?.id === c.id }}
+              aria-current={category?.id === c.id ? 'page' : undefined}
+            >
+              {c.name}
+            </a>
+          ))}
+        </nav>
+      )
+    }
+  </header>
+
+  <SiteDial sites={tree} currentSiteId={current?.id} style={settings.appearance.dialStyle} monogram={monogram} />
+
+  <main id="main" class="wrap main">
+    <slot />
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-row">
+      <span>© {new Date().getFullYear()} {settings.site.title} · {settings.site.footer}</span>
+      <nav class="footer-links" aria-label="站点链接">
+        <a href="/archive">归档</a>
+        <a href="/tags">标签</a>
+        <a href="/knowledge">知识库</a>
+        <a href="/rss.xml">RSS</a>
+      </nav>
+    </div>
+  </footer>
+
+  <Ambient config={settings.encourage} easter={settings.easter.enabled} isArticle={isArticle} />
+  {owner && settings.previewBall.enabled && <PreviewBall mode="visitor" position={settings.previewBall.position} />}
+</Base>
+
+<style>
+  .topline { height: 2px; background: var(--accent); }
+  .site-header {
+    position: sticky; top: 0; z-index: 40; background: color-mix(in srgb, var(--bg) 92%, transparent);
+    backdrop-filter: blur(18px); border-bottom: 1px solid var(--line);
+  }
+  .header-row { display: flex; align-items: center; gap: 24px; height: var(--header-h); }
+  .brand { display: inline-flex; align-items: center; gap: 12px; min-width: 0; }
+  .brandmark {
+    width: 36px; height: 36px; flex: none; display: grid; place-items: center; border: 1px solid var(--accent); color: var(--accent);
+    font: italic 20px Georgia, var(--serif); user-select: none; transition: transform calc(0.5s * var(--dur)) var(--ease);
+  }
+  .brand:hover .brandmark { transform: rotate(-6deg); }
+  .brand-text { display: grid; min-width: 0; }
+  .brand-title { font-size: 14px; font-weight: 700; letter-spacing: 0.18em; line-height: 1.3; }
+  .brand-sub { font-size: 11px; color: var(--faint); letter-spacing: 0.06em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .header-site { margin: auto; font: 14px var(--serif); color: var(--muted); letter-spacing: 0.12em; display: flex; gap: 10px; align-items: baseline; }
+  .header-site span { font: 10px var(--sans); letter-spacing: 0.2em; color: var(--faint); }
+  .header-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  [data-theme-toggle] :global(.i-moon) { display: none; }
+  :global(:root[data-theme='dark']) [data-theme-toggle] :global(.i-sun) { display: none; }
+  :global(:root[data-theme='dark']) [data-theme-toggle] :global(.i-moon) { display: block; }
+  @media (prefers-color-scheme: dark) {
+    :global(:root[data-theme='auto']) [data-theme-toggle] :global(.i-sun) { display: none; }
+    :global(:root[data-theme='auto']) [data-theme-toggle] :global(.i-moon) { display: block; }
+  }
+
+  .category-bar { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; padding: 2px 0 0; view-transition-name: catbar; }
+  .category-bar::-webkit-scrollbar { display: none; }
+  .category-bar a { position: relative; padding: 9px 14px 12px; font-size: 13px; color: var(--muted); white-space: nowrap; }
+  .category-bar a:first-child { padding-left: 2px; }
+  .category-bar a:hover { color: var(--ink); }
+  .category-bar a.active { color: var(--accent); font-weight: 650; }
+  .category-bar a.active::after { content: ''; position: absolute; left: 12px; right: 12px; bottom: -1px; height: 2px; background: var(--accent); }
+  .category-bar a:first-child.active::after { left: 0; }
+
+  .main { min-height: 60vh; padding-bottom: 40px; view-transition-name: main; }
+  .site-footer { margin-top: 72px; border-top: 1px solid var(--line); padding: 28px 0 44px; font-size: 12px; color: var(--faint); }
+  .footer-row { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .footer-links { display: flex; gap: 18px; }
+  .footer-links a:hover { color: var(--accent); }
+
+  @media (max-width: 720px) {
+    .header-site, .brand-sub { display: none; }
+    .header-row { gap: 12px; }
+  }
+</style>
+
+<script>
+  import { initThemeToggle } from '../lib/theme';
+  initThemeToggle();
+  document.addEventListener('keydown', (e) => {
+    const t = e.target as HTMLElement;
+    if (e.key === '/' && !e.metaKey && !e.ctrlKey && !/INPUT|TEXTAREA|SELECT/.test(t.tagName) && !t.isContentEditable) {
+      e.preventDefault();
+      location.href = '/search';
+    }
+  });
+</script>

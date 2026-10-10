@@ -1,0 +1,43 @@
+---
+import PublicLayout from '../../layouts/PublicLayout.astro';
+import PostList from '../../components/public/PostList.astro';
+import Sidebar from '../../components/public/Sidebar.astro';
+import Pager from '../../components/public/Pager.astro';
+import { getSiteBySlug } from '../../server/services/sites';
+import { findPublicPostPath, listPublicPosts } from '../../server/services/posts';
+
+const PER_PAGE = 15;
+const site = getSiteBySlug(Astro.params.site!, { publicOnly: true });
+if (!site) {
+  // `/<old-slug>` short links still resolve to a public post.
+  const path = findPublicPostPath(Astro.params.site!);
+  if (path) return Astro.redirect(path, 301);
+  return Astro.rewrite('/404');
+}
+const page = Math.max(1, Number(Astro.url.searchParams.get('page')) || 1);
+const { items, total } = listPublicPosts({ siteId: site.id, limit: PER_PAGE, offset: (page - 1) * PER_PAGE });
+const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
+---
+
+<PublicLayout title={site.name} description={site.description} canonical={`/${site.slug}`} site={site}>
+  <section class="section-hero reveal">
+    <div class="eyebrow">{site.enName}</div>
+    <h1>{site.name}</h1>
+    {site.description && <p>{site.description}</p>}
+  </section>
+  <div class="content-shell">
+    <div>
+      <PostList posts={items} />
+      <Pager page={page} totalPages={totalPages} baseHref={`/${site.slug}`} />
+    </div>
+    <Sidebar site={site} />
+  </div>
+</PublicLayout>
+
+<style>
+  .section-hero { padding: 40px 0 28px; border-bottom: 1px solid var(--line); }
+  .section-hero h1 { font: 500 clamp(28px, 3.6vw, 40px)/1.5 var(--serif); margin: 10px 0 10px; letter-spacing: -0.03em; }
+  .section-hero p { color: var(--muted); font-size: 14px; max-width: 620px; margin: 0; }
+  .content-shell { display: grid; grid-template-columns: minmax(0, 1fr) 236px; gap: 64px; padding-top: 16px; }
+  @media (max-width: 960px) { .content-shell { grid-template-columns: 1fr; gap: 24px; } }
+</style>

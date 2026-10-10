@@ -1,0 +1,31 @@
+---
+import PublicLayout from '../layouts/PublicLayout.astro';
+import PostList from '../components/public/PostList.astro';
+import { searchPublicPosts } from '../server/services/posts';
+
+const q = (Astro.url.searchParams.get('q') ?? '').slice(0, 100);
+const results = q.trim() ? searchPublicPosts(q) : [];
+---
+
+<PublicLayout title={q ? `搜索：${q}` : '搜索'} noindex>
+  <section class="search-hero">
+    <form action="/search" method="get" role="search" class="search-form">
+      <label for="q" class="sr-only">搜索文章</label>
+      <input id="q" name="q" type="search" value={q} placeholder="搜索标题、摘要、正文或标签…" autofocus autocomplete="off" maxlength="100" />
+      <button class="btn btn-primary" type="submit">搜索</button>
+    </form>
+    {q && <p class="search-count">找到 {results.length} 篇与「{q}」相关的公开文章</p>}
+  </section>
+  {q && <PostList posts={results} showSite empty="没有找到匹配的文章，换个关键词试试。" />}
+</PublicLayout>
+
+<style>
+  .search-hero { padding: 48px 0 16px; }
+  .search-form { display: flex; gap: 10px; max-width: 680px; }
+  .search-form input {
+    flex: 1; min-width: 0; font-size: 17px; padding: 12px 4px; border: 0; border-bottom: 1px solid var(--line);
+    background: transparent; color: var(--ink); font-family: var(--serif);
+  }
+  .search-form input:focus { outline: none; border-bottom-color: var(--accent); }
+  .search-count { color: var(--faint); font-size: 13px; margin: 20px 0 0; }
+</style>

@@ -1,0 +1,81 @@
+/* Design tokens — distilled from the V4 prototype, refined.
+   System font stacks (no remote fonts): fast in every region, no third-party requests. */
+
+:root {
+  --serif: 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'STSong', 'SimSun', Georgia, serif;
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
+    'Noto Sans CJK SC', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', 'SFMono-Regular', ui-monospace, Menlo, Consolas, 'Liberation Mono', monospace;
+
+  --bg: #f8f8f5;
+  --surface: #ffffff;
+  --ink: #262c2b;
+  --muted: #5f6866;
+  --faint: #838b87;
+  --line: #e4e7e2;
+  --pane: #f0f3ef;
+  --accent: #315b50;
+  --tint: #e8efeb;
+  --danger: #a23b30;
+  --warn: #8a6a1f;
+  --shadow: 0 20px 60px #1f302916;
+  --shadow-sm: 0 6px 20px #1f30290f;
+
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur: 1;
+  --radius: 4px;
+  --wrap: 1120px;
+  --header-h: 72px;
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --bg: #171c1b;
+  --surface: #1f2725;
+  --ink: #e4ece7;
+  --muted: #a9b6af;
+  --faint: #86958d;
+  --line: #33403a;
+  --pane: #26312c;
+  --accent: #9fcbb5;
+  --tint: #2a3d34;
+  --danger: #e38b80;
+  --warn: #d6b56a;
+  --shadow: 0 20px 70px #0006;
+  --shadow-sm: 0 6px 20px #0004;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme='auto'] {
+    --bg: #171c1b;
+    --surface: #1f2725;
+    --ink: #e4ece7;
+    --muted: #a9b6af;
+    --faint: #86958d;
+    --line: #33403a;
+    --pane: #26312c;
+    --accent: #9fcbb5;
+    --tint: #2a3d34;
+    --danger: #e38b80;
+    --warn: #d6b56a;
+    --shadow: 0 20px 70px #0006;
+    --shadow-sm: 0 6px 20px #0004;
+    color-scheme: dark;
+  }
+}
+
+:root[data-accent='blue'] { --accent: #496c96; --tint: #e6edf5; }
+:root[data-accent='blue'][data-theme='dark'] { --accent: #9fbde6; --tint: #2e3a4b; }
+@media (prefers-color-scheme: dark) { :root[data-accent='blue'][data-theme='auto'] { --accent: #9fbde6; --tint: #2e3a4b; } }
+:root[data-accent='terracotta'] { --accent: #99694b; --tint: #f1eae2; }
+:root[data-accent='terracotta'][data-theme='dark'] { --accent: #daa887; --tint: #41352c; }
+@media (prefers-color-scheme: dark) { :root[data-accent='terracotta'][data-theme='auto'] { --accent: #daa887; --tint: #41352c; } }
+
+:root[data-motion='minimal'] { --dur: 0.4; }
+:root[data-motion='off'] { --dur: 0; }
+:root[data-density='compact'] { --header-h: 60px; }
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur: 0; }
+}

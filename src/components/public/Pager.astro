@@ -1,0 +1,27 @@
+---
+interface Props {
+  page: number;
+  totalPages: number;
+  baseHref: string;
+}
+const { page, totalPages, baseHref } = Astro.props;
+const href = (p: number) => (p <= 1 ? baseHref : `${baseHref}?page=${p}`);
+---
+
+{
+  totalPages > 1 && (
+    <nav class="pager" aria-label="分页">
+      {page > 1 ? <a href={href(page - 1)} rel="prev">← 上一页</a> : <span />}
+      <span class="pager-pos">
+        {page} / {totalPages}
+      </span>
+      {page < totalPages ? <a href={href(page + 1)} rel="next">下一页 →</a> : <span />}
+    </nav>
+  )
+}
+
+<style>
+  .pager { display: flex; justify-content: space-between; align-items: center; padding: 26px 0; font-size: 13px; }
+  .pager a { color: var(--accent); }
+  .pager-pos { color: var(--faint); font-size: 12px; }
+</style>

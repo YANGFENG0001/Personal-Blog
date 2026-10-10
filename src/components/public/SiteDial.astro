@@ -1,0 +1,173 @@
+---
+import { iconSvg } from '../../lib/icons';
+import type { Site, Category } from '../../server/services/sites';
+
+interface Props {
+  sites: (Site & { categories: Category[] })[];
+  currentSiteId?: string | null;
+  style: 'orbit' | 'arc';
+  monogram: string;
+}
+
+const { sites, currentSiteId, style, monogram } = Astro.props;
+// Up to 8 nodes placed around a circle (orbit) or along a left arc.
+const n = Math.max(sites.length, 1);
+function position(i: number) {
+  if (style === 'arc') {
+    const span = Math.min(150, 26 * n);
+    const a = ((-span / 2 + (span / Math.max(n - 1, 1)) * i) * Math.PI) / 180;
+    return { x: 50 + Math.cos(a) * 42, y: 50 + Math.sin(a) * 42 };
+  }
+  const a = (-90 + (360 / n) * i) * (Math.PI / 180);
+  return { x: 50 + Math.cos(a) * 40, y: 50 + Math.sin(a) * 40 };
+}
+const current = sites.find((s) => s.id === currentSiteId);
+---
+
+<nav class="dial" data-dial data-style={style} aria-label="分站切换">
+  <button class="dial-handle" type="button" aria-expanded="false" aria-controls="dial-panel" data-dial-toggle title="切换分站 (Alt+S)">
+    <span class="sr-only">展开分站切换器</span>
+    <span class="dial-handle-mark" aria-hidden="true">{current ? current.name.slice(0, 1) : monogram}</span>
+    <Fragment set:html={iconSvg('chevron', 'dial-handle-chev')} />
+  </button>
+  <div class="dial-panel" id="dial-panel">
+    <div class="dial-label">SITES · 分站</div>
+    <div class="dial-orbit">
+      <span class="dial-ring" aria-hidden="true"></span>
+      <a class="dial-center" href="/" aria-label="首页" title="首页">{monogram}</a>
+      {
+        sites.map((s, i) => {
+          const p = position(i);
+          return (
+            <a
+              class:list={['dial-node', { active: s.id === currentSiteId }]}
+              href={`/${s.slug}`}
+              style={`left:${p.x}%;top:${p.y}%`}
+              aria-current={s.id === currentSiteId ? 'page' : undefined}
+              data-dial-node
+              title={s.name}
+            >
+              <Fragment set:html={iconSvg(s.icon)} />
+              <span class="sr-only">{s.name}</span>
+            </a>
+          );
+        })
+      }
+    </div>
+    <ul class="dial-list" role="list">
+      {
+        sites.map((s) => (
+          <li>
+            <a href={`/${s.slug}`} class:list={{ active: s.id === currentSiteId }} data-dial-item>
+              <span>{s.name}</span>
+              <small>{s.enName}</small>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+    <div class="dial-foot">↑↓ 选择 · Enter 进入 · Esc 收起</div>
+  </div>
+</nav>
+
+<style>
+  .dial {
+    position: fixed; left: 0; top: 50%; z-index: 60; display: flex; align-items: center;
+    transform: translate(calc(-100% + 30px), -50%);
+    transition: transform calc(0.55s * var(--dur)) var(--ease);
+  }
+  .dial[data-open], .dial:focus-within { transform: translate(0, -50%); }
+  @media (hover: hover) { .dial:hover { transform: translate(0, -50%); } }
+  .dial-panel {
+    order: 0; width: 236px; padding: 18px 20px 14px; background: color-mix(in srgb, var(--surface) 94%, transparent);
+    backdrop-filter: blur(16px); border: 1px solid var(--line); border-left: 0; border-radius: 0 14px 14px 0; box-shadow: none;
+    transition: box-shadow calc(0.4s * var(--dur));
+  }
+  .dial[data-open] .dial-panel, .dial:focus-within .dial-panel { box-shadow: var(--shadow); }
+  @media (hover: hover) { .dial:hover .dial-panel { box-shadow: var(--shadow); } }
+  .dial-handle {
+    order: 1; height: 92px; width: 30px; border: 1px solid var(--line); border-left: 0; border-radius: 0 16px 16px 0;
+    background: var(--surface); color: var(--accent); display: grid; place-items: center; gap: 2px; padding: 8px 0;
+    box-shadow: 8px 5px 22px #0000000d;
+  }
+  .dial-handle-mark { font: 14px var(--serif); }
+  .dial-handle :global(.dial-handle-chev) { width: 14px; height: 14px; transition: transform calc(0.4s * var(--dur)) var(--ease); }
+  .dial[data-open] .dial-handle :global(.dial-handle-chev) { transform: rotate(180deg); }
+  .dial-label { font-size: 10px; letter-spacing: 0.18em; color: var(--faint); }
+  .dial-orbit { position: relative; width: 132px; height: 132px; margin: 12px auto 10px; }
+  .dial[data-style='arc'] .dial-orbit { width: 120px; margin-left: -10px; }
+  .dial-ring { position: absolute; inset: 14%; border: 1px solid var(--line); border-radius: 50%; transition: transform calc(0.9s * var(--dur)) var(--ease); }
+  .dial-ring::after { content: ''; position: absolute; inset: 10px; border: 1px dashed var(--line); border-radius: 50%; }
+  .dial:hover .dial-ring, .dial[data-open] .dial-ring { transform: rotate(40deg); }
+  .dial[data-style='arc'] .dial-ring { inset: 8% 8% 8% -42%; }
+  .dial-center {
+    position: absolute; left: 50%; top: 50%; width: 36px; height: 36px; transform: translate(-50%, -50%);
+    border: 1px solid var(--accent); color: var(--accent); border-radius: 50%; display: grid; place-items: center;
+    font: italic 17px Georgia, var(--serif); background: var(--surface);
+  }
+  .dial[data-style='arc'] .dial-center { left: 8%; }
+  .dial-node {
+    position: absolute; width: 30px; height: 30px; transform: translate(-50%, -50%); border-radius: 50%;
+    border: 1px solid var(--line); background: var(--surface); display: grid; place-items: center; color: var(--muted);
+    transition: transform calc(0.3s * var(--dur)) var(--ease), border-color 0.2s, background 0.2s, color 0.2s;
+  }
+  .dial-node :global(svg) { width: 15px; height: 15px; }
+  .dial-node:hover, .dial-node:focus-visible { transform: translate(-50%, -50%) scale(1.15); border-color: var(--accent); color: var(--accent); }
+  .dial-node.active { background: var(--accent); color: var(--surface); border-color: var(--accent); }
+  .dial-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
+  .dial-list a { display: flex; justify-content: space-between; align-items: baseline; padding: 4px 8px; border-radius: 3px; font-size: 13px; color: var(--muted); }
+  .dial-list a small { font-size: 9px; letter-spacing: 0.14em; color: var(--faint); }
+  .dial-list a:hover, .dial-list a:focus-visible, .dial-list a.active { background: var(--tint); color: var(--accent); }
+  .dial-list a.active { font-weight: 650; }
+  .dial-foot { text-align: center; font-size: 10px; color: var(--faint); margin-top: 10px; }
+
+  /* Touch / small screens: a bottom sheet triggered from a small edge tab. */
+  @media (max-width: 760px), (hover: none) {
+    .dial { top: auto; bottom: 18px; transform: none; left: 0; }
+    .dial[data-open] { transform: none; }
+    .dial-handle { height: 46px; width: 34px; border-radius: 0 12px 12px 0; }
+    .dial-handle-mark { display: none; }
+    .dial-panel {
+      position: fixed; left: 0; right: 0; bottom: 0; width: auto; border-radius: 16px 16px 0 0; border: 1px solid var(--line);
+      transform: translateY(105%); transition: transform calc(0.4s * var(--dur)) var(--ease); padding-bottom: max(16px, env(safe-area-inset-bottom));
+    }
+    .dial[data-open] .dial-panel { transform: none; }
+    .dial-orbit { display: none; }
+    .dial-list { grid-template-columns: repeat(2, 1fr); gap: 4px; margin-top: 10px; }
+    .dial-list a { padding: 10px 12px; border: 1px solid var(--line); }
+    .dial-foot { display: none; }
+  }
+</style>
+
+<script>
+  function setup() {
+    const dial = document.querySelector<HTMLElement>('[data-dial]');
+    if (!dial || dial.dataset.ready) return;
+    dial.dataset.ready = '1';
+    const toggle = dial.querySelector<HTMLButtonElement>('[data-dial-toggle]')!;
+    const items = () => [...dial.querySelectorAll<HTMLAnchorElement>('[data-dial-item]')];
+    const open = (focus = false) => {
+      dial.dataset.open = '';
+      toggle.setAttribute('aria-expanded', 'true');
+      if (focus) (items().find((a) => a.classList.contains('active')) ?? items()[0])?.focus();
+    };
+    const close = (refocus = false) => {
+      delete dial.dataset.open;
+      toggle.setAttribute('aria-expanded', 'false');
+      if (refocus) toggle.focus();
+    };
+    toggle.addEventListener('click', () => ('open' in dial.dataset ? close() : open(true)));
+    dial.addEventListener('keydown', (e) => {
+      const list = items();
+      const i = list.indexOf(document.activeElement as HTMLAnchorElement);
+      if (e.key === 'Escape') { close(true); e.preventDefault(); }
+      else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') { list[(i + 1) % list.length]?.focus(); e.preventDefault(); }
+      else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') { list[(i - 1 + list.length) % list.length]?.focus(); e.preventDefault(); }
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.altKey && (e.key === 's' || e.key === 'S')) { e.preventDefault(); open(true); }
+    });
+    document.addEventListener('click', (e) => { if (!dial.contains(e.target as Node)) close(); });
+  }
+  setup();
+</script>

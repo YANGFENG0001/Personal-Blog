@@ -1,0 +1,38 @@
+---
+import PublicLayout from '../../../layouts/PublicLayout.astro';
+import PostList from '../../../components/public/PostList.astro';
+import Sidebar from '../../../components/public/Sidebar.astro';
+import Pager from '../../../components/public/Pager.astro';
+import { getCategoryBySlug, getSiteBySlug } from '../../../server/services/sites';
+import { listPublicPosts } from '../../../server/services/posts';
+
+const PER_PAGE = 15;
+const site = getSiteBySlug(Astro.params.site!, { publicOnly: true });
+const category = site ? getCategoryBySlug(site.id, Astro.params.category!, { publicOnly: true }) : undefined;
+if (!site || !category) return Astro.rewrite('/404');
+const page = Math.max(1, Number(Astro.url.searchParams.get('page')) || 1);
+const { items, total } = listPublicPosts({ categoryId: category.id, limit: PER_PAGE, offset: (page - 1) * PER_PAGE });
+const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
+const base = `/${site.slug}/${category.slug}`;
+---
+
+<PublicLayout title={`${category.name} · ${site.name}`} description={category.description || site.description} canonical={base} site={site} category={category}>
+  <section class="cat-hero reveal">
+    <div class="eyebrow">{site.name} / {category.name}</div>
+    {category.description && <p>{category.description}</p>}
+  </section>
+  <div class="content-shell">
+    <div>
+      <PostList posts={items} layout={category.layout} />
+      <Pager page={page} totalPages={totalPages} baseHref={base} />
+    </div>
+    <Sidebar site={site} />
+  </div>
+</PublicLayout>
+
+<style>
+  .cat-hero { padding: 28px 0 8px; }
+  .cat-hero p { color: var(--muted); font-size: 14px; max-width: 620px; margin: 10px 0 0; }
+  .content-shell { display: grid; grid-template-columns: minmax(0, 1fr) 236px; gap: 64px; padding-top: 8px; }
+  @media (max-width: 960px) { .content-shell { grid-template-columns: 1fr; gap: 24px; } }
+</style>
