@@ -1,80 +1,115 @@
-/* Design tokens — distilled from the V4 prototype, refined.
-   System font stacks (no remote fonts): fast in every region, no third-party requests. */
+/* Design tokens.
+   Palette: the server writes the active preset as --l-* (light) and --d-* (dark)
+   variables in the <html style> attribute; this file maps them onto semantic
+   tokens depending on data-theme (light | dark | auto). Fallbacks = 墨韵. */
 
 :root {
   --serif: 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'STSong', 'SimSun', Georgia, serif;
   --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
     'Noto Sans CJK SC', system-ui, sans-serif;
   --mono: 'JetBrains Mono', 'SFMono-Regular', ui-monospace, Menlo, Consolas, 'Liberation Mono', monospace;
+  --display: var(--serif);
+  --body: var(--sans);
 
-  --bg: #f8f8f5;
-  --surface: #ffffff;
-  --ink: #262c2b;
-  --muted: #5f6866;
-  --faint: #838b87;
-  --line: #e4e7e2;
-  --pane: #f0f3ef;
-  --accent: #315b50;
-  --tint: #e8efeb;
+  --bg: var(--l-bg, #f8f8f5);
+  --surface: var(--l-surface, #ffffff);
+  --ink: var(--l-ink, #262c2b);
+  --muted: var(--l-muted, #5f6866);
+  --faint: var(--l-faint, #6f7773);
+  --line: var(--l-line, #e4e7e2);
+  --pane: var(--l-pane, #f0f3ef);
+  --accent: var(--l-accent, #315b50);
+  --tint: var(--l-tint, #e8efeb);
+  --on-accent: #ffffff;
   --danger: #a23b30;
   --warn: #8a6a1f;
-  --shadow: 0 20px 60px #1f302916;
-  --shadow-sm: 0 6px 20px #1f30290f;
+  --ok: #2f7a4a;
+  --shadow: 0 18px 50px color-mix(in srgb, var(--ink) 10%, transparent);
+  --shadow-sm: 0 4px 16px color-mix(in srgb, var(--ink) 7%, transparent);
+  color-scheme: light;
 
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --dur: 1;
-  --radius: 4px;
-  --wrap: 1120px;
+
+  --r-sm: 4px;
+  --r: 6px;
+  --r-lg: 10px;
+  --radius: var(--r-sm);
+
+  --u: 4px;
+  --fs-body: 15px;
+  --lh-body: 1.8;
+  --fs-prose: 16px;
+  --lh-prose: 2;
+  --pad-card: 20px;
+  --row-y: 22px;
+  --gap: 16px;
   --header-h: 72px;
-  color-scheme: light;
+  --wrap: 1120px;
 }
 
 :root[data-theme='dark'] {
-  --bg: #171c1b;
-  --surface: #1f2725;
-  --ink: #e4ece7;
-  --muted: #a9b6af;
-  --faint: #86958d;
-  --line: #33403a;
-  --pane: #26312c;
-  --accent: #9fcbb5;
-  --tint: #2a3d34;
+  --bg: var(--d-bg, #171c1b);
+  --surface: var(--d-surface, #1f2725);
+  --ink: var(--d-ink, #e4ece7);
+  --muted: var(--d-muted, #a9b6af);
+  --faint: var(--d-faint, #8e9d95);
+  --line: var(--d-line, #33403a);
+  --pane: var(--d-pane, #26312c);
+  --accent: var(--d-accent, #9fcbb5);
+  --tint: var(--d-tint, #2a3d34);
+  --on-accent: #10140f;
   --danger: #e38b80;
   --warn: #d6b56a;
-  --shadow: 0 20px 70px #0006;
-  --shadow-sm: 0 6px 20px #0004;
+  --ok: #8fd0a2;
+  --shadow: 0 18px 60px #0007;
+  --shadow-sm: 0 4px 16px #0005;
   color-scheme: dark;
 }
-
 @media (prefers-color-scheme: dark) {
   :root[data-theme='auto'] {
-    --bg: #171c1b;
-    --surface: #1f2725;
-    --ink: #e4ece7;
-    --muted: #a9b6af;
-    --faint: #86958d;
-    --line: #33403a;
-    --pane: #26312c;
-    --accent: #9fcbb5;
-    --tint: #2a3d34;
+    --bg: var(--d-bg, #171c1b);
+    --surface: var(--d-surface, #1f2725);
+    --ink: var(--d-ink, #e4ece7);
+    --muted: var(--d-muted, #a9b6af);
+    --faint: var(--d-faint, #8e9d95);
+    --line: var(--d-line, #33403a);
+    --pane: var(--d-pane, #26312c);
+    --accent: var(--d-accent, #9fcbb5);
+    --tint: var(--d-tint, #2a3d34);
+    --on-accent: #10140f;
     --danger: #e38b80;
     --warn: #d6b56a;
-    --shadow: 0 20px 70px #0006;
-    --shadow-sm: 0 6px 20px #0004;
+    --ok: #8fd0a2;
+    --shadow: 0 18px 60px #0007;
+    --shadow-sm: 0 4px 16px #0005;
     color-scheme: dark;
   }
 }
 
-:root[data-accent='blue'] { --accent: #496c96; --tint: #e6edf5; }
-:root[data-accent='blue'][data-theme='dark'] { --accent: #9fbde6; --tint: #2e3a4b; }
-@media (prefers-color-scheme: dark) { :root[data-accent='blue'][data-theme='auto'] { --accent: #9fbde6; --tint: #2e3a4b; } }
-:root[data-accent='terracotta'] { --accent: #99694b; --tint: #f1eae2; }
-:root[data-accent='terracotta'][data-theme='dark'] { --accent: #daa887; --tint: #41352c; }
-@media (prefers-color-scheme: dark) { :root[data-accent='terracotta'][data-theme='auto'] { --accent: #daa887; --tint: #41352c; } }
-
-:root[data-motion='minimal'] { --dur: 0.4; }
+/* Motion levels */
+:root[data-motion='minimal'] { --dur: 0.45; }
 :root[data-motion='off'] { --dur: 0; }
-:root[data-density='compact'] { --header-h: 60px; }
+:root[data-motion='rich'] { --dur: 1.15; }
+
+/* Density — changes type size, rhythm, card padding and header height. */
+:root[data-density='compact'] {
+  --fs-body: 14px; --lh-body: 1.7; --fs-prose: 15px; --lh-prose: 1.85;
+  --pad-card: 14px; --row-y: 13px; --gap: 10px; --header-h: 58px; --wrap: 1200px;
+}
+:root[data-density='spacious'] {
+  --fs-body: 16px; --lh-body: 1.9; --fs-prose: 17px; --lh-prose: 2.1;
+  --pad-card: 26px; --row-y: 30px; --gap: 22px; --header-h: 82px; --wrap: 1060px;
+}
+
+/* Corner radius */
+:root[data-radius='sharp'] { --r-sm: 0px; --r: 0px; --r-lg: 2px; }
+:root[data-radius='round'] { --r-sm: 8px; --r: 12px; --r-lg: 18px; }
+
+/* Type pairing */
+:root[data-font='sans'] { --display: var(--sans); }
+:root[data-font='serif'] { --body: var(--serif); }
 
 @media (prefers-reduced-motion: reduce) {
   :root { --dur: 0; }

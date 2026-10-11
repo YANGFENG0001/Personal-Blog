@@ -29,4 +29,7 @@ const posts = listPosts({ limit: 2000 }).items.map((p) => ({
   .km-add ul { width: 100%; }
   .small { font-size: 12px; }
   @media (max-width: 900px) { .km { grid-template-columns: 1fr; } }
+  .km-posts li { display: flex; align-items: center; gap: 8px; }
+  .km-post-title { flex: 1; min-width: 0; }
+  .km-post-title a:hover { color: var(--accent); }
 </style>

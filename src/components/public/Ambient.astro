@@ -1,76 +1,36 @@
 ---
 import { listQuotes } from '../../server/services/config';
+import type { Settings } from '../../server/seed';
 
 interface Props {
-  config: {
-    enabled: boolean;
-    intervalMinutes: number;
-    baseChance: number;
-    increment: number;
-    maxChance: number;
-    durationSeconds: number;
-    cooldownMinutes: number;
-    quietOnArticle: boolean;
-    animation: 'rise' | 'fade';
-  };
-  easter: boolean;
+  config: Settings['encourage'];
+  easter: Settings['easter'];
   isArticle?: boolean;
+  is404?: boolean;
 }
-const { config, easter, isArticle = false } = Astro.props;
+const { config, easter, isArticle = false, is404 = false } = Astro.props;
 const quotes = config.enabled
   ? listQuotes({ enabledOnly: true }).map((q) => ({ text: q.text, author: q.author, source: q.source, followUp: q.followUp }))
   : [];
-const payload = JSON.stringify({ config, easter, isArticle, quotes }).replace(/</g, '\\u003c');
+const payload = JSON.stringify({ config, easter, isArticle, is404, quotes }).replace(/</g, '\\u003c');
 ---
 
 <script type="application/json" id="fn-ambient" set:html={payload} />
-<div class="enc-host" aria-live="polite" data-enc-host></div>
-
-<style is:global>
-  .enc-card {
-    position: fixed; right: 28px; bottom: 28px; z-index: 90; width: min(360px, calc(100vw - 32px));
-    background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow);
-    padding: 22px 24px 18px; animation: enc-rise calc(0.7s * var(--dur)) var(--ease) both;
-  }
-  .enc-card[data-anim='fade'] { animation-name: enc-fade; }
-  .enc-card.leaving { animation: enc-leave calc(0.4s * var(--dur)) var(--ease) both; }
-  .enc-src { font-size: 10px; letter-spacing: 0.12em; color: var(--accent); }
-  .enc-quote { font: 500 16px/1.9 var(--serif); margin: 10px 0 0; }
-  .enc-follow {
-    font-size: 13px; color: var(--muted); line-height: 1.9; margin: 12px 0 0; padding-top: 10px; border-top: 1px solid var(--line);
-    opacity: 0; transform: translateY(4px); animation: enc-rise calc(0.6s * var(--dur)) var(--ease) calc(1.6s * var(--dur)) both;
-  }
-  .enc-close { position: absolute; top: 8px; right: 8px; }
-  .enc-bar { position: absolute; left: 0; bottom: 0; height: 2px; background: var(--accent); border-radius: 0 0 0 8px; animation: enc-bar linear both; }
-  @keyframes enc-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-  @keyframes enc-fade { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes enc-leave { to { opacity: 0; transform: translateY(10px); } }
-  @keyframes enc-bar { from { width: 100%; } to { width: 0; } }
-  .spark { position: fixed; pointer-events: none; z-index: 95; color: var(--accent); font-size: 15px; animation: spark calc(0.9s * var(--dur)) ease-out forwards; }
-  @keyframes spark { to { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.6) rotate(40deg); } }
-  .egg-note {
-    position: fixed; left: 50%; top: 18px; transform: translateX(-50%); z-index: 95; background: var(--surface); border: 1px solid var(--line);
-    padding: 8px 16px; border-radius: 999px; font-size: 13px; color: var(--muted); box-shadow: var(--shadow-sm);
-    animation: enc-rise calc(0.5s * var(--dur)) var(--ease) both;
-  }
-  @media (max-width: 600px) { .enc-card { right: 16px; bottom: 16px; } }
-</style>
 
 <script>
   import { initialState, roll, type EncourageConfig, type EncourageState } from '../../lib/encourage';
-  import { showEncouragement, sparks, eggNote } from '../../lib/ambient-ui';
 
   type Payload = {
     config: EncourageConfig & { enabled: boolean; durationSeconds: number; quietOnArticle: boolean; animation: 'rise' | 'fade' };
-    easter: boolean;
+    easter: { enabled: boolean; set: string; triggers: Record<string, boolean> };
     isArticle: boolean;
+    is404: boolean;
     quotes: { text: string; author: string; source: string; followUp: string }[];
   };
 
   const el = document.getElementById('fn-ambient');
   const data: Payload | null = el ? JSON.parse(el.textContent || 'null') : null;
   const KEY = 'fn-encourage';
-  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   if (data?.config.enabled && data.quotes.length) {
     const cfg = data.config;
@@ -82,7 +42,6 @@ const payload = JSON.stringify({ config, easter, isArticle, quotes }).replace(/<
       try { return { ...initialState(effective), ...JSON.parse(sessionStorage.getItem(KEY) || '{}') }; }
       catch { return initialState(effective); }
     };
-    const save = (s: EncourageState) => sessionStorage.setItem(KEY, JSON.stringify(s));
     const typing = () => {
       const a = document.activeElement;
       return !!a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || (a as HTMLElement).isContentEditable);
@@ -90,43 +49,15 @@ const payload = JSON.stringify({ config, easter, isArticle, quotes }).replace(/<
     setInterval(() => {
       if (document.hidden || typing() || document.querySelector('.enc-card')) return;
       const r = roll(effective, load(), Date.now());
-      save(r.state);
+      sessionStorage.setItem(KEY, JSON.stringify(r.state));
       if (r.show) {
         const q = data.quotes[Math.floor(Math.random() * data.quotes.length)]!;
-        showEncouragement(q, cfg.durationSeconds, cfg.animation);
+        void import('../../lib/ambient-ui').then((m) => m.showEncouragement(q, cfg.durationSeconds, cfg.animation));
       }
     }, Math.max(1, cfg.intervalMinutes) * 60_000);
   }
 
-  if (data?.easter) {
-    // Triple-click the brand mark → a small burst.
-    document.querySelector('[data-brandmark]')?.addEventListener('click', (e) => {
-      const me = e as MouseEvent;
-      if (me.detail === 3 && !reduced) sparks(me.clientX, me.clientY);
-    });
-    // Konami code → a quiet note.
-    const seq = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
-    let pos = 0;
-    document.addEventListener('keydown', (e) => {
-      pos = e.key === seq[pos] ? pos + 1 : e.key === seq[0] ? 1 : 0;
-      if (pos === seq.length) { pos = 0; eggNote('↑↑↓↓←→←→BA · 你发现了一个隐藏的角落。'); }
-    });
-    // Calendar notes, once per day.
-    const d = new Date();
-    const md = `${d.getMonth() + 1}-${d.getDate()}`;
-    const start = new Date(d.getFullYear(), 0, 0).getTime();
-    const dayOfYear = Math.floor((d.getTime() - start) / 86_400_000);
-    const notes: Record<string, string> = {
-      '1-1': '新年快乐。愿新的一年，问题都有好答案。',
-      '3-14': 'π 日快乐 · 3.14159…',
-      '10-1': '国庆快乐。',
-      '12-31': '一年的最后一天，谢谢你来过。',
-    };
-    const note = dayOfYear === 256 ? '程序员节快乐 · 第 256 天。' : notes[md];
-    const seenKey = `fn-egg-${d.toDateString()}`;
-    if (note && !localStorage.getItem(seenKey)) {
-      localStorage.setItem(seenKey, '1');
-      setTimeout(() => eggNote(note), 2500);
-    }
+  if (data?.easter.enabled) {
+    void import('../../lib/eggs').then((m) => m.startEggs(data.easter, { isArticle: data.isArticle, is404: data.is404 }));
   }
 </script>

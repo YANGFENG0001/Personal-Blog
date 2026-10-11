@@ -1,7 +1,10 @@
 import { useState } from 'preact/hooks';
 import { api, errMsg, toast } from '../../lib/client';
+import { confirmDialog } from '../../lib/dialogs';
+import { useSortable } from '../../lib/useSortable';
 import type { KnowledgeNode } from '../../server/services/knowledge';
 import Modal from './Modal';
+import { Icon, IconButton } from './ui';
 
 interface PostOpt {
   id: string;
@@ -46,7 +49,7 @@ export default function KnowledgeManager({ initial, posts }: { initial: Knowledg
   }
 
   async function remove(n: KnowledgeNode) {
-    if (!confirm(`删除节点「${n.title}」及其所有子节点？（文章本身不会被删除）`)) return;
+    if (!(await confirmDialog(`删除节点「${n.title}」？`, '它的所有子节点也会被删除，文章本身不受影响。', { danger: true, okLabel: '删除' }))) return;
     try {
       await api.del(`/api/owner/knowledge/${n.id}`);
       setSelected(null);
@@ -74,7 +77,7 @@ export default function KnowledgeManager({ initial, posts }: { initial: Knowledg
       <aside class="panel km-tree">
         <div class="panel-head">
           <h2>知识树</h2>
-          <button class="btn btn-sm btn-primary" type="button" onClick={() => setEdit({ parentId: null, slug: '', title: '', description: '', visibility: 'private' })}>+ 顶层节点</button>
+          <button class="btn btn-sm btn-primary" type="button" onClick={() => setEdit({ parentId: null, slug: '', title: '', description: '', visibility: 'private' })}><Icon name="plus" size={13} />顶层节点</button>
         </div>
         {flat.length === 0 && <p class="empty-note">从一个方向开始，例如“机器学习”“Transformer”“RAG”。</p>}
         <ul class="list-plain">
@@ -102,7 +105,7 @@ export default function KnowledgeManager({ initial, posts }: { initial: Knowledg
               </div>
               <div class="row">
                 {node.visibility === 'public' && <a class="btn btn-sm" href={`/knowledge/${node.slug}`} target="_blank" rel="noopener">公开页 ↗</a>}
-                <button class="btn btn-sm" type="button" onClick={() => setEdit({ parentId: node.id, slug: '', title: '', description: '', visibility: node.visibility })}>+ 子节点</button>
+                <button class="btn btn-sm" type="button" onClick={() => setEdit({ parentId: node.id, slug: '', title: '', description: '', visibility: node.visibility })}><Icon name="plus" size={13} />子节点</button>
                 <button class="btn btn-sm" type="button" onClick={() => setEdit({ id: node.id, parentId: node.parentId, slug: node.slug, title: node.title, description: node.description, visibility: node.visibility })}>编辑</button>
                 <button class="btn btn-sm btn-danger" type="button" onClick={() => remove(node)}>删除</button>
               </div>
@@ -110,24 +113,7 @@ export default function KnowledgeManager({ initial, posts }: { initial: Knowledg
             {node.description && <p class="muted">{node.description}</p>}
             <h3 class="km-h3">关联文章</h3>
             {node.postIds.length === 0 && <p class="empty-note">还没有关联文章。</p>}
-            <ol class="list-plain">
-              {node.postIds.map((id, i) => {
-                const p = postById.get(id);
-                if (!p) return null;
-                return (
-                  <li class="row-between">
-                    <span>
-                      <a href={`/owner/editor/${p.id}`}>{p.title}</a> <span class="faint small">{p.where}</span>
-                      {p.hidden && <span class="pill">{p.hidden}</span>}
-                    </span>
-                    <span class="row">
-                      <button class="btn btn-sm btn-ghost" type="button" disabled={i === 0} onClick={() => { const ids = node.postIds.slice(); [ids[i - 1], ids[i]] = [ids[i]!, ids[i - 1]!]; void setPosts(node, ids); }} aria-label="上移">↑</button>
-                      <button class="btn btn-sm btn-ghost btn-danger" type="button" onClick={() => setPosts(node, node.postIds.filter((x) => x !== id))}>移除</button>
-                    </span>
-                  </li>
-                );
-              })}
-            </ol>
+            <LinkedPosts node={node} postById={postById} onSet={(ids) => setPosts(node, ids)} />
             <div class="km-add">
               <input class="input" placeholder="搜索文章并添加到此节点…" value={filter} onInput={(e) => setFilter(e.currentTarget.value)} aria-label="搜索文章" />
               <ul class="list-plain">
@@ -166,5 +152,27 @@ export default function KnowledgeManager({ initial, posts }: { initial: Knowledg
         </Modal>
       )}
     </div>
+  );
+}
+
+function LinkedPosts({ node, postById, onSet }: { node: KnowledgeNode; postById: Map<string, PostOpt>; onSet: (ids: string[]) => void }) {
+  const sortable = useSortable(node.postIds, onSet);
+  return (
+    <ol class="list-plain km-posts" ref={sortable.ref as never} onPointerDown={sortable.onPointerDown} onKeyDown={sortable.onKeyDown}>
+      {node.postIds.map((id) => {
+        const p = postById.get(id);
+        if (!p) return null;
+        return (
+          <li data-sort-id={id}>
+            <button type="button" class="handle" data-sort-handle aria-label={`拖动排序：${p.title}`}><Icon name="grip" size={14} /></button>
+            <span class="km-post-title">
+              <a href={`/owner/editor/${p.id}`}>{p.title}</a> <span class="faint small">{p.where}</span>
+              {p.hidden && <span class="pill">{p.hidden}</span>}
+            </span>
+            <IconButton icon="x" label={`从节点移除：${p.title}`} size="sm" variant="danger" onClick={() => onSet(node.postIds.filter((x) => x !== id))} />
+          </li>
+        );
+      })}
+    </ol>
   );
 }

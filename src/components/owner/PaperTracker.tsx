@@ -2,6 +2,8 @@ import { useState } from 'preact/hooks';
 import { api, errMsg, toast } from '../../lib/client';
 import type { Paper } from '../../server/services/knowledge';
 import Modal from './Modal';
+import { confirmDialog } from '../../lib/dialogs';
+import { Icon, IconButton } from './ui';
 
 const READ: Record<Paper['readStatus'], string> = { 'to-read': '待读', reading: '阅读中', read: '已读', 'deep-read': '已精读' };
 const REPRO: Record<Paper['reproduced'], string> = { no: '未复现', 'in-progress': '复现中', done: '已复现' };
@@ -49,7 +51,7 @@ export default function PaperTracker({ initial, posts }: { initial: Paper[]; pos
   }
 
   async function remove(p: Paper) {
-    if (!confirm(`删除论文记录「${p.title}」？（关联的笔记文章不受影响）`)) return;
+    if (!(await confirmDialog(`删除论文记录「${p.title}」？`, '关联的笔记文章不受影响。', { danger: true, okLabel: '删除' }))) return;
     try {
       await api.del(`/api/owner/papers/${p.id}`);
       setPapers((xs) => xs.filter((x) => x.id !== p.id));
@@ -78,7 +80,7 @@ export default function PaperTracker({ initial, posts }: { initial: Paper[]; pos
           <option value="">全部方向</option>
           {directions.map((d) => <option value={d}>{d}</option>)}
         </select>
-        <button class="btn btn-primary" type="button" onClick={() => setEdit({ ...blank })}>添加论文</button>
+        <button class="btn btn-primary" type="button" onClick={() => setEdit({ ...blank })}><Icon name="plus" size={14} />添加论文</button>
       </div>
       <div class="panel table-wrap">
         {shown.length === 0 ? <p class="empty-note">还没有论文记录。</p> : (
@@ -88,9 +90,9 @@ export default function PaperTracker({ initial, posts }: { initial: Paper[]; pos
               {shown.map((p) => (
                 <tr>
                   <td class="title-cell">
-                    {p.url ? <a href={p.url} target="_blank" rel="noopener noreferrer">{p.title} ↗</a> : <strong>{p.title}</strong>}
+                    {p.url ? <a href={p.url} target="_blank" rel="noopener noreferrer">{p.title}<Icon name="external" size={12} class="ext" /></a> : <strong>{p.title}</strong>}
                     <div class="faint small">{[p.authors, p.venue, p.year].filter(Boolean).join(' · ')}</div>
-                    {p.codeUrl && <a class="small" href={p.codeUrl} target="_blank" rel="noopener noreferrer">代码 ↗</a>}
+                    {p.codeUrl && <a class="small" href={p.codeUrl} target="_blank" rel="noopener noreferrer">代码<Icon name="external" size={11} class="ext" /></a>}
                   </td>
                   <td class="faint">{p.direction || '—'}</td>
                   <td>
@@ -109,8 +111,8 @@ export default function PaperTracker({ initial, posts }: { initial: Paper[]; pos
                     )}
                   </td>
                   <td class="nowrap">
-                    <button class="btn btn-sm btn-ghost" type="button" onClick={() => setEdit({ ...p, year: p.year ? String(p.year) : '' })}>编辑</button>
-                    <button class="btn btn-sm btn-ghost btn-danger" type="button" onClick={() => remove(p)}>删除</button>
+                    <IconButton icon="edit" label={`编辑 ${p.title}`} size="sm" onClick={() => setEdit({ ...p, year: p.year ? String(p.year) : '' })} />
+                    <IconButton icon="trash" label={`删除 ${p.title}`} size="sm" variant="danger" onClick={() => remove(p)} />
                   </td>
                 </tr>
               ))}

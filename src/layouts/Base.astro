@@ -1,7 +1,9 @@
 ---
 import '../styles/tokens.css';
 import '../styles/base.css';
+import '../styles/themes.css';
 import { getSetting } from '../server/services/settings';
+import { resolveAppearance } from '../lib/appearance';
 
 interface Props {
   title: string;
@@ -10,27 +12,25 @@ interface Props {
   noindex?: boolean;
   ogType?: 'website' | 'article';
   bodyClass?: string;
+  /** Decorative page layers (animated background, custom cursor). Off in the workspace. */
+  ambient?: boolean;
 }
 
-const { title, description, canonical, noindex, ogType = 'website', bodyClass } = Astro.props;
+const { title, description, canonical, noindex, ogType = 'website', bodyClass, ambient = true } = Astro.props;
 const site = getSetting('site');
 const appearance = getSetting('appearance');
-// Visitor's own theme choice (cookie) overrides the owner's default.
+// Visitor's own light/dark choice (cookie) overrides the owner's default.
 const cookieTheme = Astro.cookies.get('fn_theme')?.value;
 const theme = cookieTheme === 'light' || cookieTheme === 'dark' ? cookieTheme : appearance.theme === 'system' ? 'auto' : appearance.theme;
+const look = resolveAppearance(appearance, theme);
+const attrs = ambient ? look.attrs : { ...look.attrs, 'data-bg': 'none', 'data-cursor': 'system' };
 const fullTitle = title === site.title ? title : `${title} · ${site.title}`;
 const desc = description || site.intro;
 const canonicalUrl = canonical ? new URL(canonical, Astro.site ?? Astro.url).href : undefined;
 ---
 
 <!doctype html>
-<html
-  lang={site.language || 'zh-CN'}
-  data-theme={theme}
-  data-accent={appearance.accent}
-  data-motion={appearance.motion}
-  data-density={appearance.density}
->
+<html lang={site.language || 'zh-CN'} {...attrs} style={look.style}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -45,11 +45,25 @@ const canonicalUrl = canonical ? new URL(canonical, Astro.site ?? Astro.url).hre
     {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
     <meta name="twitter:card" content="summary" />
     <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content={look.preset.light.bg} media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content={look.preset.dark.bg} media="(prefers-color-scheme: dark)" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="alternate" type="application/rss+xml" title={site.title} href="/rss.xml" />
     <slot name="head" />
   </head>
-  <body class={bodyClass}>
+  <body
+    class={bodyClass}
+    data-bg-effect={ambient && look.bg.effect ? look.bg.effect : undefined}
+    data-bg-intensity={look.bg.intensity}
+    data-fx={look.preset.fx.join(',')}
+    data-trail={ambient && appearance.cursorTrail ? '' : undefined}
+  >
+    {ambient && <div class="page-bg" aria-hidden="true" />}
     <slot />
   </body>
 </html>
+
+<script>
+  import { initAmbientLayer } from '../lib/ambient-layer';
+  initAmbientLayer();
+</script>

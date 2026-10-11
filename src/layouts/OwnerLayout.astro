@@ -2,6 +2,7 @@
 import Base from './Base.astro';
 import PreviewBall from '../components/PreviewBall.astro';
 import { getAllSettings } from '../server/services/settings';
+import { iconSvg } from '../lib/icons';
 import '../styles/owner.css';
 
 interface Props {
@@ -15,20 +16,22 @@ const settings = getAllSettings();
 const owner = Astro.locals.owner!;
 const path = Astro.url.pathname;
 const NAV = [
-  { href: '/owner', label: '总览' },
-  { href: '/owner/posts', label: '文章库' },
-  { href: '/owner/editor', label: '写作' },
-  { href: '/owner/knowledge', label: '知识库' },
-  { href: '/owner/papers', label: '论文' },
-  { href: '/owner/tasks', label: '任务' },
-  { href: '/owner/sites', label: '分站栏目' },
-  { href: '/owner/display', label: '展示与模块' },
-  { href: '/owner/settings', label: '设置' },
+  { href: '/owner', label: '总览', icon: 'compass' },
+  { href: '/owner/posts', label: '文章库', icon: 'archive' },
+  { href: '/owner/editor', label: '写作', icon: 'pen' },
+  { href: '/owner/knowledge', label: '知识库', icon: 'book' },
+  { href: '/owner/papers', label: '论文', icon: 'atom' },
+  { href: '/owner/tasks', label: '任务', icon: 'checklist' },
+  { href: '/owner/sites', label: '分站栏目', icon: 'grid' },
+  { href: '/owner/display', label: '展示与模块', icon: 'eye' },
+  { href: '/owner/appearance', label: '外观与主题', icon: 'palette' },
+  { href: '/owner/settings', label: '设置', icon: 'menu' },
 ];
 const active = (href: string) => (href === '/owner' ? path === '/owner' || path === '/owner/' : path.startsWith(href));
+const current = NAV.find((n) => active(n.href));
 ---
 
-<Base title={`${title} · 工作台`} noindex bodyClass="owner-body">
+<Base title={`${title} · 工作台`} noindex bodyClass="owner-body" ambient={false}>
   <meta slot="head" name="csrf-token" content={owner.csrfToken} />
   <a class="skip-link" href="#owner-main">跳到内容</a>
   <header class="owner-header">
@@ -42,19 +45,24 @@ const active = (href: string) => (href === '/owner' ? path === '/owner' || path 
           </span>
         </a>
         <div class="owner-user">
-          <span class="faint">{owner.username}</span>
-          <button class="btn btn-sm btn-ghost" type="button" data-theme-toggle aria-label="切换深浅色">◐</button>
-          <button class="btn btn-sm" type="button" data-logout>退出</button>
+          <button class="icon-btn" type="button" data-theme-toggle aria-label="切换深浅色" title="切换深浅色">
+            <Fragment set:html={iconSvg('sun', 'i-sun')} /><Fragment set:html={iconSvg('moon', 'i-moon')} />
+          </button>
+          <a class="icon-btn" href="/" target="_blank" rel="noopener" aria-label="打开网站" title="打开网站" set:html={iconSvg('external')} />
+          <span class="owner-avatar" title={owner.username} aria-hidden="true">{owner.username.slice(0, 1).toUpperCase()}</span>
+          <button class="btn btn-sm btn-ghost" type="button" data-logout>退出</button>
         </div>
       </div>
-      <nav class="owner-nav" aria-label="工作台导航">
+      <nav class="owner-nav" aria-label="工作台导航" data-owner-nav>
         {
           NAV.map((n) => (
             <a href={n.href} class:list={{ active: active(n.href) }} aria-current={active(n.href) ? 'page' : undefined}>
+              <Fragment set:html={iconSvg(n.icon, 'ic')} />
               {n.label}
             </a>
           ))
         }
+        <span class="nav-ink" aria-hidden="true" data-nav-ink></span>
       </nav>
     </div>
   </header>
@@ -63,6 +71,13 @@ const active = (href: string) => (href === '/owner' ? path === '/owner' || path 
       heading && (
         <div class="owner-heading">
           <div>
+            {current && current.href !== '/owner' && (
+              <div class="owner-crumbs">
+                <a href="/owner">工作台</a>
+                <span aria-hidden="true">/</span>
+                <span>{current.label}</span>
+              </div>
+            )}
             <h1>{heading}</h1>
             {subtitle && <p>{subtitle}</p>}
           </div>
@@ -74,7 +89,7 @@ const active = (href: string) => (href === '/owner' ? path === '/owner' || path 
     }
     <slot />
   </main>
-  {settings.previewBall.enabled && <PreviewBall mode="owner" position={settings.previewBall.position} />}
+  {settings.previewBall.enabled && <PreviewBall mode="owner" config={settings.previewBall} />}
 </Base>
 
 <script>
@@ -85,4 +100,25 @@ const active = (href: string) => (href === '/owner' ? path === '/owner' || path 
     await api.post('/api/auth/logout');
     location.href = '/owner/login';
   });
+  // Sliding indicator under the nav: follows hover, rests on the active page.
+  const nav = document.querySelector<HTMLElement>('[data-owner-nav]');
+  const ink = document.querySelector<HTMLElement>('[data-nav-ink]');
+  if (nav && ink) {
+    const activeLink = nav.querySelector<HTMLElement>('a.active');
+    const place = (el: HTMLElement | null) => {
+      if (!el) { ink.style.width = '0'; return; }
+      ink.style.left = `${el.offsetLeft + 8}px`;
+      ink.style.width = `${el.offsetWidth - 16}px`;
+    };
+    ink.style.transition = 'none';
+    place(activeLink);
+    requestAnimationFrame(() => (ink.style.transition = ''));
+    activeLink?.scrollIntoView({ block: 'nearest', inline: 'center' });
+    nav.querySelectorAll<HTMLElement>('a').forEach((a) => {
+      a.addEventListener('mouseenter', () => place(a));
+      a.addEventListener('focus', () => place(a));
+    });
+    nav.addEventListener('mouseleave', () => place(activeLink));
+    addEventListener('resize', () => place(activeLink));
+  }
 </script>

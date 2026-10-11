@@ -1,7 +1,10 @@
 import { useState } from 'preact/hooks';
-import { api, errMsg, move, toast } from '../../lib/client';
+import { api, errMsg, toast } from '../../lib/client';
+import { confirmDialog } from '../../lib/dialogs';
 import { SITE_ICONS, iconSvg } from '../../lib/icons';
+import { byIds, useSortable } from '../../lib/useSortable';
 import Modal from './Modal';
+import { Icon, IconButton, Switch } from './ui';
 
 interface Cat {
   id: string;
@@ -27,6 +30,7 @@ interface SiteT {
 
 const blankSite = { slug: '', name: '', enName: '', description: '', icon: 'book', accent: null, visibility: 'public' as const };
 const blankCat = { slug: '', name: '', description: '', visibility: 'public' as const, layout: 'list' as const };
+const LAYOUT: Record<Cat['layout'], string> = { list: '列表', cards: '卡片', compact: '紧凑' };
 
 export default function SitesManager({ initial }: { initial: SiteT[] }) {
   const [sites, setSites] = useState<SiteT[]>(initial);
@@ -36,12 +40,10 @@ export default function SitesManager({ initial }: { initial: SiteT[] }) {
 
   async function reload() {
     const tree = await api.get<SiteT[]>('/api/owner/sites');
-    setSites((prev) =>
-      tree.map((s) => ({
-        ...s,
-        categories: s.categories.map((c) => ({ ...c, postCount: prev.flatMap((p) => p.categories).find((x) => x.id === c.id)?.postCount ?? 0 })),
-      })),
-    );
+    setSites((prev) => {
+      const counts = new Map(prev.flatMap((p) => p.categories).map((c) => [c.id, c.postCount]));
+      return tree.map((s) => ({ ...s, categories: s.categories.map((c) => ({ ...c, postCount: counts.get(c.id) ?? 0 })) }));
+    });
   }
 
   async function saveSite(e: Event) {
@@ -60,7 +62,8 @@ export default function SitesManager({ initial }: { initial: SiteT[] }) {
   }
 
   async function deleteSite(s: SiteT) {
-    if (!confirm(`删除分站「${s.name}」？`)) return;
+    const ok = await confirmDialog(`删除分站「${s.name}」？`, s.categories.length ? '它还有栏目，需要先删除或迁移这些栏目。' : null, { danger: true, okLabel: '删除' });
+    if (!ok) return;
     try {
       await api.del(`/api/owner/sites/${s.id}`);
       setSites((x) => x.filter((y) => y.id !== s.id));
@@ -71,20 +74,19 @@ export default function SitesManager({ initial }: { initial: SiteT[] }) {
 
   async function toggleSite(s: SiteT) {
     const { id, categories: _c, ...rest } = s;
+    const visibility = s.visibility === 'public' ? 'private' : 'public';
     try {
-      await api.put(`/api/owner/sites/${id}`, { ...rest, visibility: s.visibility === 'public' ? 'private' : 'public' });
-      setSites((x) => x.map((y) => (y.id === id ? { ...y, visibility: y.visibility === 'public' ? 'private' : 'public' } : y)));
+      await api.put(`/api/owner/sites/${id}`, { ...rest, visibility });
+      setSites((x) => x.map((y) => (y.id === id ? { ...y, visibility } : y)));
     } catch (err) {
       toast(errMsg(err), 'error');
     }
   }
 
-  async function moveSite(i: number, dir: -1 | 1) {
-    const next = move(sites, i, i + dir);
-    if (next === sites) return;
-    setSites(next);
-    await api.post('/api/owner/sites/reorder', { ids: next.map((s) => s.id) }).catch((e) => toast(errMsg(e), 'error'));
-  }
+  const siteSort = useSortable(sites.map((s) => s.id), async (ids) => {
+    setSites((x) => byIds(x, ids));
+    await api.post('/api/owner/sites/reorder', { ids }).catch((e) => toast(errMsg(e), 'error'));
+  });
 
   async function saveCat(e: Event) {
     e.preventDefault();
@@ -102,11 +104,8 @@ export default function SitesManager({ initial }: { initial: SiteT[] }) {
   }
 
   async function deleteCat(c: Cat) {
-    if (c.postCount > 0) {
-      setDeletingCat({ cat: c, moveTo: '' });
-      return;
-    }
-    if (!confirm(`删除栏目「${c.name}」？`)) return;
+    if (c.postCount > 0) return setDeletingCat({ cat: c, moveTo: '' });
+    if (!(await confirmDialog(`删除栏目「${c.name}」？`, null, { danger: true, okLabel: '删除' }))) return;
     await doDeleteCat(c, '');
   }
 
@@ -131,72 +130,29 @@ export default function SitesManager({ initial }: { initial: SiteT[] }) {
     }
   }
 
-  async function moveCat(s: SiteT, i: number, dir: -1 | 1) {
-    const next = move(s.categories, i, i + dir);
-    if (next === s.categories) return;
-    setSites((x) => x.map((y) => (y.id === s.id ? { ...y, categories: next } : y)));
-    await api.post('/api/owner/categories/reorder', { ids: next.map((c) => c.id) }).catch((e) => toast(errMsg(e), 'error'));
-  }
-
   return (
     <div class="sm">
       <div class="row-between sm-top">
-        <p class="hint">分站与栏目的“公开”开关会立即影响游客导航、列表、文章直链、搜索、RSS 和站点地图。</p>
-        <button class="btn btn-primary" type="button" onClick={() => setEditingSite({ ...blankSite })}>新建分站</button>
+        <p class="hint">拖动左侧手柄排序（或聚焦手柄后按 Alt+↑/↓）。分站与栏目的“公开”开关会立即影响游客导航、列表、文章直链、搜索、RSS 和站点地图。</p>
+        <button class="btn btn-primary" type="button" onClick={() => setEditingSite({ ...blankSite })}><Icon name="plus" size={14} />新建分站</button>
       </div>
 
-      {sites.map((s, i) => (
-        <section class="panel sm-site" key={s.id}>
-          <div class="sm-site-head">
-            <span class="sm-icon" dangerouslySetInnerHTML={{ __html: iconSvg(s.icon) }} />
-            <div class="sm-site-title">
-              <h2>
-                {s.name} <small class="faint">{s.enName}</small>
-              </h2>
-              <div class="faint small">/{s.slug} · {s.description || '（无简介）'}</div>
-            </div>
-            <div class="row">
-              <label class="switch">
-                <input type="checkbox" checked={s.visibility === 'public'} onChange={() => toggleSite(s)} />
-                <span class="track" />
-                <span>{s.visibility === 'public' ? '公开' : '隐藏'}</span>
-              </label>
-              <button class="btn btn-sm btn-ghost" type="button" disabled={i === 0} onClick={() => moveSite(i, -1)} aria-label="上移">↑</button>
-              <button class="btn btn-sm btn-ghost" type="button" disabled={i === sites.length - 1} onClick={() => moveSite(i, 1)} aria-label="下移">↓</button>
-              <button class="btn btn-sm" type="button" onClick={() => setEditingSite({ ...s })}>编辑</button>
-              <button class="btn btn-sm btn-danger" type="button" onClick={() => deleteSite(s)}>删除</button>
-            </div>
-          </div>
-          <table class="table sm-cats">
-            <tbody>
-              {s.categories.map((c, j) => (
-                <tr key={c.id}>
-                  <td>
-                    <strong>{c.name}</strong> <span class="faint small">/{s.slug}/{c.slug}</span>
-                    {c.description && <div class="faint small">{c.description}</div>}
-                  </td>
-                  <td class="faint small nowrap">{c.postCount} 篇 · {{ list: '列表', cards: '卡片', compact: '紧凑' }[c.layout]}</td>
-                  <td class="nowrap">
-                    <label class="switch">
-                      <input type="checkbox" checked={c.visibility === 'public'} onChange={() => toggleCat(c)} />
-                      <span class="track" />
-                      <span>{c.visibility === 'public' ? '公开' : '隐藏'}</span>
-                    </label>
-                  </td>
-                  <td class="nowrap right">
-                    <button class="btn btn-sm btn-ghost" type="button" disabled={j === 0} onClick={() => moveCat(s, j, -1)} aria-label="上移">↑</button>
-                    <button class="btn btn-sm btn-ghost" type="button" disabled={j === s.categories.length - 1} onClick={() => moveCat(s, j, 1)} aria-label="下移">↓</button>
-                    <a class="btn btn-sm btn-ghost" href={`/owner/posts?category=${c.id}`}>文章</a>
-                    <button class="btn btn-sm btn-ghost" type="button" onClick={() => setEditingCat({ ...c })}>编辑</button>
-                    <button class="btn btn-sm btn-ghost btn-danger" type="button" onClick={() => deleteCat(c)}>删除</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <button class="btn btn-sm sm-addcat" type="button" onClick={() => setEditingCat({ ...blankCat, siteId: s.id })}>+ 新建栏目</button>
-        </section>
-      ))}
+      <div class="stack" ref={siteSort.ref as never} onPointerDown={siteSort.onPointerDown} onKeyDown={siteSort.onKeyDown}>
+        {sites.map((s) => (
+          <SiteCard
+            key={s.id}
+            site={s}
+            onToggle={() => toggleSite(s)}
+            onEdit={() => setEditingSite({ ...s })}
+            onDelete={() => deleteSite(s)}
+            onToggleCat={toggleCat}
+            onEditCat={(c) => setEditingCat({ ...c })}
+            onDeleteCat={deleteCat}
+            onAddCat={() => setEditingCat({ ...blankCat, siteId: s.id })}
+            onReorderCats={(ids) => setSites((x) => x.map((y) => (y.id === s.id ? { ...y, categories: byIds(y.categories, ids) } : y)))}
+          />
+        ))}
+      </div>
 
       {editingSite && (
         <Modal title={editingSite.id ? '编辑分站' : '新建分站'} onClose={() => setEditingSite(null)}>
@@ -209,13 +165,13 @@ export default function SitesManager({ initial }: { initial: SiteT[] }) {
             <div class="field"><label>简介</label><textarea maxLength={400} value={editingSite.description} onInput={(e) => setEditingSite({ ...editingSite, description: e.currentTarget.value })} /></div>
             <div class="field">
               <span class="label">图标</span>
-              <div class="row sm-icons">
+              <div class="sm-icons" role="radiogroup" aria-label="图标">
                 {SITE_ICONS.map((ic) => (
-                  <button type="button" class={`icon-btn ${editingSite.icon === ic ? 'sel' : ''}`} aria-pressed={editingSite.icon === ic} aria-label={ic} onClick={() => setEditingSite({ ...editingSite, icon: ic })} dangerouslySetInnerHTML={{ __html: iconSvg(ic) }} />
+                  <button type="button" role="radio" class={`sm-icon-opt ${editingSite.icon === ic ? 'sel' : ''}`} aria-checked={editingSite.icon === ic} aria-label={ic} onClick={() => setEditingSite({ ...editingSite, icon: ic })} dangerouslySetInnerHTML={{ __html: iconSvg(ic) }} />
                 ))}
               </div>
             </div>
-            <label class="switch"><input type="checkbox" checked={editingSite.visibility === 'public'} onChange={(e) => setEditingSite({ ...editingSite, visibility: e.currentTarget.checked ? 'public' : 'private' })} /><span class="track" /><span>对游客公开</span></label>
+            <Switch checked={editingSite.visibility === 'public'} onChange={(v) => setEditingSite({ ...editingSite, visibility: v ? 'public' : 'private' })} label="对游客公开" />
             <div class="modal-actions"><button class="btn" type="button" onClick={() => setEditingSite(null)}>取消</button><button class="btn btn-primary" type="submit">保存</button></div>
           </form>
         </Modal>
@@ -223,13 +179,8 @@ export default function SitesManager({ initial }: { initial: SiteT[] }) {
 
       {deletingCat && (
         <Modal title={`删除栏目「${deletingCat.cat.name}」`} onClose={() => setDeletingCat(null)}>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (deletingCat.moveTo) void doDeleteCat(deletingCat.cat, deletingCat.moveTo);
-            }}
-          >
-            <p class="muted">该栏目下有 {deletingCat.cat.postCount} 篇文章。删除前需要把它们迁移到其他栏目（文章的公开状态保持不变，但会受新栏目的公开设置影响）。</p>
+          <form onSubmit={(e) => { e.preventDefault(); if (deletingCat.moveTo) void doDeleteCat(deletingCat.cat, deletingCat.moveTo); }}>
+            <p class="muted modal-body">该栏目下有 {deletingCat.cat.postCount} 篇文章。删除前需要把它们迁移到其他栏目；文章本身的公开设置不变，但会受新栏目公开与否的影响。</p>
             <div class="field">
               <label>迁移到</label>
               <select required value={deletingCat.moveTo} onChange={(e) => setDeletingCat({ ...deletingCat, moveTo: e.currentTarget.value })}>
@@ -243,7 +194,7 @@ export default function SitesManager({ initial }: { initial: SiteT[] }) {
             </div>
             <div class="modal-actions">
               <button class="btn" type="button" onClick={() => setDeletingCat(null)}>取消</button>
-              <button class="btn btn-danger" type="submit" disabled={!deletingCat.moveTo}>迁移并删除</button>
+              <button class="btn btn-danger-solid" type="submit" disabled={!deletingCat.moveTo}>迁移并删除</button>
             </div>
           </form>
         </Modal>
@@ -271,7 +222,7 @@ export default function SitesManager({ initial }: { initial: SiteT[] }) {
                 <option value="compact">紧凑（仅标题）</option>
               </select>
             </div>
-            <label class="switch"><input type="checkbox" checked={editingCat.visibility === 'public'} onChange={(e) => setEditingCat({ ...editingCat, visibility: e.currentTarget.checked ? 'public' : 'private' })} /><span class="track" /><span>对游客公开</span></label>
+            <Switch checked={editingCat.visibility === 'public'} onChange={(v) => setEditingCat({ ...editingCat, visibility: v ? 'public' : 'private' })} label="对游客公开" />
             <div class="modal-actions"><button class="btn" type="button" onClick={() => setEditingCat(null)}>取消</button><button class="btn btn-primary" type="submit">保存</button></div>
           </form>
         </Modal>
@@ -280,3 +231,53 @@ export default function SitesManager({ initial }: { initial: SiteT[] }) {
   );
 }
 
+function SiteCard({ site: s, onToggle, onEdit, onDelete, onToggleCat, onEditCat, onDeleteCat, onAddCat, onReorderCats }: {
+  site: SiteT;
+  onToggle: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onToggleCat: (c: Cat) => void;
+  onEditCat: (c: Cat) => void;
+  onDeleteCat: (c: Cat) => void;
+  onAddCat: () => void;
+  onReorderCats: (ids: string[]) => void;
+}) {
+  const catSort = useSortable(s.categories.map((c) => c.id), async (ids) => {
+    onReorderCats(ids);
+    await api.post('/api/owner/categories/reorder', { ids }).catch((e) => toast(errMsg(e), 'error'));
+  });
+  return (
+    <section class={`panel sm-site ${s.visibility === 'public' ? '' : 'is-hidden'}`} data-sort-id={s.id}>
+      <div class="sm-site-head">
+        <button type="button" class="handle" data-sort-handle aria-label={`拖动排序：${s.name}`}><Icon name="grip" size={15} /></button>
+        <span class="sm-icon anim-icon" dangerouslySetInnerHTML={{ __html: iconSvg(s.icon) }} />
+        <div class="sm-site-title">
+          <h2>{s.name} <small class="faint">{s.enName}</small></h2>
+          <div class="faint small">/{s.slug} · {s.description || '（无简介）'}</div>
+        </div>
+        <Switch checked={s.visibility === 'public'} onChange={onToggle} label={s.visibility === 'public' ? '公开' : '隐藏'} />
+        <IconButton icon="edit" label={`编辑分站 ${s.name}`} onClick={onEdit} />
+        <IconButton icon="trash" label={`删除分站 ${s.name}`} variant="danger" onClick={onDelete} />
+      </div>
+      <ul class="sm-cats" ref={catSort.ref as never} onPointerDown={catSort.onPointerDown} onKeyDown={catSort.onKeyDown}>
+        {s.categories.map((c) => (
+          <li data-sort-id={c.id} class={`sm-cat ${c.visibility === 'public' ? '' : 'is-hidden'}`}>
+            <button type="button" class="handle" data-sort-handle aria-label={`拖动排序：${c.name}`}><Icon name="grip" size={14} /></button>
+            <div class="sm-cat-main">
+              <strong>{c.name}</strong> <span class="faint small">/{s.slug}/{c.slug}</span>
+              {c.description && <div class="faint small">{c.description}</div>}
+            </div>
+            <span class="pill">{c.postCount} 篇 · {LAYOUT[c.layout]}</span>
+            <Switch checked={c.visibility === 'public'} onChange={() => onToggleCat(c)} label={c.visibility === 'public' ? '公开' : '隐藏'} />
+            <span class="row-actions">
+              <a class="ibtn ibtn-sm" href={`/owner/posts?category=${c.id}`} title="查看文章" aria-label={`查看 ${c.name} 的文章`}><Icon name="archive" size={14} /></a>
+              <IconButton icon="edit" label={`编辑栏目 ${c.name}`} size="sm" onClick={() => onEditCat(c)} />
+              <IconButton icon="trash" label={`删除栏目 ${c.name}`} size="sm" variant="danger" onClick={() => onDeleteCat(c)} />
+            </span>
+          </li>
+        ))}
+      </ul>
+      <button class="sm-addcat" type="button" onClick={onAddCat}><Icon name="plus" size={13} />新建栏目</button>
+    </section>
+  );
+}

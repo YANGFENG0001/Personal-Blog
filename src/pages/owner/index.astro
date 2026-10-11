@@ -1,44 +1,61 @@
 ---
 import OwnerLayout from '../../layouts/OwnerLayout.astro';
-import { activeModules } from '../../server/services/config';
+import { activeModules, listTemplates } from '../../server/services/config';
 import { listPosts } from '../../server/services/posts';
 import { listBoards, taskCounts } from '../../server/services/tasks';
 import { growthSummary, ownerStats } from '../../server/services/stats';
 import { activityHeatmap, dayKey } from '../../server/services/activity';
 import { listPapers, READ_STATUS } from '../../server/services/knowledge';
-import { listTemplates } from '../../server/services/config';
 import { relativeTime } from '../../lib/format';
+import { iconSvg } from '../../lib/icons';
 import TaskBoards from '../../components/owner/TaskBoards';
 
 const modules = activeModules('owner-dashboard');
 const growth = growthSummary();
-const stats = ownerStats().filter((s) => s.enabled);
+const stats = Object.fromEntries(ownerStats().map((s) => [s.kind, s]));
 const counts = taskCounts();
 const recent = listPosts({ limit: 6 }).items;
 const inProgress = listPosts({ limit: 50 }).items.filter((p) => p.progress && !['已完成', '已精读'].includes(p.progress)).slice(0, 6);
 const boards = listBoards({ dashboardOnly: true });
 const papers = listPapers().filter((p) => p.readStatus === 'reading' || p.readStatus === 'to-read').slice(0, 6);
 const templates = listTemplates();
+const TPL_ICON: Record<string, string> = { paper: 'atom', tech: 'code', learning: 'book', reflection: 'compass', free: 'pen' };
 
-const heat = activityHeatmap(140);
-const cells: { day: string; level: number }[] = [];
-const start = new Date();
-start.setDate(start.getDate() - 139 - start.getDay());
-for (let i = 0; i < 140 + new Date().getDay(); i++) {
+/* Heatmap: last 26 weeks, Monday-first columns, today in the last column. */
+const WEEKS = 26;
+const heat = activityHeatmap(WEEKS * 7 + 7);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+const todayKey = dayKey(today);
+const dow = (today.getDay() + 6) % 7;
+const start = new Date(today);
+start.setDate(today.getDate() - dow - (WEEKS - 1) * 7);
+const cells: { day: string; n: number; level: number; future: boolean }[] = [];
+const monthAt: Record<number, string> = {};
+for (let i = 0; i < WEEKS * 7; i++) {
   const d = new Date(start);
   d.setDate(start.getDate() + i);
-  const k = dayKey(d);
-  const n = heat[k] ?? 0;
-  cells.push({ day: k, level: n === 0 ? 0 : n < 2 ? 1 : n < 4 ? 2 : n < 7 ? 3 : 4 });
+  const n = heat[dayKey(d)] ?? 0;
+  if (i % 7 === 0 && (i === 0 || d.getDate() <= 7)) monthAt[i / 7] = `${d.getMonth() + 1}月`;
+  cells.push({ day: dayKey(d), n, level: n === 0 ? 0 : n < 2 ? 1 : n < 4 ? 2 : n < 7 ? 3 : 4, future: d > today });
 }
+const sumSince = (from: Date) => Object.entries(heat).filter(([k]) => k >= dayKey(from)).reduce((a, [, v]) => a + v, 0);
+const weekStart = new Date(today);
+weekStart.setDate(today.getDate() - dow);
+const weekTotal = sumSince(weekStart);
+const monthTotal = sumSince(new Date(today.getFullYear(), today.getMonth(), 1));
+const activeDays = cells.filter((c) => c.n > 0).length;
+
 const hour = new Date().getHours();
 const greet = hour < 6 ? '夜深了' : hour < 12 ? '早上好' : hour < 18 ? '下午好' : '晚上好';
+const isPublic = (kind: string) => !!(stats[kind]?.enabled && stats[kind]?.public);
+const EYE = iconSvg('eye');
 ---
 
 <OwnerLayout title="总览" heading={`${greet}，${Astro.locals.owner!.username}`} subtitle="这里的一切只有你能看到。">
   <Fragment slot="actions">
-    <a class="btn btn-primary" href="/owner/editor">写新文章</a>
-    <button class="btn" type="button" data-checkin>今日已学习 ✓</button>
+    <button class="btn" type="button" data-checkin><Fragment set:html={iconSvg('check', 'ic')} />今日已学习</button>
+    <a class="btn btn-primary" href="/owner/editor"><Fragment set:html={iconSvg('plus', 'ic')} />写新文章</a>
   </Fragment>
 
   <div class="dash">
@@ -47,14 +64,15 @@ const greet = hour < 6 ? '夜深了' : hour < 12 ? '早上好' : hour < 18 ? '�
         if (m.type === 'quick-write')
           return (
             <section class="panel span-all">
-              <div class="panel-head">
-                <h2>{m.name}</h2>
-              </div>
+              <div class="panel-head"><h2>{m.name}</h2></div>
               <div class="quick">
                 {templates.map((t) => (
-                  <a class="quick-item" href={`/owner/editor?template=${t.id}`}>
-                    <strong>{t.name}</strong>
-                    <span>{t.description}</span>
+                  <a class="quick-item anim-icon" href={`/owner/editor?template=${t.id}`}>
+                    <span class="quick-icon" set:html={iconSvg(TPL_ICON[t.id] ?? 'pen')} />
+                    <span>
+                      <strong>{t.name}</strong>
+                      <small>{t.description}</small>
+                    </span>
                   </a>
                 ))}
               </div>
@@ -67,24 +85,78 @@ const greet = hour < 6 ? '夜深了' : hour < 12 ? '早上好' : hour < 18 ? '�
                 <h2>{m.name}</h2>
                 <a class="btn btn-sm btn-ghost" href="/owner/display#stats">统计设置</a>
               </div>
-              <div class="kpis">
-                <div class="kpi"><div class="kpi-label">文章总数</div><div class="kpi-value">{growth.totalPosts}</div><div class="kpi-note">已发布 {growth.published} · 草稿 {growth.drafts}</div></div>
-                <div class="kpi"><div class="kpi-label">论文精读笔记</div><div class="kpi-value">{growth.paperNotes}</div><div class="kpi-note">论文库 {growth.papersTotal} · 已读 {growth.papersDeepRead}</div></div>
-                <div class="kpi"><div class="kpi-label">完成复现</div><div class="kpi-value">{growth.reproduced}</div></div>
-                <div class="kpi"><div class="kpi-label">已完成任务</div><div class="kpi-value">{growth.tasksDone}</div><div class="kpi-note">待办 {counts.open ?? 0}{counts.overdue ? ` · 逾期 ${counts.overdue}` : ''}</div></div>
-                {stats.map((s) => (
-                  <div class="kpi" title={s.description}>
-                    <div class="kpi-label">{s.label}{s.public && <span class="pill pill-accent pub">公开</span>}</div>
-                    <div class="kpi-value">{s.value}<small>{s.unit}</small></div>
+              <div class="kgroups">
+                <div class="kgroup">
+                  <div class="kgroup-head"><span class="kgroup-icon" set:html={iconSvg('pen')} />写作</div>
+                  <div class="kgroup-main"><strong>{growth.totalPosts}</strong><span>篇文章</span></div>
+                  <div class="kgroup-subs">
+                    <span>已发布<b>{growth.published}</b></span>
+                    <span>草稿<b>{growth.drafts}</b></span>
+                    <span>游客可见<b>{stats['post-count']?.value ?? 0}</b></span>
                   </div>
-                ))}
-                <div class="kpi"><div class="kpi-label">最长连续学习</div><div class="kpi-value">{growth.learningLongest}<small>天</small></div></div>
-              </div>
-              <div class="heat-wrap">
-                <div class="heat" aria-label="近 20 周学习活动">
-                  {cells.map((c) => <span data-l={c.level} title={c.day} />)}
                 </div>
-                <p class="hint">学习活动：保存文章、完成任务或手动打卡都会计入（仅你可见）。</p>
+                <div class="kgroup">
+                  <div class="kgroup-head"><span class="kgroup-icon" set:html={iconSvg('atom')} />研究</div>
+                  <div class="kgroup-main"><strong>{growth.paperNotes}</strong><span>篇精读笔记</span></div>
+                  <div class="kgroup-subs">
+                    <span>论文库<b>{growth.papersTotal}</b></span>
+                    <span>已读<b>{growth.papersDeepRead}</b></span>
+                    <span>已复现<b>{growth.reproduced}</b></span>
+                  </div>
+                </div>
+                <div class="kgroup">
+                  <div class="kgroup-head"><span class="kgroup-icon" set:html={iconSvg('checklist')} />任务</div>
+                  <div class="kgroup-main"><strong>{growth.tasksDone}</strong><span>项已完成</span></div>
+                  <div class="kgroup-subs">
+                    <span>待办<b>{counts.open ?? 0}</b></span>
+                    <span class:list={{ warn: !!counts.overdue }}>逾期<b>{counts.overdue ?? 0}</b></span>
+                  </div>
+                </div>
+                <div class="kgroup">
+                  <div class="kgroup-head"><span class="kgroup-icon" set:html={iconSvg('sparkle')} />连续</div>
+                  <div class="kgroup-main">
+                    <strong>{stats['learning-streak']?.value ?? 0}</strong><span>天连续学习</span>
+                    {isPublic('learning-streak') && <i class="pub" title="已对游客公开" set:html={EYE} />}
+                  </div>
+                  <div class="kgroup-subs">
+                    {(['publish-streak', 'uptime-streak', 'site-days'] as const).map((k) => (
+                      <span>
+                        {{ 'publish-streak': '发布', 'uptime-streak': '在线', 'site-days': '建站' }[k]}
+                        <b>{stats[k]?.value ?? 0}</b>
+                        {isPublic(k) && <i class="pub" title="已对游客公开" set:html={EYE} />}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div class="heat-card">
+                <div class="heat-main">
+                  <h3>学习热力图 · 近 {WEEKS} 周</h3>
+                  <div class="heat-scroll" data-heat-scroll>
+                    <div class="heat-wrap">
+                      <div class="heat-months" aria-hidden="true">
+                        {Array.from({ length: WEEKS }, (_, col) => <span>{monthAt[col] ?? ''}</span>)}
+                      </div>
+                      <div class="heat-days" aria-hidden="true"><span /><span>一</span><span /><span>三</span><span /><span>五</span><span /></div>
+                      <div class="heat" data-heat role="img" aria-label={`近 ${WEEKS} 周有 ${activeDays} 天学习`}>
+                        {cells.map((c) => (
+                          <span data-l={c.level} data-day={c.day} data-n={c.n} data-future={c.future ? '' : undefined} data-today={c.day === todayKey ? '' : undefined} />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div class="heat-legend" aria-hidden="true">
+                    少<i data-l="0" /><i data-l="1" /><i data-l="2" /><i data-l="3" /><i data-l="4" />多
+                  </div>
+                </div>
+                <dl class="heat-side">
+                  <div><dt>本周活动</dt><dd>{weekTotal}</dd></div>
+                  <div><dt>本月活动</dt><dd>{monthTotal}</dd></div>
+                  <div><dt>活跃天数</dt><dd>{activeDays}<small>天</small></dd></div>
+                  <div><dt>最长连续</dt><dd>{growth.learningLongest}<small>天</small></dd></div>
+                  <p class="hint">保存文章、完成任务或手动打卡都会计入，仅你可见。</p>
+                </dl>
               </div>
             </section>
           );
@@ -93,16 +165,18 @@ const greet = hour < 6 ? '夜深了' : hour < 12 ? '早上好' : hour < 18 ? '�
             <section class="panel">
               <div class="panel-head">
                 <h2>{m.name}</h2>
-                <a class="btn btn-sm btn-ghost" href="/owner/posts">全部 →</a>
+                <a class="btn btn-sm btn-ghost" href="/owner/posts">全部</a>
               </div>
-              {recent.length === 0 ? <p class="empty-note">还没有文章。</p> : (
-                <ul class="list-plain">
+              {recent.length === 0 ? (
+                <p class="empty-note">还没有文章。</p>
+              ) : (
+                <ul class="list-plain dash-list">
                   {recent.map((p) => (
-                    <li class="row-between">
+                    <li>
                       <a href={`/owner/editor/${p.id}`}>{p.title}</a>
                       <span class="row">
                         {p.hiddenReason ? <span class="pill">{p.hiddenReason}</span> : <span class="pill pill-accent">公开</span>}
-                        <span class="faint small">{relativeTime(p.updatedAt)}</span>
+                        <span class="faint small nowrap">{relativeTime(p.updatedAt)}</span>
                       </span>
                     </li>
                   ))}
@@ -114,10 +188,12 @@ const greet = hour < 6 ? '夜深了' : hour < 12 ? '早上好' : hour < 18 ? '�
           return (
             <section class="panel">
               <div class="panel-head"><h2>{m.name}</h2></div>
-              {inProgress.length === 0 ? <p class="empty-note">没有进行中的内容。在编辑器里给文章设置“进度”即可出现在这里。</p> : (
-                <ul class="list-plain">
+              {inProgress.length === 0 ? (
+                <p class="empty-note">没有进行中的内容。在编辑器里给文章设置“进度”即可出现在这里。</p>
+              ) : (
+                <ul class="list-plain dash-list">
                   {inProgress.map((p) => (
-                    <li class="row-between">
+                    <li>
                       <a href={`/owner/editor/${p.id}`}>{p.title}</a>
                       <span class="pill pill-warn">{p.progress}</span>
                     </li>
@@ -131,12 +207,14 @@ const greet = hour < 6 ? '夜深了' : hour < 12 ? '早上好' : hour < 18 ? '�
             <section class="panel">
               <div class="panel-head">
                 <h2>{m.name}</h2>
-                <a class="btn btn-sm btn-ghost" href="/owner/papers">论文库 →</a>
+                <a class="btn btn-sm btn-ghost" href="/owner/papers">论文库</a>
               </div>
-              {papers.length === 0 ? <p class="empty-note">待读列表是空的。</p> : (
-                <ul class="list-plain">
+              {papers.length === 0 ? (
+                <p class="empty-note">待读列表是空的。</p>
+              ) : (
+                <ul class="list-plain dash-list">
                   {papers.map((p) => (
-                    <li class="row-between">
+                    <li>
                       <span>{p.title}{p.year && <span class="faint"> · {p.year}</span>}</span>
                       <span class="pill">{READ_STATUS[p.readStatus]}</span>
                     </li>
@@ -149,8 +227,8 @@ const greet = hour < 6 ? '夜深了' : hour < 12 ? '早上好' : hour < 18 ? '�
           return (
             <section class="span-all">
               <div class="row-between tasks-head">
-                <h2 class="serif">{m.name}</h2>
-                <a class="btn btn-sm btn-ghost" href="/owner/tasks">管理任务板 →</a>
+                <h2>{m.name}</h2>
+                <a class="btn btn-sm btn-ghost" href="/owner/tasks">管理任务板</a>
               </div>
               <TaskBoards client:load initial={boards} compact />
             </section>
@@ -162,20 +240,65 @@ const greet = hour < 6 ? '夜深了' : hour < 12 ? '早上好' : hour < 18 ? '�
 </OwnerLayout>
 
 <style>
-  .dash { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-  .dash > .panel + .panel { margin-top: 0; }
+  .dash { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap); }
+  .dash > :global(.panel + .panel) { margin-top: 0; }
   .span-all { grid-column: 1 / -1; }
-  .quick { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
-  .quick-item { display: grid; gap: 2px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 6px; transition: border-color 0.15s; }
-  .quick-item:hover { border-color: var(--accent); }
-  .quick-item strong { font: 600 14px var(--serif); }
-  .quick-item span { font-size: 11px; color: var(--faint); line-height: 1.6; }
-  .pub { margin-left: 6px; font-size: 9px; padding: 0 4px; }
-  .heat-wrap { margin-top: 16px; display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap; overflow-x: auto; }
-  .heat-wrap .hint { margin: 0; max-width: 260px; }
-  .small { font-size: 11px; }
-  .tasks-head { margin: 12px 0 10px; }
-  .tasks-head h2 { font-size: 16px; margin: 0; }
+  .quick { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+  .quick-item { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border: 1px solid var(--line); border-radius: var(--r); transition: border-color 0.2s, transform calc(0.3s * var(--dur)) var(--ease), box-shadow 0.2s; }
+  .quick-item:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: var(--shadow-sm); }
+  .quick-icon { width: 34px; height: 34px; flex: none; border-radius: var(--r-sm); background: var(--tint); color: var(--accent); display: grid; place-items: center; }
+  .quick-icon :global(svg) { width: 18px; height: 18px; }
+  .quick-item strong { display: block; font: 600 14px var(--display); }
+  .quick-item small { display: block; font-size: 11px; color: var(--faint); line-height: 1.6; margin-top: 2px; }
+
+  .kgroups { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  @media (max-width: 1080px) { .kgroups { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 560px) { .kgroups { grid-template-columns: 1fr; } }
+  .kgroup { border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; display: grid; gap: 10px; align-content: start; transition: border-color 0.2s, transform calc(0.3s * var(--dur)) var(--ease), box-shadow 0.2s; }
+  .kgroup:hover { border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); transform: translateY(-2px); box-shadow: var(--shadow-sm); }
+  .kgroup-head { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: 0.06em; }
+  .kgroup-icon { width: 26px; height: 26px; border-radius: var(--r-sm); background: var(--tint); color: var(--accent); display: grid; place-items: center; }
+  .kgroup-icon :global(svg) { width: 15px; height: 15px; }
+  .kgroup-main { display: flex; align-items: baseline; gap: 6px; }
+  .kgroup-main strong { font: 500 30px/1.1 Georgia, var(--serif); font-variant-numeric: tabular-nums; }
+  .kgroup-main span { font-size: 12px; color: var(--faint); }
+  .kgroup-subs { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); }
+  .kgroup-subs b { font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; margin-left: 3px; }
+  .kgroup-subs .warn b { color: var(--danger); }
+  .pub { display: inline-flex; color: var(--accent); margin-left: 2px; vertical-align: -1px; }
+  .pub :global(svg) { width: 12px; height: 12px; }
+
+  .heat-card { display: grid; grid-template-columns: minmax(0, 1fr) 200px; gap: 28px; align-items: start; margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); }
+  @media (max-width: 900px) { .heat-card { grid-template-columns: 1fr; } }
+  .heat-main h3 { margin: 0 0 10px; }
+  .heat-scroll { overflow-x: auto; padding-bottom: 4px; }
+  .heat-wrap { display: grid; grid-template-columns: auto auto; gap: 4px 6px; width: max-content; }
+  .heat-months { grid-column: 2; display: grid; grid-auto-flow: column; grid-auto-columns: 13px; gap: 3px; font-size: 10px; color: var(--faint); height: 14px; }
+  .heat-months span { white-space: nowrap; overflow: visible; }
+  .heat-days { display: grid; grid-template-rows: repeat(7, 13px); gap: 3px; font-size: 10px; color: var(--faint); line-height: 13px; }
+  .heat { display: grid; grid-template-rows: repeat(7, 13px); grid-auto-flow: column; grid-auto-columns: 13px; gap: 3px; }
+  .heat span, .heat-legend i { border-radius: 3px; background: var(--pane); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 5%, transparent); }
+  .heat span { transition: transform 0.15s var(--spring); }
+  .heat span:hover { transform: scale(1.35); position: relative; z-index: 1; }
+  :is(.heat span, .heat-legend i)[data-l='1'] { background: color-mix(in srgb, var(--accent) 28%, var(--pane)); }
+  :is(.heat span, .heat-legend i)[data-l='2'] { background: color-mix(in srgb, var(--accent) 50%, var(--pane)); }
+  :is(.heat span, .heat-legend i)[data-l='3'] { background: color-mix(in srgb, var(--accent) 75%, var(--pane)); }
+  :is(.heat span, .heat-legend i)[data-l='4'] { background: var(--accent); }
+  .heat span[data-future] { visibility: hidden; }
+  .heat span[data-today] { box-shadow: inset 0 0 0 1.5px var(--ink); }
+  .heat-legend { display: flex; align-items: center; gap: 3px; font-size: 11px; color: var(--faint); margin-top: 10px; }
+  .heat-legend i { width: 11px; height: 11px; display: inline-block; }
+  .heat-side { margin: 0; display: grid; gap: 10px; }
+  .heat-side div { display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 10px; border-bottom: 1px dashed var(--line); }
+  .heat-side dt { font-size: 12px; color: var(--muted); }
+  .heat-side dd { margin: 0; font: 500 20px Georgia, var(--serif); font-variant-numeric: tabular-nums; }
+  .heat-side dd small { font: 11px var(--body); color: var(--faint); margin-left: 2px; }
+
+  .dash-list li { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .dash-list li > :first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dash-list a:hover { color: var(--accent); }
+  .tasks-head { margin: 8px 0 10px; }
+  .tasks-head h2 { font: 600 16px var(--display); margin: 0; }
   @media (max-width: 900px) { .dash { grid-template-columns: 1fr; } }
 </style>
 
@@ -190,4 +313,29 @@ const greet = hour < 6 ? '夜深了' : hour < 12 ? '早上好' : hour < 18 ? '�
       toast(errMsg(e), 'error');
     }
   });
+  // Show the latest week first on narrow screens; hover tooltip with date + count.
+  const scroll = document.querySelector<HTMLElement>('[data-heat-scroll]');
+  if (scroll) scroll.scrollLeft = scroll.scrollWidth;
+  const grid = document.querySelector<HTMLElement>('[data-heat]');
+  if (grid) {
+    const tip = document.createElement('div');
+    tip.className = 'heat-tip';
+    tip.hidden = true;
+    document.body.append(tip);
+    grid.addEventListener('pointerover', (e) => {
+      const c = (e.target as HTMLElement).closest<HTMLElement>('[data-day]');
+      if (!c) return;
+      const r = c.getBoundingClientRect();
+      const n = Number(c.dataset.n);
+      tip.textContent = `${c.dataset.day} · ${n ? `${n} 次活动` : '无活动'}`;
+      tip.style.left = `${r.left + r.width / 2}px`;
+      tip.style.top = `${r.top}px`;
+      tip.hidden = false;
+    });
+    grid.addEventListener('pointerleave', () => (tip.hidden = true));
+  }
 </script>
+
+<style is:global>
+  .heat-tip { position: fixed; z-index: 600; pointer-events: none; background: var(--ink); color: var(--bg); font-size: 11px; padding: 4px 8px; border-radius: 4px; transform: translate(-50%, -130%); white-space: nowrap; }
+</style>

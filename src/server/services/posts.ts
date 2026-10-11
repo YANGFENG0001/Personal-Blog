@@ -2,7 +2,7 @@ import { getDb, newId, now } from '../db';
 import { badRequest, conflict, notFound } from '../errors';
 import { postInput } from '../validation';
 import { PUBLIC_POST_SQL, POST_JOIN_SQL, hiddenReason } from '../visibility';
-import { renderMarkdown, type TocItem } from '../../lib/markdown/render';
+import { RENDERER_VERSION, renderMarkdown, type TocItem } from '../../lib/markdown/render';
 import { getCategory } from './sites';
 import { recordActivity } from './activity';
 
@@ -439,6 +439,21 @@ export function deletePost(id: string): void {
 /** Rebuild cached HTML for every post (after a renderer upgrade). */
 export async function rerenderAll(): Promise<number> {
   return rerender('SELECT id, body_md, reflection_md FROM posts');
+}
+
+/**
+ * Make cached HTML current: re-render everything once after a renderer
+ * upgrade (tracked in settings), otherwise only posts missing HTML.
+ */
+export async function ensureRendered(): Promise<number> {
+  const db = getDb();
+  const row = db.prepare(`SELECT value FROM settings WHERE key = 'rendererVersion'`).get() as { value: string } | undefined;
+  if (Number(row?.value ?? 0) !== RENDERER_VERSION) {
+    const n = await rerenderAll();
+    db.prepare(`INSERT OR REPLACE INTO settings (key, value) VALUES ('rendererVersion', ?)`).run(String(RENDERER_VERSION));
+    return n;
+  }
+  return rerenderMissing();
 }
 
 /** Render posts whose HTML cache is missing (e.g. seeded or imported directly into the DB). */

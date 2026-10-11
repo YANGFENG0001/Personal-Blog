@@ -88,8 +88,8 @@ const UNITS: Record<StatKind, string> = {
  */
 export function publicStats(siteId?: string): StatValue[] {
   return listStatDefs()
-    .filter((d) => d.enabled && d.public && (!d.siteIds || !siteId || d.siteIds.includes(siteId)))
-    .filter((d) => !d.siteIds || siteId) // site-scoped stats only show inside their sites
+    // siteIds null = whole site; otherwise only on pages of the listed sites.
+    .filter((d) => d.enabled && d.public && (!d.siteIds || (!!siteId && d.siteIds.includes(siteId))))
     .map((d) => ({ ...d, value: computeStat(d), unit: UNITS[d.kind] }));
 }
 

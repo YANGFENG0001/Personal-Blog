@@ -122,8 +122,8 @@ const host = (u: string) => { try { return new URL(u).host.replace(/^www\./, '')
       }
 
       <nav class="adjacent" aria-label="相邻文章">
-        {older ? <a href={`/${older.siteSlug}/${older.categorySlug}/${older.slug}`} rel="prev"><small>← 上一篇</small>{older.title}</a> : <span />}
-        {newer ? <a class="next" href={`/${newer.siteSlug}/${newer.categorySlug}/${newer.slug}`} rel="next"><small>下一篇 →</small>{newer.title}</a> : <span />}
+        {older ? <a href={`/${older.siteSlug}/${older.categorySlug}/${older.slug}`} rel="prev"><small><Fragment set:html={iconSvg('chevron-left', 'adj-ic')} />上一篇</small><span>{older.title}</span></a> : <span />}
+        {newer ? <a class="next" href={`/${newer.siteSlug}/${newer.categorySlug}/${newer.slug}`} rel="next"><small>下一篇<Fragment set:html={iconSvg('chevron-right', 'adj-ic')} /></small><span>{newer.title}</span></a> : <span />}
       </nav>
     </article>
 
@@ -186,11 +186,17 @@ const host = (u: string) => { try { return new URL(u).host.replace(/^www\./, '')
   .reflection .prose { font-size: 15px; }
   .tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 40px 0 0; }
   .tags a:hover { color: var(--accent); border-color: var(--accent); }
-  .adjacent { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--line); max-width: 740px; }
-  .adjacent a { display: grid; gap: 4px; font: 500 14px/1.7 var(--serif); }
-  .adjacent a:hover { color: var(--accent); }
-  .adjacent small { font: 11px var(--sans); color: var(--faint); }
+  .adjacent { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 44px; max-width: 740px; }
+  .adjacent a { display: grid; gap: 6px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--r); font: 500 14px/1.7 var(--display); background: var(--surface); transition: border-color 0.2s, transform calc(0.3s * var(--dur)) var(--ease), box-shadow 0.2s; }
+  .adjacent a:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: var(--shadow-sm); }
+  .adjacent a:hover span { color: var(--accent); }
+  .adjacent small { display: inline-flex; align-items: center; gap: 4px; font: 11px var(--sans); color: var(--faint); letter-spacing: 0.06em; }
   .adjacent .next { text-align: right; }
+  .adjacent .next small { justify-content: flex-end; }
+  .adjacent :global(.adj-ic) { width: 13px; height: 13px; transition: transform calc(0.3s * var(--dur)) var(--ease); }
+  .adjacent a[rel='prev']:hover :global(.adj-ic) { transform: translateX(-3px); }
+  .adjacent a[rel='next']:hover :global(.adj-ic) { transform: translateX(3px); }
+  @media (max-width: 600px) { .adjacent { grid-template-columns: 1fr; } }
 
   .article-aside { align-self: stretch; }
   .aside-sticky { position: sticky; top: calc(var(--header-h) + 76px); display: flex; flex-direction: column; gap: 28px; }
@@ -201,7 +207,8 @@ const host = (u: string) => { try { return new URL(u).host.replace(/^www\./, '')
   .toc a { display: block; font-size: 12.5px; line-height: 1.6; padding: 4px 0 4px 12px; color: var(--muted); border-left: 1px solid var(--line); transition: color 0.15s, border-color 0.15s; }
   .toc .d3 a { padding-left: 24px; font-size: 12px; }
   .toc .d4 a { padding-left: 36px; font-size: 12px; }
-  .toc a:hover, .toc a[aria-current='true'] { color: var(--accent); border-left-color: var(--accent); }
+  .toc a:hover { color: var(--ink); }
+  .toc a[aria-current='true'] { color: var(--accent); border-left: 2px solid var(--accent); padding-left: 11px; font-weight: 600; }
   .toc-side { max-height: 52vh; overflow-y: auto; min-height: 0; }
   .toc-inline { display: none; margin: 0 0 24px; border: 1px solid var(--line); border-radius: 6px; padding: 10px 16px; }
   .toc-inline summary { cursor: pointer; font-size: 13px; color: var(--muted); }
@@ -233,6 +240,40 @@ const host = (u: string) => { try { return new URL(u).host.replace(/^www\./, '')
 </style>
 
 <script>
+  // Copy buttons on code blocks.
+  document.querySelectorAll<HTMLButtonElement>('.prose .code-copy').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const code = btn.closest('.code-block')?.querySelector('pre')?.innerText ?? '';
+      try {
+        await navigator.clipboard.writeText(code);
+        btn.textContent = '已复制';
+        btn.classList.add('done');
+      } catch {
+        btn.textContent = '复制失败';
+      }
+      setTimeout(() => { btn.textContent = '复制'; btn.classList.remove('done'); }, 1600);
+    });
+  });
+
+  // Click an image to view it larger.
+  document.querySelectorAll<HTMLImageElement>('.article .prose img').forEach((img) => {
+    img.addEventListener('click', () => {
+      const box = document.createElement('div');
+      box.className = 'lightbox';
+      box.setAttribute('role', 'dialog');
+      box.setAttribute('aria-label', img.alt || '图片');
+      const big = document.createElement('img');
+      big.src = img.currentSrc || img.src;
+      big.alt = img.alt;
+      box.append(big);
+      const close = () => { box.remove(); document.removeEventListener('keydown', onKey); };
+      const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close();
+      box.addEventListener('click', close);
+      document.addEventListener('keydown', onKey);
+      document.body.append(box);
+    });
+  });
+
   // Highlight the current section in the side TOC.
   const links = [...document.querySelectorAll<HTMLAnchorElement>('[data-toc-link]')];
   if (links.length && 'IntersectionObserver' in window) {

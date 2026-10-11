@@ -82,6 +82,56 @@ function rehypeCollectToc(toc: TocItem[]) {
   };
 }
 
+/**
+ * Wrap each code block (before Shiki, while the language class still exists)
+ * in a frame with a language label and a copy button. Runs after sanitising,
+ * so this trusted markup is kept.
+ */
+function rehypeCodeFrame() {
+  return (tree: Root) => {
+    visit(tree, 'element', (node: Element, index, parent) => {
+      if (node.tagName !== 'pre' || !parent || typeof index !== 'number') return;
+      const code = node.children.find((c): c is Element => c.type === 'element' && c.tagName === 'code');
+      const cls = code?.properties?.className;
+      const lang = (Array.isArray(cls) ? cls.map(String).find((c) => c.startsWith('language-'))?.slice(9) : undefined) ?? 'text';
+      if (lang === 'math') return;
+      (parent as Root | Element).children[index] = {
+        type: 'element',
+        tagName: 'div',
+        properties: { className: ['code-block'] },
+        children: [
+          {
+            type: 'element',
+            tagName: 'div',
+            properties: { className: ['code-head'] },
+            children: [
+              { type: 'element', tagName: 'span', properties: { className: ['code-lang'] }, children: [{ type: 'text', value: lang }] },
+              { type: 'element', tagName: 'button', properties: { className: ['code-copy'], type: 'button' }, children: [{ type: 'text', value: '复制' }] },
+            ],
+          },
+          node,
+        ],
+      };
+      return 'skip';
+    });
+  };
+}
+
+/** A hover "#" anchor after each h2–h4. */
+function rehypeHeadingAnchors() {
+  return (tree: Root) => {
+    visit(tree, 'element', (node: Element) => {
+      if (!/^h[2-4]$/.test(node.tagName) || !node.properties?.id) return;
+      node.children.push({
+        type: 'element',
+        tagName: 'a',
+        properties: { className: ['h-anchor'], href: `#${String(node.properties.id)}`, ariaHidden: 'true', tabIndex: -1 },
+        children: [{ type: 'text', value: '#' }],
+      });
+    });
+  };
+}
+
 async function build(toc: TocItem[]) {
   return unified()
     .use(remarkParse)
@@ -92,6 +142,7 @@ async function build(toc: TocItem[]) {
     .use(rehypeSlug)
     .use(rehypeCollectToc(toc))
     .use(rehypeExternalLinks)
+    .use(rehypeCodeFrame)
     .use(rehypeKatex, { throwOnError: false, strict: 'ignore', trust: false } satisfies KatexOptions)
     .use(rehypeShiki, {
       themes: { light: 'github-light', dark: 'github-dark-dimmed' },
@@ -99,6 +150,7 @@ async function build(toc: TocItem[]) {
       fallbackLanguage: 'text',
       lazy: true,
     })
+    .use(rehypeHeadingAnchors)
     .use(rehypeStringify);
 }
 
@@ -109,6 +161,9 @@ export function readingMinutes(md: string): number {
 }
 
 /** The single Markdown pipeline used by both editor preview and public pages. */
+/** Bump when rendered HTML changes shape; cached post HTML is rebuilt on start. */
+export const RENDERER_VERSION = 2;
+
 export async function renderMarkdown(md: string): Promise<RenderResult> {
   const toc: TocItem[] = [];
   const processor = await build(toc);

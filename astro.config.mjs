@@ -7,6 +7,7 @@ export default defineConfig({
   output: 'server',
   adapter: node({ mode: 'standalone', bodySizeLimit: 12 * 1024 * 1024 }),
   integrations: [preact()],
+  devToolbar: { enabled: false },
   build: { inlineStylesheets: 'never' },
   security: {
     // Origin + CSRF-token checks are enforced in src/middleware.ts for every

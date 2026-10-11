@@ -1,4 +1,4 @@
-/** Small DOM helpers for encouragement cards and easter eggs (browser only). */
+/** Encouragement card (browser only). Styles live in styles/themes.css. */
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -16,13 +16,12 @@ export function showEncouragement(
   const card = el('aside', 'enc-card');
   card.dataset.anim = animation;
   card.setAttribute('role', 'status');
-  const src = el('div', 'enc-src', `${q.author}${q.source ? ` · ${q.source}` : ''}`);
-  const quote = el('blockquote', 'enc-quote', q.text);
-  card.append(src, quote);
+  card.append(el('div', 'enc-src', `${q.author}${q.source ? ` · ${q.source}` : ''}`), el('blockquote', 'enc-quote', q.text));
   if (q.followUp) card.append(el('p', 'enc-follow', q.followUp));
-  const close = el('button', 'icon-btn enc-close', '×');
+  const close = el('button', 'icon-btn enc-close');
   close.type = 'button';
   close.setAttribute('aria-label', '关闭');
+  close.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>';
   const bar = el('span', 'enc-bar');
   bar.style.animationDuration = `${durationSeconds}s`;
   card.append(close, bar);
@@ -31,8 +30,7 @@ export function showEncouragement(
   const dismiss = () => {
     window.clearTimeout(timer);
     card.classList.add('leaving');
-    card.addEventListener('animationend', () => card.remove(), { once: true });
-    setTimeout(() => card.remove(), 600);
+    setTimeout(() => card.remove(), 420);
   };
   const arm = () => { timer = window.setTimeout(dismiss, durationSeconds * 1000); };
   close.addEventListener('click', dismiss);
@@ -42,25 +40,4 @@ export function showEncouragement(
   document.body.append(card);
   arm();
   return card;
-}
-
-export function sparks(x: number, y: number, n = 10): void {
-  const glyphs = ['✦', '✧', '·', '✶'];
-  for (let i = 0; i < n; i++) {
-    const s = el('span', 'spark', glyphs[i % glyphs.length]);
-    const a = (Math.PI * 2 * i) / n;
-    s.style.left = `${x}px`;
-    s.style.top = `${y}px`;
-    s.style.setProperty('--dx', `${Math.cos(a) * 46}px`);
-    s.style.setProperty('--dy', `${Math.sin(a) * 46}px`);
-    document.body.append(s);
-    setTimeout(() => s.remove(), 1000);
-  }
-}
-
-export function eggNote(text: string, ms = 4200): void {
-  const n = el('div', 'egg-note', text);
-  n.setAttribute('role', 'status');
-  document.body.append(n);
-  setTimeout(() => n.remove(), ms);
 }

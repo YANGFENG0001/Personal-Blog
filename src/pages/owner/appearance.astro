@@ -1,0 +1,26 @@
+---
+import OwnerLayout from '../../layouts/OwnerLayout.astro';
+import AppearanceManager from '../../components/owner/AppearanceManager';
+import { getSetting } from '../../server/services/settings';
+import { DEFAULT_SETTINGS } from '../../server/seed';
+import { listUploads } from '../../server/services/uploads';
+import '../../styles/appearance.css';
+
+const props = {
+  appearance: getSetting('appearance'),
+  dial: getSetting('dial'),
+  previewBall: getSetting('previewBall'),
+  easter: getSetting('easter'),
+  defaults: {
+    appearance: DEFAULT_SETTINGS.appearance,
+    dial: DEFAULT_SETTINGS.dial,
+    previewBall: DEFAULT_SETTINGS.previewBall,
+    easter: DEFAULT_SETTINGS.easter,
+  },
+  uploads: listUploads().map((u) => ({ filename: u.filename, originalName: u.originalName })),
+};
+---
+
+<OwnerLayout title="外观与主题" heading="外观与主题" subtitle="主题、配色、背景、光标、动效、分站切换器、悬浮球与彩蛋。修改会在本页即时预览，保存后公开网站生效。" wide>
+  <AppearanceManager client:load {...props} />
+</OwnerLayout>

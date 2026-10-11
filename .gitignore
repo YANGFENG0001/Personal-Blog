@@ -26,3 +26,6 @@ coverage/
 Thumbs.db
 .vscode/
 .idea/
+
+# other local tools
+.workbuddy-ai/

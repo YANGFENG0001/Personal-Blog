@@ -2,7 +2,7 @@ import { defineMiddleware } from 'astro:middleware';
 import { readSession, SESSION_COOKIE } from './server/auth/session';
 import { csrfOk, json, sameOrigin } from './server/http';
 import { startBackgroundJobs } from './server/jobs';
-import { rerenderMissing } from './server/services/posts';
+import { ensureRendered } from './server/services/posts';
 
 startBackgroundJobs();
 // One-time: render HTML for seeded/imported posts before serving anything.
@@ -28,7 +28,7 @@ function securityHeaders(res: Response, isOwnerArea: boolean): Response {
 }
 
 export const onRequest = defineMiddleware(async (ctx, next) => {
-  ready ??= rerenderMissing().catch((err) => console.error('[render]', err));
+  ready ??= ensureRendered().catch((err) => console.error('[render]', err));
   await ready;
   const { pathname } = ctx.url;
   ctx.locals.owner = null;

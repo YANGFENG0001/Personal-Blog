@@ -1,5 +1,8 @@
 import { useState } from 'preact/hooks';
-import { api, errMsg, move, toast } from '../../lib/client';
+import { api, errMsg, toast } from '../../lib/client';
+import { confirmDialog } from '../../lib/dialogs';
+import { byIds, useSortable } from '../../lib/useSortable';
+import { Icon, IconButton } from './ui';
 import type { Settings } from '../../server/seed';
 import type { Template } from '../../server/services/config';
 
@@ -12,7 +15,7 @@ interface Upload {
 }
 
 interface Props {
-  settings: Pick<Settings, 'site' | 'profile' | 'appearance' | 'previewBall'>;
+  settings: Pick<Settings, 'site' | 'profile'>;
   templates: Template[];
   progress: string[];
   uploads: Upload[];
@@ -34,13 +37,12 @@ export default function SettingsManager(p: Props) {
   return (
     <div class="stack">
       <nav class="st-nav" aria-label="设置分区">
-        {[['site', '站点'], ['profile', '个人资料'], ['appearance', '外观'], ['templates', '模板与进度'], ['files', '文件'], ['account', '账号与备份']].map(([id, l]) => (
+        {[['site', '站点'], ['profile', '个人资料'], ['templates', '模板与进度'], ['files', '文件'], ['account', '账号与备份']].map(([id, l]) => (
           <a class="btn btn-sm" href={`#${id}`}>{l}</a>
         ))}
       </nav>
       <SitePanel initial={p.settings.site} />
       <ProfilePanel initial={p.settings.profile} />
-      <AppearancePanel initial={p.settings.appearance} ball={p.settings.previewBall} />
       <TemplatesPanel initial={p.templates} progress={p.progress} />
       <FilesPanel initial={p.uploads} />
       <AccountPanel username={p.username} />
@@ -111,44 +113,6 @@ function ProfilePanel({ initial }: { initial: Settings['profile'] }) {
   );
 }
 
-function Choice<T extends string>({ name, value, options, onChange }: { name: string; value: T; options: [T, string][]; onChange: (v: T) => void }) {
-  return (
-    <div class="st-choice" role="radiogroup">
-      {options.map(([v, l]) => (
-        <label><input type="radio" name={name} checked={value === v} onChange={() => onChange(v)} />{l}</label>
-      ))}
-    </div>
-  );
-}
-
-function AppearancePanel({ initial, ball }: { initial: Settings['appearance']; ball: Settings['previewBall'] }) {
-  const [a, setA] = useState(initial);
-  const [b, setB] = useState(ball);
-  async function save(e: Event) {
-    e.preventDefault();
-    if ((await put('appearance', a)) && (await put('previewBall', b))) setTimeout(() => location.reload(), 400);
-  }
-  return (
-    <section class="panel" id="appearance">
-      <form onSubmit={save}>
-        <div class="panel-head"><h2>外观与动效</h2><button class="btn btn-primary" type="submit">保存</button></div>
-        <div class="grid-2">
-          <div class="field"><span class="label">默认主题（游客可自行切换）</span><Choice name="theme" value={a.theme} onChange={(v) => setA({ ...a, theme: v })} options={[['system', '跟随系统'], ['light', '日间'], ['dark', '夜间']]} /></div>
-          <div class="field"><span class="label">强调色</span><Choice name="accent" value={a.accent} onChange={(v) => setA({ ...a, accent: v })} options={[['green', '松绿'], ['blue', '靛蓝'], ['terracotta', '赭石']]} /></div>
-          <div class="field"><span class="label">动画强度</span><Choice name="motion" value={a.motion} onChange={(v) => setA({ ...a, motion: v })} options={[['normal', '标准'], ['minimal', '轻微'], ['off', '关闭']]} /><p class="hint">系统开启“减少动态效果”时始终关闭动画。</p></div>
-          <div class="field"><span class="label">分站切换器样式</span><Choice name="dial" value={a.dialStyle} onChange={(v) => setA({ ...a, dialStyle: v })} options={[['orbit', '环形轮盘'], ['arc', '弧形菜单']]} /></div>
-          <div class="field"><span class="label">密度</span><Choice name="density" value={a.density} onChange={(v) => setA({ ...a, density: v })} options={[['comfortable', '舒展'], ['compact', '紧凑']]} /></div>
-          <div class="field">
-            <span class="label">游客预览悬浮球</span>
-            <label class="switch"><input type="checkbox" checked={b.enabled} onChange={(e) => setB({ ...b, enabled: e.currentTarget.checked })} /><span class="track" /><span>启用</span></label>
-            <Choice name="ball" value={b.position} onChange={(v) => setB({ ...b, position: v })} options={[['right', '右下'], ['left', '左下']]} />
-          </div>
-        </div>
-      </form>
-    </section>
-  );
-}
-
 function TemplatesPanel({ initial, progress }: { initial: Template[]; progress: string[] }) {
   const [tpls, setTpls] = useState(initial);
   const [editing, setEditing] = useState<(Template & { isNew?: boolean }) | null>(null);
@@ -169,7 +133,7 @@ function TemplatesPanel({ initial, progress }: { initial: Template[]; progress: 
     }
   }
   async function delTpl(t: Template) {
-    if (!confirm(`删除模板「${t.name}」？已使用该模板的文章不受影响。`)) return;
+    if (!(await confirmDialog(`删除模板「${t.name}」？`, '已使用该模板的文章不受影响。', { danger: true, okLabel: '删除' }))) return;
     try {
       await api.del(`/api/owner/templates/${t.id}`);
       setTpls((x) => x.filter((y) => y.id !== t.id));
@@ -177,12 +141,10 @@ function TemplatesPanel({ initial, progress }: { initial: Template[]; progress: 
       toast(errMsg(err), 'error');
     }
   }
-  async function moveTpl(i: number, d: -1 | 1) {
-    const next = move(tpls, i, i + d);
-    if (next === tpls) return;
-    setTpls(next);
-    await api.post('/api/owner/templates/reorder', { ids: next.map((t) => t.id) }).catch((e) => toast(errMsg(e), 'error'));
-  }
+  const sortable = useSortable(tpls.map((t) => t.id), async (ids) => {
+    setTpls((xs) => byIds(xs, ids));
+    await api.post('/api/owner/templates/reorder', { ids }).catch((e) => toast(errMsg(e), 'error'));
+  });
   async function saveProgress() {
     try {
       await api.put('/api/owner/progress', { labels: prog.split(/[,，\n]/).map((x) => x.trim()).filter(Boolean) });
@@ -198,15 +160,14 @@ function TemplatesPanel({ initial, progress }: { initial: Template[]; progress: 
         <div><h2>文章模板</h2><p class="panel-sub">模板只用于快速起步，不限制写作结构。</p></div>
         <button class="btn" type="button" onClick={() => setEditing({ id: '', name: '', description: '', bodyMd: '', reflectionMd: '', defaultProgress: null, progressOptions: [], sort: 0, isNew: true })}>新建模板</button>
       </div>
-      <ul class="list-plain">
-        {tpls.map((t, i) => (
-          <li class="row-between">
-            <span><strong>{t.name}</strong> <span class="faint">· {t.description}</span></span>
-            <span class="row">
-              <button class="btn btn-sm btn-ghost" type="button" disabled={i === 0} onClick={() => moveTpl(i, -1)} aria-label="上移">↑</button>
-              <button class="btn btn-sm btn-ghost" type="button" disabled={i === tpls.length - 1} onClick={() => moveTpl(i, 1)} aria-label="下移">↓</button>
-              <button class="btn btn-sm" type="button" onClick={() => setEditing({ ...t })}>编辑</button>
-              <button class="btn btn-sm btn-ghost btn-danger" type="button" onClick={() => delTpl(t)}>删除</button>
+      <ul class="list-plain st-tpls" ref={sortable.ref as never} onPointerDown={sortable.onPointerDown} onKeyDown={sortable.onKeyDown}>
+        {tpls.map((t) => (
+          <li data-sort-id={t.id}>
+            <button type="button" class="handle" data-sort-handle aria-label={`拖动排序：${t.name}`}><Icon name="grip" size={14} /></button>
+            <span class="st-tpl-name"><strong>{t.name}</strong> <span class="faint">· {t.description}</span></span>
+            <span class="row-actions">
+              <IconButton icon="edit" label={`编辑 ${t.name}`} size="sm" onClick={() => setEditing({ ...t })} />
+              <IconButton icon="trash" label={`删除 ${t.name}`} size="sm" variant="danger" onClick={() => delTpl(t)} />
             </span>
           </li>
         ))}
@@ -253,7 +214,7 @@ function FilesPanel({ initial }: { initial: Upload[] }) {
     setFiles(await api.get<Upload[]>('/api/owner/uploads'));
   }
   async function del(u: Upload) {
-    if (!confirm(`删除 ${u.originalName}？引用它的文章将无法显示该图片。`)) return;
+    if (!(await confirmDialog(`删除 ${u.originalName}？`, '引用它的文章将无法再显示这张图片。', { danger: true, okLabel: '删除' }))) return;
     try {
       await api.del(`/api/owner/uploads/${u.id}`);
       setFiles((x) => x.filter((y) => y.id !== u.id));

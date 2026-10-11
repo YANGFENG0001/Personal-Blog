@@ -53,3 +53,23 @@
 .prose th { background: var(--pane); font-weight: 600; }
 .prose .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.4em 0; }
 .prose .katex { font-size: 1.05em; }
+
+/* Heading anchors */
+.prose :is(h2, h3, h4) { position: relative; }
+.prose .h-anchor { margin-left: 0.4em; color: var(--accent); text-decoration: none; opacity: 0; font-weight: 400; transition: opacity 0.15s; }
+.prose :is(h2, h3, h4):hover .h-anchor, .prose .h-anchor:focus-visible { opacity: 0.6; }
+
+/* Code frame: language label + copy button */
+.prose .code-block { margin: 0 0 1.25em; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; background: var(--pane); }
+.prose .code-block pre { margin: 0; border: 0; border-radius: 0; }
+.prose .code-head { display: flex; justify-content: space-between; align-items: center; padding: 4px 8px 4px 14px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--pane) 70%, var(--surface)); }
+.prose .code-lang { font: 11px var(--mono); color: var(--faint); letter-spacing: 0.04em; text-transform: lowercase; }
+.prose .code-copy { border: 1px solid transparent; background: none; border-radius: var(--r-sm); padding: 1px 8px; font-size: 11px; color: var(--muted); cursor: pointer; transition: color 0.15s, background 0.15s, border-color 0.15s; }
+.prose .code-copy:hover { background: var(--surface); border-color: var(--line); color: var(--accent); }
+.prose .code-copy.done { color: var(--ok); }
+
+/* Image lightbox */
+.prose img { cursor: zoom-in; transition: box-shadow 0.2s; }
+.prose img:hover { box-shadow: var(--shadow-sm); }
+.lightbox { position: fixed; inset: 0; z-index: 500; display: grid; place-items: center; padding: 24px; background: color-mix(in srgb, #000 78%, transparent); cursor: zoom-out; animation: fade calc(0.2s * var(--dur)) both; }
+.lightbox img { max-width: min(1200px, 100%); max-height: 90vh; border-radius: var(--r); box-shadow: 0 30px 80px #0008; animation: pop-in calc(0.3s * var(--dur)) var(--ease) both; cursor: zoom-out; }

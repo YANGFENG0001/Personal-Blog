@@ -1,0 +1,119 @@
+/* Theme-driven visual layers: page backgrounds, cursors, motion extras, eggs. */
+
+/* ---------- Page background ---------- */
+.page-bg { position: fixed; inset: 0; z-index: -2; pointer-events: none; background: var(--bg); }
+.bg-canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: -1; pointer-events: none; }
+:root:not([data-bg='none']) body { background: transparent; }
+
+:root[data-bg='solid'] .page-bg, :root[data-bg='gradient'] .page-bg { background: var(--page-bg, var(--bg)); }
+/* Custom colors are light-mode backgrounds; dark mode keeps the palette background. */
+:root[data-theme='dark'][data-bg='solid'] .page-bg, :root[data-theme='dark'][data-bg='gradient'] .page-bg { background: var(--bg); }
+@media (prefers-color-scheme: dark) {
+  :root[data-theme='auto'][data-bg='solid'] .page-bg, :root[data-theme='auto'][data-bg='gradient'] .page-bg { background: var(--bg); }
+}
+:root[data-bg='paper'] .page-bg {
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(color-mix(in srgb, var(--ink) 5%, transparent) 0.6px, transparent 0.7px),
+    radial-gradient(color-mix(in srgb, var(--ink) 3%, transparent) 0.6px, transparent 0.7px),
+    linear-gradient(180deg, transparent 96%, color-mix(in srgb, var(--accent) 4%, transparent) 100%);
+  background-size: 7px 7px, 11px 11px, 100% 34px;
+  background-position: 0 0, 3px 5px, 0 0;
+}
+:root[data-bg='dots'] .page-bg {
+  background-color: var(--bg);
+  background-image: radial-gradient(color-mix(in srgb, var(--ink) 10%, transparent) 1px, transparent 1.2px);
+  background-size: 22px 22px;
+}
+:root[data-bg='grid'] .page-bg {
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--ink) 5%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--ink) 5%, transparent) 1px, transparent 1px);
+  background-size: 32px 32px;
+  -webkit-mask-image: linear-gradient(180deg, #000, #0008 60%, transparent);
+  mask-image: linear-gradient(180deg, #000, #0008 60%, transparent);
+}
+:root[data-bg='image'] .page-bg { background: var(--page-img) center / cover no-repeat, var(--bg); filter: blur(var(--page-blur, 0px)); transform: scale(1.04); }
+:root[data-bg='image'] .page-bg::after { content: ''; position: absolute; inset: 0; background: var(--bg); opacity: var(--page-overlay, 0.82); }
+:root[data-bg='image']:not([data-bg-fixed]) .page-bg { position: absolute; min-height: 100%; }
+
+/* Reading surfaces stay legible over decorative backgrounds. */
+:root:not([data-bg='none']) .site-header { background: color-mix(in srgb, var(--bg) 86%, transparent); }
+:root:is([data-bg='animated'], [data-bg='image']) .article-shell .article {
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  border-radius: var(--r-lg);
+  box-shadow: 0 0 0 24px color-mix(in srgb, var(--bg) 90%, transparent);
+}
+
+/* ---------- Cursor ---------- */
+@media (pointer: fine) {
+  :root:not([data-cursor='system']) body { cursor: var(--cursor, auto); }
+}
+.trail-dot {
+  position: fixed; left: -4px; top: -4px; width: 8px; height: 8px; border-radius: 50%; pointer-events: none; z-index: 400;
+  background: var(--accent); opacity: calc(0.45 - var(--i) * 0.05); scale: calc(1 - var(--i) * 0.09);
+}
+
+/* ---------- Animated icons: stroke redraw on hover ---------- */
+:root[data-icon-motion='on'] .anim-icon:hover svg :is(path, circle, ellipse, rect),
+:root[data-icon-motion='on'] .anim-icon:focus-visible svg :is(path, circle, ellipse, rect) {
+  stroke-dasharray: 80; animation: icon-draw calc(0.9s * var(--dur)) var(--ease);
+}
+@keyframes icon-draw { from { stroke-dashoffset: 80; } to { stroke-dashoffset: 0; } }
+:root[data-icon-motion='on'] .anim-icon:hover svg { animation: icon-pop calc(0.5s * var(--dur)) var(--spring); }
+@keyframes icon-pop { 40% { transform: scale(1.15) rotate(-6deg); } }
+
+/* ---------- Rich motion ---------- */
+.rv { opacity: 0; transform: translateY(18px); }
+.rv.is-in { opacity: 1; transform: none; transition: opacity calc(0.7s * var(--dur)) var(--ease) var(--rv-delay, 0ms), transform calc(0.7s * var(--dur)) var(--ease) var(--rv-delay, 0ms); }
+.tilt { transform: perspective(900px) rotateX(var(--rx, 0)) rotateY(var(--ry, 0)); transition: transform 0.25s var(--ease); position: relative; }
+.tilt::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.3s; border-radius: inherit;
+  background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, #fff 35%, transparent), transparent 55%);
+}
+.tilt:hover::after { opacity: 1; }
+:root[data-theme='dark'] .tilt::after { background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, #fff 9%, transparent), transparent 55%); }
+.ripple { position: absolute; border-radius: 50%; pointer-events: none; background: currentColor; opacity: 0.18; transform: scale(0); animation: ripple 0.6s var(--ease) forwards; }
+@keyframes ripple { to { transform: scale(1); opacity: 0; } }
+:root[data-motion='rich'] :is(.btn, .ibtn, .chip, .seg-item) { position: relative; overflow: hidden; }
+:root[data-motion='rich'] ::view-transition-old(main) { animation: vt-out-rich calc(0.45s * var(--dur)) var(--ease) both; }
+:root[data-motion='rich'] ::view-transition-new(main) { animation: vt-in-rich calc(0.6s * var(--dur)) var(--ease) both; }
+@keyframes vt-out-rich { to { opacity: 0; transform: translateX(-24px) scale(0.985); filter: blur(3px); } }
+@keyframes vt-in-rich { from { opacity: 0; transform: translateX(28px) scale(0.985); filter: blur(3px); } }
+
+/* ---------- Egg particles & notes ---------- */
+.fx-layer { position: fixed; inset: 0; pointer-events: none; z-index: 450; overflow: hidden; }
+.fx-p { position: absolute; left: 0; top: 0; will-change: transform, opacity; }
+.egg-note {
+  position: fixed; left: 50%; top: 18px; transform: translateX(-50%); z-index: 460; background: var(--surface); border: 1px solid var(--line);
+  padding: 9px 18px; border-radius: 999px; font-size: 13px; color: var(--ink); box-shadow: var(--shadow);
+  animation: egg-in calc(0.5s * var(--dur)) var(--spring) both; transition: opacity 0.4s, transform 0.4s var(--ease);
+}
+.egg-note.out { opacity: 0; transform: translate(-50%, -12px); }
+@keyframes egg-in { from { opacity: 0; transform: translate(-50%, -16px) scale(0.92); } }
+.avatar-flip { animation: avatar-flip 2.4s var(--ease) both; }
+@keyframes avatar-flip { 0% { transform: rotateY(0); } 30%, 70% { transform: rotateY(180deg) scale(1.1); } 100% { transform: rotateY(360deg); } }
+
+/* ---------- Encouragement card ---------- */
+.enc-card {
+  position: fixed; right: 28px; bottom: 28px; z-index: 90; width: min(360px, calc(100vw - 32px));
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow);
+  padding: 22px 24px 18px; animation: enc-rise calc(0.7s * var(--dur)) var(--ease) both; overflow: hidden;
+}
+.enc-card::before { content: '\201C'; position: absolute; right: 18px; top: -14px; font: 96px Georgia, serif; color: color-mix(in srgb, var(--accent) 12%, transparent); pointer-events: none; }
+.enc-card[data-anim='fade'] { animation-name: enc-fade; }
+.enc-card.leaving { animation: enc-leave calc(0.4s * var(--dur)) var(--ease) both; }
+.enc-src { font-size: 10px; letter-spacing: 0.12em; color: var(--accent); }
+.enc-quote { position: relative; font: 500 16px/1.9 var(--display); margin: 10px 0 0; }
+.enc-follow {
+  font-size: 13px; color: var(--muted); line-height: 1.9; margin: 12px 0 0; padding-top: 10px; border-top: 1px solid var(--line);
+  opacity: 0; animation: enc-rise calc(0.6s * var(--dur)) var(--ease) calc(1.6s * var(--dur)) both;
+}
+.enc-close { position: absolute; top: 8px; right: 8px; }
+.enc-bar { position: absolute; left: 0; bottom: 0; height: 2px; background: var(--accent); animation: enc-bar linear both; }
+@keyframes enc-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes enc-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes enc-leave { to { opacity: 0; transform: translateY(10px); } }
+@keyframes enc-bar { from { width: 100%; } to { width: 0; } }
+@media (max-width: 600px) { .enc-card { right: 16px; bottom: 16px; } }

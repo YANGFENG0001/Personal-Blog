@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { api, errMsg, move, toast } from '../../lib/client';
+import { api, errMsg, toast } from '../../lib/client';
+import { confirmDialog } from '../../lib/dialogs';
+import { useSortable } from '../../lib/useSortable';
+import { Icon, IconButton } from './ui';
 import { hiddenReason } from '../../server/visibility';
 import type { PostFull } from '../../server/services/posts';
 import type { Template } from '../../server/services/config';
@@ -21,7 +24,8 @@ interface Props {
   defaultCategoryId?: string | null;
 }
 
-type Link = { label: string; url: string; kind: string };
+type Link = { label: string; url: string; kind: string; key: string };
+const newKey = () => Math.random().toString(36).slice(2, 10);
 type Draft = {
   title: string;
   slug: string;
@@ -51,7 +55,7 @@ function fromPost(p: PostFull | null, defaultCat: string, tpl?: Template): Draft
       title: p.title, slug: p.slug, summary: p.summary, categoryId: p.categoryId, tags: p.tags, visibility: p.visibility,
       templateId: p.templateId, progress: p.progress ?? '', progressPublic: p.progressPublic, bodyMd: p.bodyMd,
       reflectionMd: p.reflectionMd, reflectionPublic: p.reflectionPublic, coverUrl: p.coverUrl ?? '', featured: p.featured,
-      links: p.links.map(({ label, url, kind }) => ({ label, url, kind })), publishedAt: p.publishedAt ? toLocalInput(p.publishedAt) : '',
+      links: p.links.map(({ label, url, kind, id }) => ({ label, url, kind, key: id })), publishedAt: p.publishedAt ? toLocalInput(p.publishedAt) : '',
     };
   }
   return {
@@ -86,6 +90,9 @@ export default function PostEditor({ post: initialPost, sites, templates, progre
   const imgRef = useRef<HTMLInputElement>(null);
 
   const dirty = JSON.stringify(d) !== saved;
+  const linkSort = useSortable(d.links.map((l) => l.key), (keys) =>
+    setD((x) => ({ ...x, links: keys.map((k) => x.links.find((l) => l.key === k)!).filter(Boolean) })),
+  );
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((x) => ({ ...x, [k]: v }));
   const currentTpl = templates.find((t) => t.id === d.templateId);
   const progressChoices = useMemo(() => {
@@ -174,7 +181,7 @@ export default function PostEditor({ post: initialPost, sites, templates, progre
         slug: d.slug.trim() || undefined,
         progress: d.progress || null,
         coverUrl: d.coverUrl.trim() || null,
-        links: d.links.map((l) => ({ ...l, label: l.label.trim(), url: l.url.trim() })),
+        links: d.links.map((l) => ({ kind: l.kind, label: l.label.trim(), url: l.url.trim() })),
         publishedAt: d.publishedAt ? new Date(d.publishedAt).toISOString() : undefined,
       };
       const res = post ? await api.put<PostFull>(`/api/owner/posts/${post.id}`, payload) : await api.post<PostFull>('/api/owner/posts', payload);
@@ -193,7 +200,7 @@ export default function PostEditor({ post: initialPost, sites, templates, progre
   }
 
   async function remove() {
-    if (!post || !confirm(`永久删除「${post.title}」？此操作不可撤销。`)) return;
+    if (!post || !(await confirmDialog(`永久删除「${post.title}」？`, '此操作不可撤销。', { danger: true, okLabel: '删除' }))) return;
     try {
       await api.del(`/api/owner/posts/${post.id}`);
       localStorage.removeItem(DRAFT_KEY(post.id));
@@ -204,11 +211,11 @@ export default function PostEditor({ post: initialPost, sites, templates, progre
     }
   }
 
-  function applyTemplate(id: string) {
+  async function applyTemplate(id: string) {
     const t = templates.find((x) => x.id === id);
     if (!t) return;
     const hasContent = d.bodyMd.trim() || d.reflectionMd.trim();
-    if (hasContent && !confirm(`切换到「${t.name}」模板会覆盖当前正文和心得，确定吗？\n（选择“取消”则只更改模板标记，不改动内容）`)) {
+    if (hasContent && !(await confirmDialog(`切换到「${t.name}」模板？`, '覆盖：用模板内容替换当前正文和心得。取消：只更改模板标记，保留现有内容。', { okLabel: '覆盖内容' }))) {
       set('templateId', id);
       return;
     }
@@ -244,7 +251,7 @@ export default function PostEditor({ post: initialPost, sites, templates, progre
         '/api/owner/posts/import',
         form,
       );
-      if ((d.bodyMd.trim() || d.title.trim()) && !confirm('导入会替换当前标题、摘要、标签和正文，确定吗？')) return;
+      if ((d.bodyMd.trim() || d.title.trim()) && !(await confirmDialog('导入这个文件？', '会替换当前的标题、摘要、标签和正文（不会自动保存或发布）。', { okLabel: '导入' }))) return;
       setD((x) => ({
         ...x,
         title: r.title,
@@ -300,7 +307,7 @@ export default function PostEditor({ post: initialPost, sites, templates, progre
       <div class="ed-bar">
         <div class="row">
           <span class={`pill ${status === 'published' ? 'pill-accent' : status === 'archived' ? '' : 'pill-warn'}`}>{statusLabel}</span>
-          {post && (hidden ? <span class="faint small">游客不可见：{hidden}</span> : publicUrl && <a class="small" href={publicUrl} target="_blank" rel="noopener">查看公开页面 ↗</a>)}
+          {post && (hidden ? <span class="faint small">游客不可见：{hidden}</span> : publicUrl && <a class="small" href={publicUrl} target="_blank" rel="noopener">查看公开页面<Icon name="external" size={12} class="ext" /></a>)}
           {dirty ? <span class="faint small">● 未保存</span> : post && <span class="faint small">已保存</span>}
         </div>
         <div class="row">
@@ -332,18 +339,22 @@ export default function PostEditor({ post: initialPost, sites, templates, progre
             {view !== 'preview' && (
               <div class="ed-pane">
                 <div class="ed-toolbar" role="toolbar" aria-label="Markdown 工具">
-                  <button type="button" onClick={() => insert('## ', '', '小标题')} title="标题">H</button>
-                  <button type="button" onClick={() => insert('**', '**', '粗体')} title="粗体"><b>B</b></button>
-                  <button type="button" onClick={() => insert('*', '*', '斜体')} title="斜体"><i>I</i></button>
-                  <button type="button" onClick={() => insert('`', '`', 'code')} title="行内代码">{'</>'}</button>
-                  <button type="button" onClick={() => insert('\n```python\n', '\n```\n', '# code')} title="代码块">{'{ }'}</button>
-                  <button type="button" onClick={() => insert('$', '$', 'x^2')} title="行内公式">∑</button>
-                  <button type="button" onClick={() => insert('\n$$\n', '\n$$\n', '\\frac{a}{b}')} title="块级公式">∫</button>
-                  <button type="button" onClick={() => insert('[', '](https://)', '链接文字')} title="链接">🔗</button>
-                  <button type="button" onClick={() => insert('\n> ', '', '引用')} title="引用">❝</button>
-                  <button type="button" onClick={() => insert('\n| 列 1 | 列 2 |\n| --- | --- |\n| ', ' |  |\n', '内容')} title="表格">▦</button>
-                  <button type="button" onClick={() => insert('\n- [ ] ', '', '待办')} title="任务列表">☑</button>
-                  <button type="button" onClick={() => imgRef.current?.click()} title="上传图片">🖼</button>
+                  <IconButton icon="heading" label="插入小标题" size="sm" onClick={() => insert('## ', '', '小标题')} />
+                  <IconButton icon="bold" label="粗体" size="sm" onClick={() => insert('**', '**', '粗体')} />
+                  <IconButton icon="italic" label="斜体" size="sm" onClick={() => insert('*', '*', '斜体')} />
+                  <span class="ed-tb-sep" aria-hidden="true" />
+                  <IconButton icon="code" label="行内代码" size="sm" onClick={() => insert('`', '`', 'code')} />
+                  <IconButton icon="code-block" label="代码块" size="sm" onClick={() => insert('\n```python\n', '\n```\n', '# code')} />
+                  <span class="ed-tb-sep" aria-hidden="true" />
+                  <IconButton icon="sigma" label="行内公式" size="sm" onClick={() => insert('$', '$', 'x^2')} />
+                  <IconButton icon="integral" label="块级公式" size="sm" onClick={() => insert('\n$$\n', '\n$$\n', '\\frac{a}{b}')} />
+                  <span class="ed-tb-sep" aria-hidden="true" />
+                  <IconButton icon="link" label="链接" size="sm" onClick={() => insert('[', '](https://)', '链接文字')} />
+                  <IconButton icon="quote" label="引用" size="sm" onClick={() => insert('\n> ', '', '引用')} />
+                  <IconButton icon="table" label="表格" size="sm" onClick={() => insert('\n| 列 1 | 列 2 |\n| --- | --- |\n| ', ' |  |\n', '内容')} />
+                  <IconButton icon="checklist" label="任务列表" size="sm" onClick={() => insert('\n- [ ] ', '', '待办')} />
+                  <span class="ed-tb-sep" aria-hidden="true" />
+                  <IconButton icon="image" label="上传图片" size="sm" onClick={() => imgRef.current?.click()} />
                   <input ref={imgRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp,image/avif" hidden onChange={(e) => e.currentTarget.files?.[0] && uploadImage(e.currentTarget.files[0])} />
                 </div>
                 <textarea
@@ -456,7 +467,7 @@ export default function PostEditor({ post: initialPost, sites, templates, progre
               {d.tags.map((t) => (
                 <span class="pill ed-tag">
                   {t}
-                  <button type="button" aria-label={`移除标签 ${t}`} onClick={() => set('tags', d.tags.filter((x) => x !== t))}>×</button>
+                  <button type="button" aria-label={`移除标签 ${t}`} onClick={() => set('tags', d.tags.filter((x) => x !== t))}><Icon name="x" size={11} /></button>
                 </span>
               ))}
             </div>
@@ -481,13 +492,13 @@ export default function PostEditor({ post: initialPost, sites, templates, progre
           <section class="panel">
             <div class="panel-head">
               <h2>相关链接</h2>
-              <button class="btn btn-sm" type="button" onClick={() => set('links', [...d.links, { label: '', url: 'https://', kind: 'other' }])}>添加</button>
+              <button class="btn btn-sm" type="button" onClick={() => set('links', [...d.links, { label: '', url: 'https://', kind: 'other', key: newKey() }])}><Icon name="plus" size={13} />添加</button>
             </div>
             <p class="panel-sub">有链接时，公开文章右侧会用“相关资料”替换默认侧栏。</p>
             {d.links.length === 0 && <p class="empty-note">暂无链接。</p>}
-            <ol class="ed-links">
+            <ol class="ed-links" ref={linkSort.ref as never} onPointerDown={linkSort.onPointerDown} onKeyDown={linkSort.onKeyDown}>
               {d.links.map((l, i) => (
-                <li>
+                <li data-sort-id={l.key} key={l.key}>
                   <div class="row">
                     <select class="select ed-kind" value={l.kind} onChange={(e) => set('links', d.links.map((x, j) => (j === i ? { ...x, kind: e.currentTarget.value } : x)))} aria-label="链接类型">
                       {KINDS.map(([v, n]) => <option value={v}>{n}</option>)}
@@ -495,10 +506,10 @@ export default function PostEditor({ post: initialPost, sites, templates, progre
                     <input class="input" placeholder="名称" value={l.label} onInput={(e) => set('links', d.links.map((x, j) => (j === i ? { ...x, label: e.currentTarget.value } : x)))} aria-label="链接名称" />
                   </div>
                   <input class={`input ${l.url && !/^https?:\/\/.+/i.test(l.url) ? 'invalid' : ''}`} placeholder="https://" value={l.url} onInput={(e) => set('links', d.links.map((x, j) => (j === i ? { ...x, url: e.currentTarget.value } : x)))} aria-label="链接地址" />
-                  <div class="row ed-link-actions">
-                    <button type="button" class="btn btn-sm btn-ghost" disabled={i === 0} onClick={() => set('links', move(d.links, i, i - 1))} aria-label="上移">↑</button>
-                    <button type="button" class="btn btn-sm btn-ghost" disabled={i === d.links.length - 1} onClick={() => set('links', move(d.links, i, i + 1))} aria-label="下移">↓</button>
-                    <button type="button" class="btn btn-sm btn-ghost btn-danger" onClick={() => set('links', d.links.filter((_, j) => j !== i))}>删除</button>
+                  <div class="ed-link-actions">
+                    <button type="button" class="handle" data-sort-handle aria-label={`拖动排序：${l.label || '链接'}`}><Icon name="grip" size={14} /></button>
+                    <span class="spacer" />
+                    <IconButton icon="trash" label={`删除链接 ${l.label}`} size="sm" variant="danger" onClick={() => set('links', d.links.filter((_, j) => j !== i))} />
                   </div>
                 </li>
               ))}
@@ -511,7 +522,7 @@ export default function PostEditor({ post: initialPost, sites, templates, progre
               <label for="ed-cover">封面图片地址（可选）</label>
               <input id="ed-cover" value={d.coverUrl} onInput={(e) => set('coverUrl', e.currentTarget.value)} placeholder="/uploads/... 或 https://..." />
             </div>
-            <button class="btn" type="button" onClick={() => fileRef.current?.click()}>导入 .md 文件</button>
+            <button class="btn" type="button" onClick={() => fileRef.current?.click()}><Icon name="upload" size={14} />导入 .md 文件</button>
             <input ref={fileRef} type="file" accept=".md,.markdown,text/markdown" hidden onChange={(e) => e.currentTarget.files?.[0] && importMd(e.currentTarget.files[0])} data-testid="md-import" />
             <p class="hint">读取 front matter（title / tags / date / summary / slug），导入后进入编辑器，不会自动发布。</p>
             {importInfo && importInfo.length > 0 && (

@@ -16,16 +16,28 @@ const tree = siteTree().map((s) => ({ ...s, categories: s.categories.map((c) => 
 
 <style is:global>
   .sm-top { margin-bottom: 16px; }
-  .sm-top .hint { margin: 0; max-width: 640px; }
-  .sm-site-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 8px; }
-  .sm-icon { color: var(--accent); }
-  .sm-icon svg { width: 22px; height: 22px; }
+  .sm-top .hint { max-width: 680px; }
+  .sm-site { transition: border-color 0.2s, box-shadow 0.2s, opacity 0.2s; }
+  .sm-site:hover { border-color: color-mix(in srgb, var(--accent) 25%, var(--line)); box-shadow: var(--shadow-sm); }
+  .sm-site.is-hidden { background: color-mix(in srgb, var(--pane) 60%, var(--surface)); }
+  .sm-site-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: -4px -6px 10px -8px; }
+  .sm-icon { width: 38px; height: 38px; border-radius: var(--r); background: var(--tint); color: var(--accent); display: grid; place-items: center; flex: none; }
+  .sm-icon svg { width: 20px; height: 20px; }
   .sm-site-title { flex: 1; min-width: 200px; }
   .sm-site-title h2 { margin: 0; }
-  .sm-cats td { vertical-align: middle; }
-  .sm-cats .right { text-align: right; }
-  .sm-addcat { margin-top: 10px; }
-  .sm-icons .icon-btn.sel { background: var(--accent); color: var(--surface); }
-  .nowrap { white-space: nowrap; }
-  .small { font-size: 12px; }
+  .sm-site-title small { font: 10px var(--sans); letter-spacing: 0.16em; }
+  .sm-cats { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+  .sm-cat { display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 4px; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--surface); transition: border-color 0.15s, opacity 0.2s; }
+  .sm-cat:hover { border-color: color-mix(in srgb, var(--accent) 30%, var(--line)); }
+  .sm-cat.is-hidden .sm-cat-main { opacity: 0.55; }
+  .sm-cat-main { flex: 1; min-width: 0; font-size: 13px; }
+  .sm-cat .row-actions { display: inline-flex; gap: 2px; }
+  .sm-addcat { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; padding: 7px 12px; border: 1px dashed color-mix(in srgb, var(--ink) 18%, var(--line)); border-radius: var(--r-sm); background: none; color: var(--faint); font-size: 12px; cursor: pointer; transition: color 0.15s, border-color 0.15s; }
+  .sm-addcat:hover { color: var(--accent); border-color: var(--accent); }
+  .sm-icons { display: flex; gap: 6px; flex-wrap: wrap; }
+  .sm-icon-opt { width: 38px; height: 38px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); color: var(--muted); cursor: pointer; transition: all 0.15s; }
+  .sm-icon-opt svg { width: 18px; height: 18px; }
+  .sm-icon-opt:hover { border-color: var(--accent); color: var(--accent); }
+  .sm-icon-opt.sel { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  @media (max-width: 640px) { .sm-cat { flex-wrap: wrap; } .sm-cat .pill { display: none; } }
 </style>

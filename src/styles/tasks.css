@@ -1,0 +1,61 @@
+/* Task boards (dashboard + /owner/tasks). */
+.tb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--gap); align-items: stretch; }
+.tb-grid > .panel + .panel { margin-top: 0; }
+.tb-board { display: flex; flex-direction: column; padding: 16px 16px 14px; transition: border-color 0.2s, box-shadow calc(0.25s * var(--dur)); }
+.tb-board:hover { border-color: color-mix(in srgb, var(--accent) 25%, var(--line)); box-shadow: var(--shadow-sm); }
+.tb-head { display: flex; align-items: center; gap: 8px; margin: -2px -4px 10px -6px; }
+.tb-title-wrap { flex: 1; min-width: 0; display: grid; }
+.tb-head h3 { font: 600 16px var(--display); margin: 0; color: var(--ink); letter-spacing: 0; min-width: 0; }
+.tb-count { font-size: 11px; color: var(--faint); }
+.tb-flag { color: var(--faint); display: inline-flex; }
+.tb-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.tb-task { display: flex; align-items: flex-start; gap: 8px; padding: 7px 6px; margin: 0 -6px; border-radius: var(--r-sm); transition: background 0.15s; animation: task-in calc(0.35s * var(--dur)) var(--ease) both; }
+@keyframes task-in { from { opacity: 0; transform: translateY(-4px); } }
+.tb-task:hover { background: color-mix(in srgb, var(--tint) 55%, transparent); }
+.tb-task .handle { opacity: 0; margin: 0 -4px; height: 24px; transition: opacity 0.15s; }
+.tb-task:is(:hover, :focus-within) .handle { opacity: 1; }
+.tb-check { padding-top: 3px; display: flex; }
+.tb-check input { width: 18px !important; height: 18px !important; border-radius: 50% !important; }
+.tb-check input:checked { animation: check-burst calc(0.45s * var(--dur)) var(--ease); }
+@keyframes check-burst { from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); } to { box-shadow: 0 0 0 9px transparent; } }
+.tb-body { flex: 1; min-width: 0; }
+.tb-title {
+  border: 0; padding: 0; text-align: left; font-size: 14px; line-height: 1.6; color: var(--ink); cursor: text; width: 100%; word-break: break-word;
+  background: linear-gradient(currentColor, currentColor) no-repeat 0 55% / 0% 1px;
+  transition: background-size calc(0.35s * var(--dur)) var(--ease), color 0.3s;
+}
+.tb-task.is-done .tb-title { color: var(--faint); background-size: 100% 1px; }
+.tb-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+.tb-meta:empty { display: none; }
+.tb-note { font-size: 12px; color: var(--muted); width: 100%; }
+.tb-task .tb-del { opacity: 0; transition: opacity 0.15s; }
+.tb-task:is(:hover, :focus-within) .tb-del { opacity: 1; }
+@media (hover: none) { .tb-task .tb-del, .tb-task .handle { opacity: 1; } }
+.tb-toggle-done { display: inline-flex; align-items: center; gap: 4px; border: 0; background: none; color: var(--faint); font-size: 12px; padding: 8px 0 4px; cursor: pointer; }
+.tb-toggle-done:hover { color: var(--accent); }
+.tb-toggle-done .ic { transition: transform calc(0.25s * var(--dur)) var(--ease); }
+.tb-toggle-done[aria-expanded='true'] .ic { transform: rotate(180deg); }
+.tb-board > .spacer { min-height: 6px; }
+.tb-add { margin-top: 10px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg); transition: border-color 0.15s, box-shadow 0.15s, background 0.15s; }
+.tb-add:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent); background: var(--surface); }
+.tb-add-row { display: flex; align-items: center; gap: 4px; padding: 2px 4px 2px 10px; }
+.tb-add-row > .ic { color: var(--faint); }
+.tb-add-input { flex: 1; min-width: 0; border: 0; background: transparent; padding: 7px 4px; font-size: 13px; outline: none; color: var(--ink); }
+.tb-add-input::placeholder { color: var(--faint); }
+.tb-add-extra { display: flex; gap: 6px; padding: 0 8px 8px; animation: rise calc(0.2s * var(--dur)) var(--ease) both; }
+.tb-add-extra .input { padding: 5px 8px; font-size: 12px; }
+.tb-edit { padding: 8px 0; list-style: none; }
+.tb-edit form { display: grid; gap: 6px; }
+.tb-edit-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.tb-new {
+  display: grid; place-items: center; align-content: center; gap: 10px; min-height: 180px; padding: 16px;
+  border: 1.5px dashed color-mix(in srgb, var(--ink) 18%, var(--line)); border-radius: var(--r); color: var(--faint); background: transparent;
+  font-size: 13px; cursor: pointer; transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+button.tb-new:hover { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--tint) 40%, transparent); }
+.tb-new-icon { width: 38px; height: 38px; border-radius: 50%; border: 1px solid currentColor; display: grid; place-items: center; transition: transform calc(0.3s * var(--dur)) var(--spring); }
+.tb-new:hover .tb-new-icon { transform: rotate(90deg); }
+.tb-new form { display: grid; gap: 8px; width: 100%; }
+.tb-compact .tb-board { padding: 14px; }
+.due-pill.overdue { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent); background: color-mix(in srgb, var(--danger) 7%, var(--surface)); }
+.due-pill.today { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, transparent); background: color-mix(in srgb, var(--warn) 7%, var(--surface)); }

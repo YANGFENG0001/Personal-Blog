@@ -40,7 +40,7 @@ export const api = {
   upload: <T>(url: string, form: FormData) => request<T>('POST', url, form),
 };
 
-/** Lightweight toast, shared by all islands. */
+/** Lightweight toast, shared by all islands. Stacks up to 4. */
 export function toast(message: string, kind: 'ok' | 'error' = 'ok'): void {
   let host = document.getElementById('toast-host');
   if (!host) {
@@ -49,12 +49,23 @@ export function toast(message: string, kind: 'ok' | 'error' = 'ok'): void {
     host.setAttribute('aria-live', 'polite');
     document.body.append(host);
   }
+  while (host.children.length >= 4) host.firstElementChild?.remove();
   const t = document.createElement('div');
   t.className = `toast toast-${kind}`;
-  t.textContent = message;
+  t.setAttribute('role', kind === 'error' ? 'alert' : 'status');
+  const icon = document.createElement('span');
+  icon.className = 'toast-icon';
+  icon.innerHTML = kind === 'ok'
+    ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>'
+    : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 7v6M12 17h.01"/></svg>';
+  const text = document.createElement('span');
+  text.className = 'toast-text';
+  text.textContent = message;
+  t.append(icon, text);
   host.append(t);
-  setTimeout(() => t.classList.add('out'), 2600);
-  setTimeout(() => t.remove(), 3000);
+  const ms = kind === 'error' ? 4200 : 2600;
+  setTimeout(() => t.classList.add('out'), ms);
+  setTimeout(() => t.remove(), ms + 350);
 }
 
 export function errMsg(e: unknown): string {
