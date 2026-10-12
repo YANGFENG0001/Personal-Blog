@@ -26,7 +26,7 @@ export interface AppearanceSettings {
   };
   iconMotion: boolean;
   cardMotion: boolean;
-  mascot: { mode: 'preset' | 'on' | 'off'; imageUrl: string; position: 'right' | 'left'; size: 'sm' | 'md' | 'lg' };
+  mascot: { mode: 'preset' | 'on' | 'off'; character: 'preset' | 'haru' | 'sora' | 'chibi'; draggable: boolean; imageUrl: string; position: 'right' | 'left'; size: 'sm' | 'md' | 'lg' };
 }
 
 export interface ResolvedAppearance {
@@ -35,7 +35,7 @@ export interface ResolvedAppearance {
   style: string;
   bg: { type: string; effect: string | null; intensity: string; scene: string | null };
   /** Mascot to render, or null. imageUrl '' means the built-in original mascot. */
-  mascot: { imageUrl: string; position: 'right' | 'left'; size: 'sm' | 'md' | 'lg' } | null;
+  mascot: { character: 'haru' | 'sora' | 'chibi'; draggable: boolean; imageUrl: string; position: 'right' | 'left'; size: 'sm' | 'md' | 'lg' } | null;
 }
 
 const DOT = '<circle cx="12" cy="12" r="3.5" fill="ACCENT"/>';
@@ -96,6 +96,14 @@ export function resolveAppearance(a: AppearanceSettings, theme: 'light' | 'dark'
     },
     style: Object.entries(vars).map(([k, v]) => `${k}:${v}`).join(';'),
     bg: { type: bgType, effect, intensity: a.background.intensity, scene: scene ? scene.id : null },
-    mascot: (a.mascot.mode === 'on' || (a.mascot.mode === 'preset' && p.mascot)) ? { imageUrl: a.mascot.imageUrl, position: a.mascot.position, size: a.mascot.size } : null,
+    mascot: (a.mascot.mode === 'on' || (a.mascot.mode === 'preset' && p.mascot))
+      ? {
+          character: a.mascot.character === 'preset' ? (p.mascot ?? 'haru') : a.mascot.character,
+          draggable: a.mascot.draggable,
+          imageUrl: a.mascot.imageUrl,
+          position: a.mascot.position,
+          size: a.mascot.size,
+        }
+      : null,
   };
 }

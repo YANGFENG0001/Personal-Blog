@@ -49,6 +49,8 @@ export const DEFAULT_SETTINGS = {
     cardMotion: true,
     mascot: {
       mode: 'preset' as 'preset' | 'on' | 'off',
+      character: 'preset' as 'preset' | 'haru' | 'sora' | 'chibi',
+      draggable: true,
       imageUrl: '' as string,
       position: 'right' as 'right' | 'left',
       size: 'md' as 'sm' | 'md' | 'lg',

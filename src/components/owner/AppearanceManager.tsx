@@ -4,8 +4,9 @@ import { BG_EFFECTS, EGG_SETS, PRESETS, getPreset, paletteVars, type ThemePreset
 import { resolveAppearance, cursorCss } from '../../lib/appearance';
 import { SHAPE_LAYOUTS, dialHtml, effectiveLayout } from '../../lib/dial';
 import { SCENES, sceneHtml, type SceneId } from '../../lib/scenes';
-import { MASCOT_SVG } from '../../lib/mascot';
+import { MASCOTS, mascotSvg } from '../../lib/mascot';
 import '../../styles/scenes.css';
+import '../../styles/scenes-anime.css';
 import '../../styles/mascot.css';
 
 /** Start either a scene effect or a generic particle effect on a preview canvas. */
@@ -140,7 +141,7 @@ function PresetCard({ p, active, onPick }: { p: ThemePreset; active: boolean; on
           <span class={`mini mini-${mode} bg-${p.background.type}`} style={`${style(p[mode])};color-scheme:${mode}`}>
             {p.background.scene && <span class="mini-scene" dangerouslySetInnerHTML={{ __html: sceneHtml(p.background.scene as SceneId) }} />}
             {mode === 'light' && p.background.effect && <canvas ref={canvas} class="mini-canvas" aria-hidden="true" />}
-            {p.mascot && <span class="mini-mascot" dangerouslySetInnerHTML={{ __html: MASCOT_SVG }} />}
+            {p.mascot && <span class="mini-mascot" dangerouslySetInnerHTML={{ __html: mascotSvg(p.mascot) }} />}
             <span class="mini-head"><i /><b /></span>
             <span class="mini-title" style={`font-family:var(${p.font === 'sans' ? '--sans' : '--serif'})`}>Aa 标题</span>
             <span class="mini-line" /><span class="mini-line short" />
@@ -205,20 +206,23 @@ function ThemeTab({ a, setA, uploads }: { a: AS; setA: (a: AS) => void; uploads:
 function MascotPanel({ a, setA, uploads }: { a: AS; setA: (a: AS) => void; uploads: { filename: string; originalName: string }[] }) {
   const m = a.mascot;
   const set = (patch: Partial<AS['mascot']>) => setA({ ...a, mascot: { ...m, ...patch } });
-  const shown = m.mode === 'on' || (m.mode === 'preset' && !!getPreset(a.preset).mascot);
-  const images = uploads.filter((u) => /.(png|webp|gif|svg)$/i.test(u.filename));
+  const preset = getPreset(a.preset);
+  const shown = m.mode === 'on' || (m.mode === 'preset' && !!preset.mascot);
+  const character = m.character === 'preset' ? (preset.mascot ?? 'haru') : m.character;
+  const withMascot = PRESETS.filter((p) => p.mascot).map((p) => `“${p.name}”`).join('、');
+  const images = uploads.filter((u) => /\.(png|webp|gif|svg)$/i.test(u.filename));
   return (
     <section class="panel">
       <div class="panel-head">
         <div>
           <h2>看板娘</h2>
-          <p class="panel-sub">页面角落的小角色，点击会和访客打招呼。默认是本站原创的夏日制服少女；也可以换成你自己的角色立绘（建议透明背景 PNG / WebP）。宽度小于 900px 的屏幕和打印时自动隐藏。</p>
+          <p class="panel-sub">页面角落的小角色：点击打招呼，眼睛会跟着鼠标，可以拖到屏幕任意位置（访客各自记住位置，双击回到角落）。全部为本站原创形象；也可以换成你自己的角色立绘（建议透明背景 PNG / WebP）。宽度小于 900px 的屏幕和打印时自动隐藏。</p>
         </div>
       </div>
       <div class="mascot-cfg">
         <div class={`mascot-stage ${shown ? '' : 'is-off'}`} data-pos={m.position}>
-          <div class={`mascot-demo`} data-size={m.size}>
-            {m.imageUrl ? <img src={m.imageUrl} alt="" /> : <span dangerouslySetInnerHTML={{ __html: MASCOT_SVG }} />}
+          <div class="mascot-demo" data-size={m.size} data-kind={m.imageUrl ? 'image' : character === 'chibi' ? 'chibi' : 'anime'}>
+            {m.imageUrl ? <img src={m.imageUrl} alt="" /> : <span dangerouslySetInnerHTML={{ __html: mascotSvg(character) }} />}
           </div>
           {!shown && <span class="mascot-off">当前主题下不显示</span>}
         </div>
@@ -226,11 +230,26 @@ function MascotPanel({ a, setA, uploads }: { a: AS; setA: (a: AS) => void; uploa
           <div class="field">
             <span class="label">显示</span>
             <Segmented label="看板娘显示" value={m.mode} onChange={(v) => set({ mode: v })} options={[['preset', '跟随主题'], ['on', '始终显示'], ['off', '关闭']]} />
-            {m.mode === 'preset' && <p class="hint">目前只有“夏日物语”主题自带看板娘。</p>}
+            {m.mode === 'preset' && <p class="hint">自带看板娘的主题：{withMascot}。</p>}
+          </div>
+          <div class="field">
+            <span class="label">角色</span>
+            <div class="mascot-picks" role="radiogroup" aria-label="角色">
+              <button type="button" role="radio" aria-checked={m.character === 'preset'} class={`mascot-pick ${m.character === 'preset' ? 'on' : ''}`} onClick={() => set({ character: 'preset' })}>
+                <span class="mascot-pick-art is-auto"><Icon name="palette" size={18} /></span>
+                <strong>跟随主题</strong><small>由当前主题决定</small>
+              </button>
+              {MASCOTS.map((c) => (
+                <button type="button" role="radio" aria-checked={m.character === c.id} class={`mascot-pick ${m.character === c.id ? 'on' : ''}`} onClick={() => set({ character: c.id })}>
+                  <span class="mascot-pick-art" dangerouslySetInnerHTML={{ __html: mascotSvg(c.id) }} />
+                  <strong>{c.name}</strong><small>{c.desc}</small>
+                </button>
+              ))}
+            </div>
           </div>
           <div class="grid-2">
             <div class="field">
-              <span class="label">位置</span>
+              <span class="label">默认位置</span>
               <Segmented label="位置" value={m.position} onChange={(v) => set({ position: v })} options={[['right', '右下'], ['left', '左下']]} />
             </div>
             <div class="field">
@@ -238,10 +257,11 @@ function MascotPanel({ a, setA, uploads }: { a: AS; setA: (a: AS) => void; uploa
               <Segmented label="大小" value={m.size} onChange={(v) => set({ size: v })} options={[['sm', '小'], ['md', '中'], ['lg', '大']]} />
             </div>
           </div>
+          <Switch checked={m.draggable} onChange={(v) => set({ draggable: v })} label="允许访客拖动看板娘（键盘：聚焦后 Alt + 方向键；双击回到角落）" />
           <div class="field">
-            <span class="label">角色立绘</span>
+            <span class="label">自定义立绘（可选，会替换上面的角色）</span>
             <div class="row">
-              <input value={m.imageUrl} placeholder="留空使用原创形象；/uploads/… 或 https://…" onInput={(e) => set({ imageUrl: e.currentTarget.value.trim() })} />
+              <input value={m.imageUrl} placeholder="留空使用原创角色；/uploads/… 或 https://…" onInput={(e) => set({ imageUrl: e.currentTarget.value.trim() })} />
               {m.imageUrl && <button type="button" class="btn btn-ghost" onClick={() => set({ imageUrl: '' })}>恢复原创</button>}
             </div>
             {images.length > 0 && (

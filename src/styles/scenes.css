@@ -99,8 +99,10 @@
 /* ================= NIGHT SKY ================= */
 [data-scene-id='nightsky'] {
   --sky-1: light-dark(#26305e, #04060f); --sky-2: light-dark(#4a4f86, #0b1030); --sky-3: light-dark(#c9a7c6, #1d2448);
-  --milky: light-dark(0.35, 0.6); --veil: light-dark(#f4f5facc, #0b0f22c4);
+  --milky: 0.35; --veil: light-dark(#f4f5facc, #0b0f22c4);
 }
+:root[data-theme='dark'] [data-scene-id='nightsky'] { --milky: 0.6; }
+@media (prefers-color-scheme: dark) { :root[data-theme='auto'] [data-scene-id='nightsky'] { --milky: 0.6; } }
 [data-scene-id='nightsky'] .n-m1 { fill: light-dark(#3a3f6c, #121838); }
 [data-scene-id='nightsky'] .n-m2 { fill: light-dark(#2a2e55, #0c1028); }
 [data-scene-id='nightsky'] .n-m3 { fill: light-dark(#1c1f3d, #070a1a); }

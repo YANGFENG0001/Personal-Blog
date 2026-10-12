@@ -17,7 +17,7 @@ export interface Palette {
 
 export type BgEffect = 'particles' | 'sakura' | 'leaves' | 'bubbles' | 'stars' | 'waves' | 'fireflies' | 'snow';
 export type BgType = 'none' | 'solid' | 'gradient' | 'paper' | 'dots' | 'grid' | 'animated' | 'image' | 'scene';
-export type EggSet = 'ink' | 'nature' | 'ocean' | 'anime' | 'starry' | 'paper' | 'minimal' | 'eyecare' | 'summer';
+export type EggSet = 'ink' | 'nature' | 'ocean' | 'anime' | 'starry' | 'paper' | 'minimal' | 'eyecare' | 'summer' | 'sakura' | 'tenki';
 
 export interface ThemePreset {
   id: string;
@@ -29,8 +29,8 @@ export interface ThemePreset {
   radius: 'sharp' | 'soft' | 'round';
   /** effect is a canvas effect id (bg-effects or scene-effects); scene is a scenes.ts id. */
   background: { type: BgType; effect?: string; scene?: string };
-  /** Optional mascot shown in a page corner (anime-style themes). */
-  mascot?: boolean;
+  /** Optional mascot character shown in a page corner (anime-style themes); ids from mascot.ts. */
+  mascot?: 'chibi' | 'haru' | 'sora';
   /** SVG body (24×24) for the theme cursor. */
   cursorGlyph: string;
   eggSet: EggSet;
@@ -126,7 +126,25 @@ export const PRESETS: ThemePreset[] = [
     font: 'sans', radius: 'round', background: { type: 'scene', scene: 'summer', effect: 'summer' },
     cursorGlyph: '<path d="m12 3 2.4 5.6 6 .6-4.6 4 1.4 6L12 16l-5.2 3.2 1.4-6-4.6-4 6-.6z" fill="#ffd36e" stroke="#1f78c8" stroke-width="1.1"/>',
     eggSet: 'summer', fx: ['#ffb3cf', '#9ed8ff', '#ffe28a', '#ffffff'],
-    mascot: true,
+    mascot: 'chibi',
+  },
+  {
+    id: 'sakura', name: '樱花坂', description: '日系动画升级版：通透的蓝天与高耸的积雨云，坡下校舍、踏切与电线，樱花纷飞；看板娘「小春」在角落陪你。夜里是夜樱与道口红灯。',
+    light: { bg: '#fbf7f9', surface: '#ffffff', ink: '#2a2433', muted: '#5b5266', faint: '#6a6175', line: '#efe3ea', pane: '#f6edf2', accent: '#c2457a', tint: '#fbe7f0' },
+    dark: { bg: '#171a2e', surface: '#1e2238', ink: '#eef0fa', muted: '#b4b8d0', faint: '#9a9fba', line: '#2e3350', pane: '#232842', accent: '#ffa8c8', tint: '#3a2a48' },
+    font: 'sans', radius: 'round', background: { type: 'scene', scene: 'sakura', effect: 'petals' },
+    cursorGlyph: '<g transform="translate(12 12)">' + [0, 72, 144, 216, 288].map((a) => `<path transform="rotate(${a})" d="M0 0C-4 -3.6 -3.3 -9.4 -.9 -10.5L0 -9.1 .9 -10.5C3.3 -9.4 4 -3.6 0 0Z" fill="#ffc6da" stroke="#c2457a" stroke-width=".8"/>`).join('') + '<circle r="1.7" fill="#ffd877"/></g>',
+    eggSet: 'sakura', fx: ['#ffc6da', '#ff9fc0', '#fff0f6', '#ffe08a'],
+    mascot: 'haru',
+  },
+  {
+    id: 'tenki', name: '晴空之子', description: '致敬《天气之子》的氛围：雨中的东京天际线，厚重云层裂开一道阳光洒向城市，屋顶上的小鸟居与彩虹；看板娘「小晴」撑着透明伞。夜里霓虹映着雨。',
+    light: { bg: '#f2f6fa', surface: '#ffffff', ink: '#1c2433', muted: '#4a5568', faint: '#5a6578', line: '#dde5ee', pane: '#e8eef5', accent: '#2f6fb8', tint: '#e1ecf8' },
+    dark: { bg: '#0f1424', surface: '#161c30', ink: '#e8edf7', muted: '#aab4c8', faint: '#8f9ab0', line: '#263049', pane: '#1a2138', accent: '#ffc861', tint: '#2c2a36' },
+    font: 'sans', radius: 'round', background: { type: 'scene', scene: 'tenki', effect: 'rain' },
+    cursorGlyph: '<path d="M12 3C9 8 6.5 11 6.5 14.5a5.5 5.5 0 0 0 11 0C17.5 11 15 8 12 3Z" fill="#9fd4ff" stroke="#2f6fb8" stroke-width="1.1"/><path d="M9.6 14.6a2.6 2.6 0 0 0 2 2.4" stroke="#fff" stroke-width="1.1" fill="none" stroke-linecap="round"/>',
+    eggSet: 'tenki', fx: ['#ffd36e', '#9fd4ff', '#ffffff', '#ffb38a'],
+    mascot: 'sora',
   },
 ];
 
@@ -135,7 +153,7 @@ export const PRESET_IDS = PRESETS.map((p) => p.id) as [string, ...string[]];
 export const EGG_SETS: { id: EggSet; name: string }[] = [
   { id: 'ink', name: '墨滴' }, { id: 'nature', name: '落叶' }, { id: 'ocean', name: '气泡' }, { id: 'anime', name: '樱花与星' },
   { id: 'starry', name: '流星' }, { id: 'paper', name: '纸片' }, { id: 'minimal', name: '几何' }, { id: 'eyecare', name: '萤火' },
-  { id: 'summer', name: '夏日烟花' },
+  { id: 'summer', name: '夏日烟花' }, { id: 'sakura', name: '樱吹雪' }, { id: 'tenki', name: '晴天祈愿' },
 ];
 
 export const BG_EFFECTS: { id: BgEffect; name: string }[] = [

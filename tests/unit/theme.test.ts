@@ -73,7 +73,10 @@ describe('resolveAppearance', () => {
 
   it('shows the mascot only when the preset or the owner asks for it', () => {
     expect(resolveAppearance({ ...base, preset: 'ink' }, 'auto').mascot).toBeNull();
-    expect(resolveAppearance({ ...base, preset: 'summer' }, 'auto').mascot).toMatchObject({ position: 'right', size: 'md', imageUrl: '' });
+    expect(resolveAppearance({ ...base, preset: 'summer' }, 'auto').mascot).toMatchObject({ character: 'chibi', position: 'right', size: 'md', imageUrl: '', draggable: true });
+    expect(resolveAppearance({ ...base, preset: 'sakura' }, 'auto').mascot?.character).toBe('haru');
+    expect(resolveAppearance({ ...base, preset: 'tenki' }, 'auto').mascot?.character).toBe('sora');
+    expect(resolveAppearance({ ...base, preset: 'tenki', mascot: { ...base.mascot, character: 'haru' } }, 'auto').mascot?.character).toBe('haru');
     expect(resolveAppearance({ ...base, preset: 'summer', mascot: { ...base.mascot, mode: 'off' } }, 'auto').mascot).toBeNull();
     expect(resolveAppearance({ ...base, mascot: { ...base.mascot, mode: 'on', imageUrl: '/uploads/a.png' } }, 'auto').mascot?.imageUrl).toBe('/uploads/a.png');
   });

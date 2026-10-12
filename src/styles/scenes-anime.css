@@ -1,0 +1,124 @@
+/* Anime-style scenes (markup: sakura() / tenki() in src/lib/scenes.ts).
+   Same rules as scenes.css: light-dark() colours, transform/opacity motion only. */
+
+.sc-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+.sc-top { top: 0; bottom: auto; height: 34vh; min-height: 200px; }
+
+/* ================= SAKURA (樱花坂) ================= */
+[data-scene-id='sakura'] {
+  --sky-1: light-dark(#1f73d6, #0a1030); --sky-2: light-dark(#5fb2f0, #1e2a5e); --sky-3: light-dark(#d7efff, #4a3d6e);
+  --veil: light-dark(#fbf7f9c4, #151a30c0);
+}
+/* Anime skies: deep at the zenith, nearly white and warm at the horizon. */
+[data-scene-id='sakura']::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(120% 60% at 72% 100%, light-dark(#fff8e8aa, #ff9ec622), transparent 60%);
+}
+/* Cel-shaded clouds: shadow body, lit layer, highlights. */
+[data-scene-id='sakura'] .cl-sh { fill: light-dark(#b3c9ea, #262b5a); }
+[data-scene-id='sakura'] .cl-lit { fill: light-dark(#f4f8ff, #3c4280); }
+[data-scene-id='sakura'] .cl-hi { fill: light-dark(#ffffff, #565ca0); }
+[data-scene-id='sakura'] .bl-sh { fill: light-dark(#e98bb0, #7a3f6e); }
+[data-scene-id='sakura'] .bl-lit { fill: light-dark(#ffc3d8, #d47ca6); }
+[data-scene-id='sakura'] .bl-hi { fill: light-dark(#fff1f6, #ffc6dc); }
+[data-scene-id='sakura'] .k-bark { fill: light-dark(#5a4048, #1d1626); }
+[data-scene-id='sakura'] .k-hill { fill: light-dark(#a9c7e6, #26305c); }
+[data-scene-id='sakura'] .k-city rect { fill: light-dark(#bcd2ea, #2a3462); }
+[data-scene-id='sakura'] .k-haze { fill: light-dark(#e9f5ff, #3d3a6a); opacity: 0.55; filter: blur(6px); }
+[data-scene-id='sakura'] .k-houses rect { fill: light-dark(#f2ebe4, #262c52); }
+[data-scene-id='sakura'] .k-houses .k-hwin { fill: light-dark(#9cc1dc, #ffd98a); }
+[data-scene-id='sakura'] .k-roofs path { fill: light-dark(#5d6f8c, #171c3a); }
+[data-scene-id='sakura'] .k-wall { fill: light-dark(#f7f3ea, #2c3158); }
+[data-scene-id='sakura'] .k-wall-sh { fill: light-dark(#ddd4c4, #20244a); }
+[data-scene-id='sakura'] .k-roofline { fill: light-dark(#8a96a8, #171b38); }
+[data-scene-id='sakura'] .k-clock { fill: light-dark(#ffffff, #e8e2c8); stroke: light-dark(#5d6f8c, #171b38); stroke-width: 1.5; }
+[data-scene-id='sakura'] .k-hand { stroke: #2a2433; stroke-width: 1.4; stroke-linecap: round; }
+[data-scene-id='sakura'] .k-fence { fill: none; stroke: light-dark(#7b8aa0, #1a1e3c); stroke-width: 1.2; }
+[data-scene-id='sakura'] .w-on { fill: light-dark(#8fc0e6, #ffe08f); }
+[data-scene-id='sakura'] .w-off { fill: light-dark(#bcd6ea, #1c2044); }
+[data-scene-id='sakura'] .k-bush circle { fill: light-dark(#6aa36a, #172340); }
+[data-scene-id='sakura'] .k-road { fill: light-dark(#8c95a4, #141834); }
+[data-scene-id='sakura'] .k-curb { stroke: light-dark(#d8dde5, #2a3054); stroke-width: 3; }
+[data-scene-id='sakura'] .k-rail { fill: none; stroke: light-dark(#e9edf2, #39406a); stroke-width: 2.4; }
+[data-scene-id='sakura'] .k-pole, [data-scene-id='sakura'] .k-pole2 { fill: light-dark(#3a3f4c, #0b0d1e); }
+[data-scene-id='sakura'] .k-wire { fill: none; stroke: light-dark(#2e3240, #0b0d1e); stroke-width: 1.3; }
+[data-scene-id='sakura'] .k-buck { fill: #f4f4f4; stroke: #d23a3a; stroke-width: 3; stroke-dasharray: 8 6; }
+[data-scene-id='sakura'] .k-lamp { fill: light-dark(#7a2a2a, #ff3b3b); }
+
+/* Lens flare from a sun just off the top-right edge. */
+.sc-flare { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen; }
+.sc-flare i { position: absolute; border-radius: 50%; }
+.sc-flare i:nth-child(1) { right: -140px; top: -160px; width: 420px; height: 420px; background: radial-gradient(circle, #fffef4 0 14%, #fff6d6aa 26%, #ffe9b033 46%, transparent 70%); }
+.sc-flare i:nth-child(2) { right: 22%; top: 24%; width: 70px; height: 70px; background: radial-gradient(circle, transparent 45%, #b8e1ff55 62%, transparent 72%); }
+.sc-flare i:nth-child(3) { right: 34%; top: 38%; width: 26px; height: 26px; background: #fff6d044; filter: blur(1px); }
+.sc-flare i:nth-child(4) { right: 8%; top: 12%; width: 120px; height: 3px; border-radius: 3px; background: linear-gradient(90deg, transparent, #fff8, transparent); transform: rotate(-32deg); }
+
+/* ================= TENKI (天気の子-inspired: 雨后晴空) ================= */
+[data-scene-id='tenki'] {
+  --sky-1: light-dark(#4f6f96, #070b18); --sky-2: light-dark(#9fb9d6, #141c36); --sky-3: light-dark(#e6eef6, #2a2140);
+  --veil: light-dark(#f2f6fac4, #0f1424c2);
+  background:
+    radial-gradient(60% 46% at 70% 34%, light-dark(#fff7dc, #ffb86a33) 0%, transparent 70%),
+    linear-gradient(180deg, var(--sky-1) 0%, var(--sky-2) 46%, var(--sky-3) 100%);
+}
+[data-scene-id='tenki'] .sc-storm { top: 0; bottom: auto; height: 100vh; min-height: 0; width: 100%; }
+[data-scene-id='tenki'] .dk-sh { fill: light-dark(#56647c, #141830); }
+[data-scene-id='tenki'] .dk-lit { fill: light-dark(#8a98ae, #232842); }
+[data-scene-id='tenki'] .dk-hi { fill: light-dark(#a6b2c4, #2e3452); }
+/* Cloud edges around the break catch the sun (silver lining). */
+[data-scene-id='tenki'] .rm-sh { fill: light-dark(#a7b0bf, #3a3248); }
+[data-scene-id='tenki'] .rm-lit { fill: light-dark(#f7e7c6, #8a6a6c); }
+[data-scene-id='tenki'] .rm-hi { fill: light-dark(#fffbea, #ffd59a); }
+[data-scene-id='tenki'] .rm-hi, [data-scene-id='tenki'] .rm-lit { filter: drop-shadow(0 0 10px light-dark(#fff3c8, #ffc06a66)); }
+.sc-beam {
+  position: absolute; left: 50%; top: 18%; width: 46%; height: 100%; transform-origin: 50% 0; transform: skewX(-14deg);
+  background: linear-gradient(180deg, light-dark(#fffbe8ee, #ffd38a40) 0%, light-dark(#fff4cc88, #ffcb7a18) 40%, transparent 85%);
+  -webkit-mask: linear-gradient(90deg, transparent, #000 30%, #000 70%, transparent); mask: linear-gradient(90deg, transparent, #000 30%, #000 70%, transparent);
+  filter: blur(14px); mix-blend-mode: screen;
+}
+.sc-rainbow {
+  position: absolute; left: 4%; top: 22%; width: 56vw; height: 56vw; border-radius: 50%;
+  background: radial-gradient(circle, transparent 62%, #ff6b6b 63%, #ffb36b 64.2%, #ffe66b 65.4%, #7bdc8a 66.6%, #6bb8ff 67.8%, #a08bff 69%, transparent 70.4%);
+  opacity: 0.32; filter: blur(3px);
+  -webkit-mask: linear-gradient(180deg, #000 20%, transparent 46%); mask: linear-gradient(180deg, #000 20%, transparent 46%);
+}
+.sc-cityglow { position: absolute; left: 0; right: 0; bottom: 0; height: 40vh; background: linear-gradient(0deg, light-dark(transparent, #ff6fa833), transparent); }
+[data-scene-id='tenki'] .t-far path, [data-scene-id='tenki'] .t-far rect { fill: light-dark(#9fb2c8, #1f2742); }
+[data-scene-id='tenki'] .t-tower path:first-child, [data-scene-id='tenki'] .t-tower rect { fill: light-dark(#8ea2bb, #262c4a); }
+[data-scene-id='tenki'] .t-lattice { fill: none; stroke: light-dark(#b8c6d6, #3a4064); stroke-width: 1; }
+[data-scene-id='tenki'] .t-haze { fill: light-dark(#e3ebf3, #2b2846); opacity: 0.7; filter: blur(8px); }
+[data-scene-id='tenki'] .t-mid rect { fill: light-dark(#6f8098, #141a30); }
+[data-scene-id='tenki'] .t-win-off rect { fill: light-dark(#8797ae, #1d2440); }
+[data-scene-id='tenki'] .t-win-on rect { fill: light-dark(#c9d8e8, #ffd88a); }
+[data-scene-id='tenki'] .t-sign-a { fill: light-dark(#d86a7a, #ff5fa0); }
+[data-scene-id='tenki'] .t-sign-b { fill: light-dark(#5aa0c8, #5fd8ff); }
+[data-scene-id='tenki'] .t-roof { fill: light-dark(#5a6478, #0c0f1e); }
+[data-scene-id='tenki'] .t-rail { fill: none; stroke: light-dark(#7a8496, #1c2238); stroke-width: 2; }
+[data-scene-id='tenki'] .t-puddle { fill: light-dark(#cfe0f0, #3a2c4a); opacity: 0.8; }
+[data-scene-id='tenki'] .t-ver { fill: light-dark(#d9483b, #b23a34); }
+[data-scene-id='tenki'] .t-ver-dk { fill: light-dark(#2a2a33, #0c0c16); }
+[data-scene-id='tenki'] .t-shrine rect, [data-scene-id='tenki'] .t-shrine path { fill: light-dark(#4a4f5e, #0e1020); }
+
+/* Night: no sun flare; the rainbow and sunbeam fade to a faint glow. (light-dark() only takes colours.) */
+:root[data-theme='dark'] .sc-flare { opacity: 0; }
+:root[data-theme='dark'] .sc-rainbow { opacity: 0.05; }
+:root[data-theme='dark'] .sc-beam { opacity: 0.45; }
+@media (prefers-color-scheme: dark) {
+  :root[data-theme='auto'] .sc-flare { opacity: 0; }
+  :root[data-theme='auto'] .sc-rainbow { opacity: 0.05; }
+  :root[data-theme='auto'] .sc-beam { opacity: 0.45; }
+}
+
+/* ================= motion ================= */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion='off']) .sc-top { animation: sc-canopy 9s ease-in-out infinite; transform-origin: 50% 0; }
+  :root:not([data-motion='off']) .sc-flare i:nth-child(1) { animation: sc-glow 7s ease-in-out infinite; }
+  :root:not([data-motion='off']) .sc-beam { animation: sc-beam 11s ease-in-out infinite alternate; }
+  :root:not([data-motion='off']) .sc-storm { animation: sc-storm 90s ease-in-out infinite alternate; }
+  :root:not([data-motion='off']) .k-lamp-a { animation: sc-blink 1.4s steps(1) infinite; }
+  :root:not([data-motion='off']) .k-lamp-b { animation: sc-blink 1.4s steps(1) infinite -0.7s; }
+}
+@keyframes sc-canopy { 50% { transform: rotate(0.4deg) translateY(2px); } }
+@keyframes sc-beam { from { opacity: 0.7; } to { opacity: 1; } }
+@keyframes sc-storm { to { transform: translateX(-1.5%); } }
+@keyframes sc-blink { 50% { opacity: 0.25; } }

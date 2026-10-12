@@ -229,8 +229,121 @@ function summer(n: number): Effect {
   };
 }
 
-const FACTORY: Record<string, (n: number) => Effect> = { glints, motes, seeds, nightsky, summer };
-const COUNT: Record<string, number> = { glints: 60, motes: 34, seeds: 18, nightsky: 140, summer: 40 };
+/**
+ * Sakura: notched cherry petals that tumble in 3D (a flip is faked by scaling
+ * one axis with a sine), drifting on a slow gust. Petals in the foreground are
+ * larger, faster and slightly blurred for depth. Same at night, a bit dimmer.
+ */
+function petals(n: number): Effect {
+  type P = { x: number; y: number; z: number; vx: number; vy: number; rot: number; vr: number; flip: number; vf: number; c: string };
+  let ps: P[] = [];
+  const cols = ['#ffd6e4', '#ffc4d8', '#ffe7ef', '#f9b3cb'];
+  const spawn = (w: number, h: number, any: boolean): P => {
+    const z = Math.random() ** 1.6; // most petals are far away
+    return {
+      x: rnd(-60, w), y: any ? rnd(-20, h) : rnd(-60, -10), z,
+      vx: rnd(0.5, 1.2) * (0.5 + z), vy: rnd(0.4, 0.8) * (0.5 + z),
+      rot: rnd(0, 6.28), vr: rnd(-0.02, 0.02), flip: rnd(0, 6.28), vf: rnd(0.02, 0.05), c: cols[Math.floor(Math.random() * cols.length)]!,
+    };
+  };
+  return {
+    init(w, h) {
+      ps = Array.from({ length: n }, () => spawn(w, h, true));
+    },
+    draw(ctx, w, h, t, dark) {
+      const gust = 0.6 + Math.sin(t / 260) * 0.5 + Math.max(0, Math.sin(t / 97)) ** 6 * 1.6;
+      for (let i = 0; i < ps.length; i++) {
+        const p = ps[i]!;
+        p.x += p.vx * gust + Math.sin(t / 60 + i) * 0.25;
+        p.y += p.vy + Math.cos(t / 80 + i) * 0.12;
+        p.rot += p.vr;
+        p.flip += p.vf;
+        if (p.y > h + 30 || p.x > w + 60) ps[i] = spawn(w, h, false);
+        const s = 4 + p.z * 9;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.scale(1, Math.max(0.15, Math.abs(Math.cos(p.flip))));
+        ctx.globalAlpha = (dark ? 0.6 : 0.9) * (0.55 + p.z * 0.45);
+        ctx.fillStyle = p.c;
+        ctx.beginPath();
+        // a petal with the characteristic notch at the tip
+        ctx.moveTo(0, s);
+        ctx.bezierCurveTo(-s * 0.95, s * 0.3, -s * 0.7, -s * 0.85, -s * 0.18, -s);
+        ctx.lineTo(0, -s * 0.72);
+        ctx.lineTo(s * 0.18, -s);
+        ctx.bezierCurveTo(s * 0.7, -s * 0.85, s * 0.95, s * 0.3, 0, s);
+        ctx.fill();
+        ctx.globalAlpha *= 0.5;
+        ctx.fillStyle = '#ff9fbf';
+        ctx.beginPath();
+        ctx.ellipse(0, s * 0.55, s * 0.22, s * 0.35, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.globalAlpha = 1;
+    },
+  };
+}
+
+/**
+ * Rain: thin slanted streaks in three depth layers, with small splash rings on
+ * the ground line. It is a sunshower — the light rain keeps falling through the
+ * sunbeam. At night drops pick up neon tints from the city.
+ */
+function rain(n: number): Effect {
+  type D = { x: number; y: number; z: number; len: number; v: number };
+  type S = { x: number; y: number; life: number };
+  let ds: D[] = [];
+  let ss: S[] = [];
+  const slant = 0.22;
+  const spawn = (w: number, h: number, any: boolean): D => {
+    const z = Math.random();
+    return { x: rnd(-w * 0.2, w), y: any ? rnd(-h, h) : rnd(-h * 0.3, -20), z, len: 10 + z * 22, v: 9 + z * 12 };
+  };
+  return {
+    init(w, h) {
+      ds = Array.from({ length: n }, () => spawn(w, h, true));
+      ss = [];
+    },
+    draw(ctx, w, h, _t, dark) {
+      const neon = ['#ff7fb8', '#7fe0ff', '#ffd88a'];
+      ctx.lineCap = 'round';
+      for (let i = 0; i < ds.length; i++) {
+        const d = ds[i]!;
+        d.y += d.v;
+        d.x += d.v * slant;
+        const ground = h * (0.86 + d.z * 0.12);
+        if (d.y > ground) {
+          if (d.z > 0.5 && ss.length < 40) ss.push({ x: d.x, y: ground, life: 1 });
+          ds[i] = spawn(w, h, false);
+          continue;
+        }
+        ctx.globalAlpha = (dark ? 0.5 : 0.42) * (0.35 + d.z * 0.65);
+        ctx.strokeStyle = dark && i % 7 === 0 ? neon[i % 3]! : dark ? '#c8d4f0' : '#ffffff';
+        ctx.lineWidth = 0.7 + d.z * 0.9;
+        ctx.beginPath();
+        ctx.moveTo(d.x, d.y);
+        ctx.lineTo(d.x - d.len * slant, d.y - d.len);
+        ctx.stroke();
+      }
+      ctx.strokeStyle = dark ? '#c8d4f0' : '#ffffff';
+      ctx.lineWidth = 1;
+      for (const s of ss) {
+        s.life -= 0.06;
+        ctx.globalAlpha = Math.max(0, s.life) * 0.5;
+        ctx.beginPath();
+        ctx.ellipse(s.x, s.y, (1 - s.life) * 9 + 1, (1 - s.life) * 2.4 + 0.4, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ss = ss.filter((s) => s.life > 0);
+      ctx.globalAlpha = 1;
+    },
+  };
+}
+
+const FACTORY: Record<string, (n: number) => Effect> = { glints, motes, seeds, nightsky, summer, petals, rain };
+const COUNT: Record<string, number> = { glints: 60, motes: 34, seeds: 18, nightsky: 140, summer: 40, petals: 46, rain: 110 };
 
 export function isSceneEffect(effect: string): boolean {
   return effect in FACTORY;

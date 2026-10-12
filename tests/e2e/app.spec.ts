@@ -249,6 +249,43 @@ test('appearance: the summer preset renders its scene and mascot', async ({ page
   expect((await visitorText(request, '/')).text).not.toContain('data-mascot');
 });
 
+test('appearance: anime presets render their scene and a draggable mascot', async ({ page, request }) => {
+  await login(page);
+  await page.goto('/owner/appearance');
+  await page.locator('[data-preset-id="tenki"]').click();
+  await page.getByRole('button', { name: '保存', exact: true }).click();
+  await expect(page.locator('.toast-text').last()).toContainText('外观已保存');
+  const home = await visitorText(request, '/');
+  expect(home.text).toContain('data-scene-id="tenki"');
+  expect(home.text).toContain('data-character="sora"');
+  const visitor = await page.context().browser()!.newPage({ viewport: { width: 1280, height: 800 } });
+  await visitor.goto('/learning');
+  const m = visitor.locator('[data-mascot]');
+  await expect(m).toBeVisible();
+  // Let the entrance animation finish before grabbing her.
+  await m.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
+  const before = (await m.boundingBox())!;
+  const btn = visitor.locator('[data-mascot-btn]');
+  const b = (await btn.boundingBox())!;
+  await visitor.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+  await visitor.mouse.down();
+  await visitor.mouse.move(b.x - 300, b.y - 200, { steps: 8 });
+  await visitor.mouse.up();
+  const after = (await m.boundingBox())!;
+  expect(after.x).toBeLessThan(before.x - 200);
+  // The new spot survives a reload; a double-click returns it to the corner.
+  await visitor.reload();
+  await expect.poll(async () => (await m.boundingBox())!.x).toBeLessThan(before.x - 200);
+  await btn.dblclick();
+  await expect.poll(async () => Math.round((await m.boundingBox())!.x)).toBe(Math.round(before.x));
+  await btn.click();
+  await expect(visitor.locator('[data-mascot-bubble]')).not.toBeEmpty();
+  await visitor.close();
+  await page.locator('[data-preset-id="ink"]').click();
+  await page.getByRole('button', { name: '保存', exact: true }).click();
+  await expect(page.locator('.toast-text').last()).toContainText('外观已保存');
+});
+
 test('papers: status pill changes reading state and persists', async ({ page }) => {
   const errors = trackErrors(page);
   await login(page);
