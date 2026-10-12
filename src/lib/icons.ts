@@ -49,6 +49,12 @@ export const ICONS: Record<string, string> = {
   checklist: '<path d="m4 7 2 2 3-3M4 16l2 2 3-3M12 8h8M12 17h8"/>',
   upload: '<path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
+  bookmark: '<path d="M6 4h12v17l-6-4-6 4z"/>',
+  'book-open': '<path d="M3 5.5C5.5 4.5 8.5 4.5 12 6.5c3.5-2 6.5-2 9-1v13c-2.5-1-5.5-1-9 1-3.5-2-6.5-2-9-1z"/><path d="M12 6.5v13"/>',
+  'check-circle': '<circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.8 2.8L16.5 9.5"/>',
+  'circle-dashed': '<path d="M12 3a9 9 0 0 1 3.4.7M19.3 6.7a9 9 0 0 1 1.7 4M21 13.3a9 9 0 0 1-1.7 4M15.4 20.3A9 9 0 0 1 12 21M8.6 20.3a9 9 0 0 1-3.9-3M3 13.3a9 9 0 0 1 0-2.6M4.7 6.7A9 9 0 0 1 8.6 3.7"/>',
+  loader: '<path d="M12 3v3M12 18v3M4.6 6.6l2.1 2.1M17.3 15.3l2.1 2.1M3 12h3M18 12h3M4.6 17.4l2.1-2.1M17.3 8.7l2.1-2.1"/>',
+  flask2: '<path d="M9 3h6M10 3v6L4.5 18.5A1.7 1.7 0 0 0 6 21h12a1.7 1.7 0 0 0 1.5-2.5L14 9V3"/>',
 };
 
 export const SITE_ICONS = ['book', 'atom', 'code', 'pen', 'archive', 'star', 'compass', 'flask'] as const;

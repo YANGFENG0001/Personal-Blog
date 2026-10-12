@@ -14,6 +14,7 @@ const GLYPH: Record<EggSet, string[]> = {
   paper: ['▪', '▫', '◆'],
   minimal: ['■', '▲', '●'],
   eyecare: ['✺', '•', '∗'],
+  summer: ['✦', '❀', '☆', '✿', '♪'],
 };
 
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);

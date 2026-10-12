@@ -16,8 +16,8 @@ export interface Palette {
 }
 
 export type BgEffect = 'particles' | 'sakura' | 'leaves' | 'bubbles' | 'stars' | 'waves' | 'fireflies' | 'snow';
-export type BgType = 'none' | 'solid' | 'gradient' | 'paper' | 'dots' | 'grid' | 'animated' | 'image';
-export type EggSet = 'ink' | 'nature' | 'ocean' | 'anime' | 'starry' | 'paper' | 'minimal' | 'eyecare';
+export type BgType = 'none' | 'solid' | 'gradient' | 'paper' | 'dots' | 'grid' | 'animated' | 'image' | 'scene';
+export type EggSet = 'ink' | 'nature' | 'ocean' | 'anime' | 'starry' | 'paper' | 'minimal' | 'eyecare' | 'summer';
 
 export interface ThemePreset {
   id: string;
@@ -27,7 +27,10 @@ export interface ThemePreset {
   dark: Palette;
   font: 'serif-sans' | 'sans' | 'serif';
   radius: 'sharp' | 'soft' | 'round';
-  background: { type: BgType; effect?: BgEffect };
+  /** effect is a canvas effect id (bg-effects or scene-effects); scene is a scenes.ts id. */
+  background: { type: BgType; effect?: string; scene?: string };
+  /** Optional mascot shown in a page corner (anime-style themes). */
+  mascot?: boolean;
   /** SVG body (24×24) for the theme cursor. */
   cursorGlyph: string;
   eggSet: EggSet;
@@ -53,10 +56,10 @@ export const PRESETS: ThemePreset[] = [
     eggSet: 'nature', fx: ['#6b8a3a', '#b5893c', '#8fae5a', '#c2703d'],
   },
   {
-    id: 'ocean', name: '海洋', description: '蓝青色调，气泡轻轻上浮。',
+    id: 'ocean', name: '海洋', description: '蔚蓝海面、远岛与帆影，浪花起伏，阳光（或月光）在水面闪烁。',
     light: { bg: '#f2f7f9', surface: '#ffffff', ink: '#1f2d36', muted: '#536874', faint: '#617582', line: '#dbe6ec', pane: '#e9f1f5', accent: '#1f6e8c', tint: '#e0eef4' },
     dark: { bg: '#0f1a21', surface: '#15232c', ink: '#dde9ef', muted: '#9fb4c0', faint: '#869ca9', line: '#24363f', pane: '#1b2c36', accent: '#7cc4dd', tint: '#1d3442' },
-    font: 'sans', radius: 'round', background: { type: 'animated', effect: 'bubbles' },
+    font: 'sans', radius: 'round', background: { type: 'scene', scene: 'ocean', effect: 'glints' },
     cursorGlyph: '<circle cx="12" cy="12" r="7" fill="#7cc4dd" fill-opacity=".35" stroke="#1f6e8c" stroke-width="1.4"/><circle cx="9.5" cy="9.5" r="1.6" fill="#fff"/>',
     eggSet: 'ocean', fx: ['#1f6e8c', '#7cc4dd', '#a8dcec', '#3d9bb8'],
   },
@@ -69,10 +72,10 @@ export const PRESETS: ThemePreset[] = [
     eggSet: 'anime', fx: ['#f29ac0', '#ffc6dc', '#b8a4f0', '#ffe28a'],
   },
   {
-    id: 'starry', name: '星夜', description: '深蓝夜空，星点闪烁。',
+    id: 'starry', name: '星夜', description: '银河横贯夜空，群山剪影下一顶亮着灯的帐篷，偶有流星划过。',
     light: { bg: '#f4f5fa', surface: '#ffffff', ink: '#232640', muted: '#585d7a', faint: '#676c88', line: '#e1e3ef', pane: '#eceef6', accent: '#4450a8', tint: '#e5e7f6' },
     dark: { bg: '#0d1020', surface: '#151a2e', ink: '#e3e6f5', muted: '#a5abc8', faint: '#8c92b0', line: '#262c46', pane: '#1b2038', accent: '#a9b4ff', tint: '#232a4d' },
-    font: 'serif-sans', radius: 'soft', background: { type: 'animated', effect: 'stars' },
+    font: 'serif-sans', radius: 'soft', background: { type: 'scene', scene: 'nightsky', effect: 'nightsky' },
     cursorGlyph: '<path d="M12 3c.6 4.2 2.8 6.4 7 7-4.2.6-6.4 2.8-7 7-.6-4.2-2.8-6.4-7-7 4.2-.6 6.4-2.8 7-7z" fill="#ffe9a8" stroke="#4450a8" stroke-width="1"/>',
     eggSet: 'starry', fx: ['#ffe9a8', '#a9b4ff', '#ffffff', '#ffd2f0'],
   },
@@ -100,6 +103,31 @@ export const PRESETS: ThemePreset[] = [
     cursorGlyph: '<circle cx="12" cy="12" r="4.5" fill="#c8e06a"/><circle cx="12" cy="12" r="8" fill="#c8e06a" fill-opacity=".25"/>',
     eggSet: 'eyecare', fx: ['#c8e06a', '#a3c98c', '#fff1a0'],
   },
+  {
+    id: 'forest', name: '森林', description: '层叠松林与晨雾，林间光束里飘着微尘；入夜后萤火点点。',
+    light: { bg: '#eef2e8', surface: '#f8faf4', ink: '#22301f', muted: '#4d5d48', faint: '#5d6c57', line: '#d8e0cf', pane: '#e6ecdd', accent: '#2f6b45', tint: '#dfeadb' },
+    dark: { bg: '#0f1a15', surface: '#16231c', ink: '#dfe9e0', muted: '#a3b5a6', faint: '#8a9e8d', line: '#26372d', pane: '#1b2a22', accent: '#8fd1a3', tint: '#1f3528' },
+    font: 'serif-sans', radius: 'soft', background: { type: 'scene', scene: 'forest', effect: 'motes' },
+    cursorGlyph: '<path d="M12 2 6 11h3l-4 6h5v5h4v-5h5l-4-6h3z" fill="#2f6b45"/>',
+    eggSet: 'nature', fx: ['#2f6b45', '#8fd1a3', '#d6f580', '#6b8a3a'],
+  },
+  {
+    id: 'meadow', name: '草原', description: '流云掠过起伏的山丘，草浪随风摇曳，蒲公英种子飘在空中。',
+    light: { bg: '#f4f6ea', surface: '#fcfdf6', ink: '#283222', muted: '#56614b', faint: '#646f58', line: '#e0e5d0', pane: '#eceedf', accent: '#4a7a2c', tint: '#e5eed8' },
+    dark: { bg: '#121a2c', surface: '#192236', ink: '#e1e6f0', muted: '#a7b1c4', faint: '#8d97ab', line: '#29334a', pane: '#1e2840', accent: '#a9d38a', tint: '#26344a' },
+    font: 'serif-sans', radius: 'round', background: { type: 'scene', scene: 'meadow', effect: 'seeds' },
+    cursorGlyph: '<g stroke="#4a7a2c" stroke-width="1.2" fill="none"><path d="M12 12 12 22"/><path d="M12 12l0-7M12 12l5-5M12 12l7 0M12 12l5 5M12 12l-5 5M12 12l-7 0M12 12l-5-5"/></g><circle cx="12" cy="12" r="2" fill="#4a7a2c"/>',
+    eggSet: 'nature', fx: ['#4a7a2c', '#a9d38a', '#fff3b0', '#ffffff'],
+  },
+  {
+    id: 'summer', name: '夏日物语', description: '二次元升级版：积雨云、海边小镇与驶过的电车，看板娘在角落陪你读书；夜晚远处有烟花。',
+    light: { bg: '#f3f9fd', surface: '#ffffff', ink: '#1f2b3a', muted: '#4f5f74', faint: '#5d6d82', line: '#dbe8f2', pane: '#eaf3fa', accent: '#1f78c8', tint: '#e2effa' },
+    dark: { bg: '#121836', surface: '#1a2146', ink: '#e8eaf8', muted: '#b0b6d4', faint: '#979eba', line: '#2c3462', pane: '#1f2750', accent: '#ffb3cf', tint: '#3a2a52' },
+    font: 'sans', radius: 'round', background: { type: 'scene', scene: 'summer', effect: 'summer' },
+    cursorGlyph: '<path d="m12 3 2.4 5.6 6 .6-4.6 4 1.4 6L12 16l-5.2 3.2 1.4-6-4.6-4 6-.6z" fill="#ffd36e" stroke="#1f78c8" stroke-width="1.1"/>',
+    eggSet: 'summer', fx: ['#ffb3cf', '#9ed8ff', '#ffe28a', '#ffffff'],
+    mascot: true,
+  },
 ];
 
 export const PRESET_IDS = PRESETS.map((p) => p.id) as [string, ...string[]];
@@ -107,6 +135,7 @@ export const PRESET_IDS = PRESETS.map((p) => p.id) as [string, ...string[]];
 export const EGG_SETS: { id: EggSet; name: string }[] = [
   { id: 'ink', name: '墨滴' }, { id: 'nature', name: '落叶' }, { id: 'ocean', name: '气泡' }, { id: 'anime', name: '樱花与星' },
   { id: 'starry', name: '流星' }, { id: 'paper', name: '纸片' }, { id: 'minimal', name: '几何' }, { id: 'eyecare', name: '萤火' },
+  { id: 'summer', name: '夏日烟花' },
 ];
 
 export const BG_EFFECTS: { id: BgEffect; name: string }[] = [

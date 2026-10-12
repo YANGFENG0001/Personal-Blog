@@ -1,0 +1,61 @@
+/* Status pills — a small shared vocabulary of tones for workflow states.
+   Each tone defines --tone; the pill uses a tinted background, a toned
+   border and an icon, readable in light and dark mode. */
+
+:root {
+  --st-slate: #6b7a89;
+  --st-amber: #b7791f;
+  --st-sky: #2b7bb9;
+  --st-jade: #2f8a5f;
+  --st-violet: #7a56c2;
+  --st-rose: #c2456a;
+  --st-mute: #8a9089;
+}
+:root[data-theme='dark'] { --st-slate: #9fb0c0; --st-amber: #e8b45c; --st-sky: #79b8e8; --st-jade: #7dd3a5; --st-violet: #b9a0f0; --st-rose: #f08aa8; --st-mute: #8f988f; }
+@media (prefers-color-scheme: dark) {
+  :root[data-theme='auto'] { --st-slate: #9fb0c0; --st-amber: #e8b45c; --st-sky: #79b8e8; --st-jade: #7dd3a5; --st-violet: #b9a0f0; --st-rose: #f08aa8; --st-mute: #8f988f; }
+}
+
+.tone-slate, .st-slate { --tone: var(--st-slate); }
+.tone-amber, .st-amber { --tone: var(--st-amber); }
+.tone-sky, .st-sky { --tone: var(--st-sky); }
+.tone-jade, .st-jade { --tone: var(--st-jade); }
+.tone-violet, .st-violet { --tone: var(--st-violet); }
+.tone-rose, .st-rose { --tone: var(--st-rose); }
+.tone-mute, .st-mute { --tone: var(--st-mute); }
+
+.st {
+  display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 10px 0 8px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; line-height: 1; white-space: nowrap; cursor: pointer;
+  color: var(--tone); background: color-mix(in srgb, var(--tone) 11%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--tone) 32%, transparent);
+  transition: background 0.15s, border-color 0.15s, transform calc(0.2s * var(--dur)) var(--spring), box-shadow 0.15s;
+}
+.st:hover { background: color-mix(in srgb, var(--tone) 18%, var(--surface)); }
+.st:active { transform: scale(0.96); }
+.st:focus-visible { outline: 2px solid var(--tone); outline-offset: 2px; }
+.st .st-caret { opacity: 0.55; margin-left: 1px; transition: transform 0.2s; }
+.st[aria-expanded='true'] .st-caret { transform: rotate(180deg); }
+.st.is-off { color: var(--muted); background: var(--surface); border-color: var(--line); font-weight: 500; }
+.st.is-off .ic { color: var(--tone); }
+.st.is-on { box-shadow: 0 0 0 3px color-mix(in srgb, var(--tone) 18%, transparent); }
+/* "In progress" tones breathe gently. */
+.st-amber > .ic:first-child, .st-violet > .ic:first-child { animation: st-pulse calc(2.4s * var(--dur)) ease-in-out infinite; }
+@keyframes st-pulse { 50% { opacity: 0.45; } }
+
+/* Dropdown */
+.sp { position: relative; }
+.sp-pop {
+  position: absolute; left: 0; top: calc(100% + 6px); z-index: 60; min-width: 150px; padding: 5px; display: grid; gap: 2px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow);
+  animation: menu-in calc(0.16s * var(--dur)) var(--ease) both; transform-origin: top left;
+}
+.sp-opt { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 5px 6px; border: 0; background: none; border-radius: var(--r-sm); cursor: pointer; }
+.sp-opt:hover, .sp-opt:focus-visible { background: var(--pane); outline: none; }
+.sp-opt .st { pointer-events: none; }
+.sp-check { color: var(--accent); }
+
+/* 4-step progress track */
+.steps { display: flex; gap: 3px; width: 100%; max-width: 150px; }
+.steps i { flex: 1; height: 4px; border-radius: 4px; background: var(--line); transition: background calc(0.4s * var(--dur)) var(--ease); }
+.steps i.on { background: var(--tone); }

@@ -3,6 +3,7 @@ import { getDb } from '../db';
 import { DEFAULT_SETTINGS, type Settings } from '../seed';
 import { httpUrl, imageUrl } from '../validation';
 import { EGG_SETS, HEX, PRESET_IDS } from '../../lib/themes';
+import { SCENES } from '../../lib/scenes';
 
 const hex = z.string().regex(HEX, '颜色格式应为 #rrggbb');
 
@@ -35,7 +36,8 @@ const schemas = {
     cursor: z.enum(['system', 'dot', 'ring', 'theme']),
     cursorTrail: z.boolean(),
     background: z.object({
-      type: z.enum(['preset', 'none', 'solid', 'gradient', 'paper', 'dots', 'grid', 'animated', 'image']),
+      type: z.enum(['preset', 'none', 'solid', 'gradient', 'paper', 'dots', 'grid', 'animated', 'image', 'scene']),
+      scene: z.enum(SCENES.map((x) => x.id) as [string, ...string[]]),
       effect: z.enum(['particles', 'sakura', 'leaves', 'bubbles', 'stars', 'waves', 'fireflies', 'snow']),
       color: hex,
       gradientFrom: hex,
@@ -48,6 +50,12 @@ const schemas = {
     }),
     iconMotion: z.boolean(),
     cardMotion: z.boolean(),
+    mascot: z.object({
+      mode: z.enum(['preset', 'on', 'off']),
+      imageUrl: z.union([z.literal(''), imageUrl]),
+      position: z.enum(['right', 'left']),
+      size: z.enum(['sm', 'md', 'lg']),
+    }),
   }),
   dial: z
     .object({
@@ -61,7 +69,7 @@ const schemas = {
       showList: z.boolean(),
       offsetY: z.number().min(15).max(85),
     })
-    .refine((d) => d.layout === 'list' || d.layout === 'rail' || d.showOrbit || d.showList, '图形和列表至少保留一个'),
+    .refine((d) => d.shape === 'capsule' || d.shape === 'half' || d.layout === 'list' || d.layout === 'rail' || d.showOrbit || d.showList, '图形和列表至少保留一个'),
   encourage: z
     .object({
       enabled: z.boolean(),

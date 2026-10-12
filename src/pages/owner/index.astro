@@ -5,7 +5,9 @@ import { listPosts } from '../../server/services/posts';
 import { listBoards, taskCounts } from '../../server/services/tasks';
 import { growthSummary, ownerStats } from '../../server/services/stats';
 import { activityHeatmap, dayKey } from '../../server/services/activity';
-import { listPapers, READ_STATUS } from '../../server/services/knowledge';
+import { listPapers } from '../../server/services/knowledge';
+import { READ_META } from '../../components/owner/PaperTracker';
+import '../../styles/status.css';
 import { relativeTime } from '../../lib/format';
 import { iconSvg } from '../../lib/icons';
 import TaskBoards from '../../components/owner/TaskBoards';
@@ -216,7 +218,7 @@ const EYE = iconSvg('eye');
                   {papers.map((p) => (
                     <li>
                       <span>{p.title}{p.year && <span class="faint"> · {p.year}</span>}</span>
-                      <span class="pill">{READ_STATUS[p.readStatus]}</span>
+                      <span class={`st st-${READ_META[p.readStatus].tone}`} style="cursor:default"><Fragment set:html={iconSvg(READ_META[p.readStatus].icon, 'ic')} />{READ_META[p.readStatus].label}</span>
                     </li>
                   ))}
                 </ul>

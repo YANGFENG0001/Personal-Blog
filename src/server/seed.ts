@@ -33,7 +33,8 @@ export const DEFAULT_SETTINGS = {
     cursor: 'system' as 'system' | 'dot' | 'ring' | 'theme',
     cursorTrail: false,
     background: {
-      type: 'preset' as 'preset' | 'none' | 'solid' | 'gradient' | 'paper' | 'dots' | 'grid' | 'animated' | 'image',
+      type: 'preset' as 'preset' | 'none' | 'solid' | 'gradient' | 'paper' | 'dots' | 'grid' | 'animated' | 'image' | 'scene',
+      scene: 'ocean' as string,
       effect: 'particles' as 'particles' | 'sakura' | 'leaves' | 'bubbles' | 'stars' | 'waves' | 'fireflies' | 'snow',
       color: '#f3f1ea',
       gradientFrom: '#f3efe6',
@@ -46,6 +47,12 @@ export const DEFAULT_SETTINGS = {
     },
     iconMotion: true,
     cardMotion: true,
+    mascot: {
+      mode: 'preset' as 'preset' | 'on' | 'off',
+      imageUrl: '' as string,
+      position: 'right' as 'right' | 'left',
+      size: 'md' as 'sm' | 'md' | 'lg',
+    },
   },
   dial: {
     layout: 'orbit' as 'orbit' | 'arc' | 'list' | 'rail',

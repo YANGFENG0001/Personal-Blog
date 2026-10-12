@@ -218,11 +218,56 @@ test('appearance: choosing a theme preset applies to the public site', async ({ 
   await expect(page.locator('.toast-text').last()).toContainText('外观已保存');
   const home = await visitorText(request, '/');
   expect(home.text).toContain('data-preset="ocean"');
-  expect(home.text).toContain('data-bg-effect="bubbles"');
+  expect(home.text).toContain('data-bg="scene"');
+  expect(home.text).toContain('data-bg-effect="glints"');
+  expect(home.text).toContain('data-scene-id="ocean"');
   // Restore the default for other tests.
   await page.locator('[data-preset-id="ink"]').click();
   await page.getByRole('button', { name: '保存', exact: true }).click();
   await expect(page.locator('.toast-text').last()).toContainText('外观已保存');
+  expect(errors).toEqual([]);
+});
+
+test('appearance: the summer preset renders its scene and mascot', async ({ page, request }) => {
+  await login(page);
+  await page.goto('/owner/appearance');
+  await page.locator('[data-preset-id="summer"]').click();
+  await page.getByRole('button', { name: '保存', exact: true }).click();
+  await expect(page.locator('.toast-text').last()).toContainText('外观已保存');
+  const home = await visitorText(request, '/');
+  expect(home.text).toContain('data-scene-id="summer"');
+  expect(home.text).toContain('data-mascot');
+  const visitor = await page.context().browser()!.newPage({ viewport: { width: 1280, height: 800 } });
+  await visitor.goto('/learning');
+  await expect(visitor.locator('.scene[data-scene-id="summer"]')).toBeAttached();
+  await visitor.locator('[data-mascot-btn]').click();
+  await expect(visitor.locator('[data-mascot-bubble]')).not.toBeEmpty();
+  await visitor.close();
+  await page.locator('[data-preset-id="ink"]').click();
+  await page.getByRole('button', { name: '保存', exact: true }).click();
+  await expect(page.locator('.toast-text').last()).toContainText('外观已保存');
+  expect((await visitorText(request, '/')).text).not.toContain('data-mascot');
+});
+
+test('papers: status pill changes reading state and persists', async ({ page }) => {
+  const errors = trackErrors(page);
+  await login(page);
+  await page.goto('/owner/papers');
+  await page.getByRole('button', { name: /添加/ }).first().click();
+  const dialog = page.getByRole('dialog');
+  await dialog.locator('input').first().fill('E2E Paper Status');
+  await dialog.getByRole('button', { name: /保存|添加/ }).last().click();
+  const card = page.locator('.pt-card', { hasText: 'E2E Paper Status' });
+  await expect(card).toBeVisible();
+  await card.getByRole('button', { name: /阅读状态：待读/ }).click();
+  await card.getByRole('option', { name: /阅读中/ }).click();
+  await expect(card.getByRole('button', { name: /阅读状态：阅读中/ })).toBeVisible();
+  await page.reload();
+  const again = page.locator('.pt-card', { hasText: 'E2E Paper Status' });
+  await expect(again.getByRole('button', { name: /阅读状态：阅读中/ })).toBeVisible();
+  await again.getByRole('button', { name: /删除/ }).click();
+  await page.getByRole('dialog').getByRole('button', { name: '删除' }).click();
+  await expect(again).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 

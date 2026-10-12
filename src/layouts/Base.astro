@@ -2,8 +2,10 @@
 import '../styles/tokens.css';
 import '../styles/base.css';
 import '../styles/themes.css';
+import '../styles/scenes.css';
 import { getSetting } from '../server/services/settings';
 import { resolveAppearance } from '../lib/appearance';
+import { sceneHtml, type SceneId } from '../lib/scenes';
 
 interface Props {
   title: string;
@@ -59,6 +61,7 @@ const canonicalUrl = canonical ? new URL(canonical, Astro.site ?? Astro.url).hre
     data-trail={ambient && appearance.cursorTrail ? '' : undefined}
   >
     {ambient && <div class="page-bg" aria-hidden="true" />}
+    {ambient && look.bg.scene && <Fragment set:html={sceneHtml(look.bg.scene as SceneId)} />}
     <slot />
   </body>
 </html>

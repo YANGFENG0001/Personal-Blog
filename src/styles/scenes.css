@@ -1,0 +1,164 @@
+/* Immersive scenes (markup: src/lib/scenes.ts).
+   Layers sit in a fixed container behind the page. Colours use light-dark()
+   so day and night share the same markup. Only transform/opacity animate. */
+
+.scene {
+  position: fixed; inset: 0; z-index: -2; overflow: hidden; pointer-events: none;
+  background: linear-gradient(180deg, var(--sky-1) 0%, var(--sky-2) 48%, var(--sky-3) 100%);
+}
+.sc-layer { position: absolute; left: 0; bottom: 0; width: 100%; height: 46vh; min-height: 260px; display: block; overflow: visible; }
+.sc-far { height: 44vh; }
+.sc-wave { width: 200%; }
+.sc-clouds { position: absolute; inset: 0; }
+.sc-clouds .sc-layer { top: 0; bottom: auto; height: 60vh; width: 120%; left: -10%; }
+.sc-clouds-big .sc-layer { top: auto; bottom: 10vh; height: 70vh; }
+
+/* Readability veil: content sits on a softly lightened band in the middle. */
+.scene::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent 0%, var(--veil) 18%, var(--veil) 82%, transparent 100%);
+}
+@media (max-width: 900px) { .scene::after { background: var(--veil); } }
+
+/* ---------- sun / moon / sky features ---------- */
+.sc-sun {
+  position: absolute; right: 14%; top: 12%; width: 120px; height: 120px; border-radius: 50%;
+  background: radial-gradient(circle, var(--sun) 0 28%, color-mix(in srgb, var(--sun) 40%, transparent) 32%, transparent 70%);
+  filter: blur(0.5px);
+}
+.sc-sun-soft { right: 22%; top: 8%; width: 180px; height: 180px; opacity: 0.85; }
+.sc-sun-summer { right: auto; left: 12%; top: 6%; width: 160px; height: 160px; }
+.sc-moon { position: absolute; right: 16%; top: 12%; width: 54px; height: 54px; border-radius: 50%; background: radial-gradient(circle at 38% 38%, #fffbe8, #e8e0c0 60%, #c8c0a0); box-shadow: 0 0 40px 10px #fff7d655; }
+.sc-milky {
+  position: absolute; left: -10%; top: -20%; width: 120%; height: 90%; transform: rotate(-18deg);
+  background:
+    radial-gradient(ellipse 40% 12% at 50% 50%, color-mix(in srgb, #c9b8ff 30%, transparent), transparent 70%),
+    radial-gradient(ellipse 60% 8% at 45% 52%, color-mix(in srgb, #fff 18%, transparent), transparent 70%),
+    radial-gradient(ellipse 30% 6% at 60% 46%, color-mix(in srgb, #ffd6f0 18%, transparent), transparent 70%);
+  filter: blur(6px); opacity: var(--milky, 0.25);
+}
+.sc-rays { position: absolute; inset: 0; overflow: hidden; }
+.sc-rays i {
+  position: absolute; top: -20%; width: 9vw; height: 130%; transform-origin: top center; transform: rotate(18deg);
+  background: linear-gradient(180deg, var(--ray) 0%, transparent 75%); filter: blur(8px); opacity: 0.55;
+}
+.sc-rays i:nth-child(1) { left: 54%; } .sc-rays i:nth-child(2) { left: 64%; width: 5vw; } .sc-rays i:nth-child(3) { left: 72%; width: 11vw; opacity: 0.4; } .sc-rays i:nth-child(4) { left: 84%; width: 4vw; }
+
+/* ================= OCEAN ================= */
+[data-scene-id='ocean'] {
+  --sky-1: light-dark(#7ec3ea, #071526); --sky-2: light-dark(#bfe3f6, #0e2640); --sky-3: light-dark(#e9f6fb, #13304d);
+  --sun: light-dark(#fffbe9, #fbf3d0); --veil: light-dark(#f2f8fbcc, #0b1a28c8);
+}
+[data-scene-id='ocean'] .o-isle { fill: light-dark(#7aa6b8, #1b3550); }
+[data-scene-id='ocean'] .o-isle2 { fill: light-dark(#9cc2d2, #16304a); }
+[data-scene-id='ocean'] .o-sea { fill: light-dark(#4aa3cf, #0d2a45); }
+[data-scene-id='ocean'] .o-horizon { stroke: light-dark(#ffffffaa, #fbf3d044); stroke-width: 1.5; }
+[data-scene-id='ocean'] .o-w1 { fill: light-dark(#3d95c4, #0f2f4d); }
+[data-scene-id='ocean'] .o-w2 { fill: light-dark(#2f86b8, #0c2742); }
+[data-scene-id='ocean'] .o-w3 { fill: light-dark(#21749f, #091f36); }
+[data-scene-id='ocean'] .o-foam { fill: none; stroke: light-dark(#ffffffcc, #cfe3ff55); stroke-width: 2; }
+[data-scene-id='ocean'] .o-hull { fill: light-dark(#5c4636, #1d2433); }
+[data-scene-id='ocean'] .o-sail1 { fill: light-dark(#fffaf0, #d8dce8); }
+[data-scene-id='ocean'] .o-sail2 { fill: light-dark(#f2ece0, #b8bfcf); }
+[data-scene-id='ocean'] .sc-gull { fill: none; stroke: light-dark(#4f6f80, #9fb4cc); stroke-width: 2; stroke-linecap: round; }
+/* Night: the sun becomes a moon with a light path on the water. */
+:root[data-theme='dark'] [data-scene-id='ocean'] .sc-sun { width: 60px; height: 60px; right: 18%; top: 14%; background: radial-gradient(circle at 40% 40%, #fffbe8, #e7dfc0 70%); box-shadow: 0 0 50px 14px #fff4cc40; }
+@media (prefers-color-scheme: dark) { :root[data-theme='auto'] [data-scene-id='ocean'] .sc-sun { width: 60px; height: 60px; right: 18%; top: 14%; background: radial-gradient(circle at 40% 40%, #fffbe8, #e7dfc0 70%); box-shadow: 0 0 50px 14px #fff4cc40; } }
+
+/* ================= FOREST ================= */
+[data-scene-id='forest'] {
+  --sky-1: light-dark(#cfe3d2, #0b1612); --sky-2: light-dark(#e6efe0, #12221b); --sky-3: light-dark(#eef2e6, #172a21);
+  --ray: light-dark(#fffbe0, #c8f0a01c); --veil: light-dark(#f3f5eccc, #0f1a15c8);
+}
+[data-scene-id='forest'] .f-m1, [data-scene-id='forest'] .f-p1 { fill: light-dark(#a9c4ac, #1a2e25); }
+[data-scene-id='forest'] .f-m2, [data-scene-id='forest'] .f-p2 { fill: light-dark(#7da585, #15281f); }
+[data-scene-id='forest'] .f-m3, [data-scene-id='forest'] .f-p3 { fill: light-dark(#4f7d5c, #10201a); }
+[data-scene-id='forest'] .f-m4, [data-scene-id='forest'] .f-p4 { fill: light-dark(#2f5640, #0a1612); }
+[data-scene-id='forest'] .f-mist { fill: light-dark(#f4f7ef, #2a3f35); opacity: 0.55; filter: blur(10px); }
+[data-scene-id='forest'] .sc-mist { height: 46vh; width: 140%; left: -20%; }
+
+/* ================= MEADOW ================= */
+[data-scene-id='meadow'] {
+  --sky-1: light-dark(#8cc8ec, #0d1630); --sky-2: light-dark(#cbe7f5, #1b2748); --sky-3: light-dark(#f2f6e4, #2a3354);
+  --sun: light-dark(#fffde8, #f5ecc8); --veil: light-dark(#f7f9eecc, #121a2cc8);
+}
+[data-scene-id='meadow'] .m-h1 { fill: light-dark(#b8d49c, #22324a); }
+[data-scene-id='meadow'] .m-h2 { fill: light-dark(#93bf6f, #1b2a3c); }
+[data-scene-id='meadow'] .m-h3 { fill: light-dark(#6fa64e, #15212f); }
+[data-scene-id='meadow'] .m-g1 { fill: light-dark(#5f9a40, #132030); }
+[data-scene-id='meadow'] .m-g2 { fill: light-dark(#4b8732, #0e1824); }
+[data-scene-id='meadow'] .m-trunk { fill: light-dark(#6b5040, #131c28); }
+[data-scene-id='meadow'] .m-crown { fill: light-dark(#4f8a3a, #142233); }
+[data-scene-id='meadow'] .m-crown-hi { fill: light-dark(#6aa64e, #1a2a3e); }
+[data-scene-id='meadow'] .m-flowers circle { fill: light-dark(#fff3b0, #e9e2b866); }
+[data-scene-id='meadow'] .m-cloud { fill: light-dark(#ffffff, #2c3858); }
+[data-scene-id='meadow'] .m-cloud-sh { fill: light-dark(#dbe9f3, #222c48); }
+:root[data-theme='dark'] [data-scene-id='meadow'] .sc-sun { opacity: 0.5; width: 70px; height: 70px; }
+@media (prefers-color-scheme: dark) { :root[data-theme='auto'] [data-scene-id='meadow'] .sc-sun { opacity: 0.5; width: 70px; height: 70px; } }
+
+/* ================= NIGHT SKY ================= */
+[data-scene-id='nightsky'] {
+  --sky-1: light-dark(#26305e, #04060f); --sky-2: light-dark(#4a4f86, #0b1030); --sky-3: light-dark(#c9a7c6, #1d2448);
+  --milky: light-dark(0.35, 0.6); --veil: light-dark(#f4f5facc, #0b0f22c4);
+}
+[data-scene-id='nightsky'] .n-m1 { fill: light-dark(#3a3f6c, #121838); }
+[data-scene-id='nightsky'] .n-m2 { fill: light-dark(#2a2e55, #0c1028); }
+[data-scene-id='nightsky'] .n-m3 { fill: light-dark(#1c1f3d, #070a1a); }
+[data-scene-id='nightsky'] .n-tent path:first-child { fill: light-dark(#1c1f3d, #070a1a); }
+[data-scene-id='nightsky'] .n-glow { fill: #ffcf7a; filter: drop-shadow(0 0 6px #ffb84d); }
+
+/* ================= SUMMER (anime) ================= */
+[data-scene-id='summer'] {
+  --sky-1: light-dark(#3f9fe6, #0c1438); --sky-2: light-dark(#8fd0f5, #24306a); --sky-3: light-dark(#e3f4fb, #5a4a7a);
+  --sun: light-dark(#fffde6, #fff3d0); --veil: light-dark(#f7fbfdcc, #121836c4);
+}
+[data-scene-id='summer'] .s-cloud { fill: light-dark(#ffffff, #3a3f72); }
+[data-scene-id='summer'] .s-cloud-sh { fill: light-dark(#d6e9f7, #2b2f5e); }
+[data-scene-id='summer'] .s-sea { fill: light-dark(#2f9fd8, #1a2a5a); }
+[data-scene-id='summer'] .s-sea-hi { stroke: light-dark(#ffffffcc, #ffffff40); stroke-width: 1.5; }
+[data-scene-id='summer'] .s-embank { fill: light-dark(#c9b89a, #262a4a); }
+[data-scene-id='summer'] .s-car { fill: light-dark(#f4f1e8, #c9c4d8); }
+[data-scene-id='summer'] .s-stripe { stroke: light-dark(#2f8a6f, #4fa38a); stroke-width: 3; }
+[data-scene-id='summer'] .s-win { fill: light-dark(#7cb8d8, #ffe39a); }
+[data-scene-id='summer'] .s-town path { fill: light-dark(#e8dfcf, #1c2146); stroke: light-dark(#c8b8a0, #121636); stroke-width: 1; }
+[data-scene-id='summer'] .s-lights rect { fill: light-dark(#9dbccc, #ffd77a); }
+[data-scene-id='summer'] .s-ground { fill: light-dark(#7aa86a, #141836); }
+[data-scene-id='summer'] .s-pole { fill: light-dark(#4a4a52, #0a0c1e); }
+[data-scene-id='summer'] .s-wire { fill: none; stroke: light-dark(#3a3a44, #0a0c1e); stroke-width: 1.2; }
+:root[data-theme='dark'] [data-scene-id='summer'] .sc-sun { opacity: 0; }
+@media (prefers-color-scheme: dark) { :root[data-theme='auto'] [data-scene-id='summer'] .sc-sun { opacity: 0; } }
+
+/* ================= motion (transform/opacity only) ================= */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion='off']) .sc-w1 { animation: sc-drift calc(48s / max(var(--dur), 0.4)) linear infinite; }
+  :root:not([data-motion='off']) .sc-w2 { animation: sc-drift calc(34s / max(var(--dur), 0.4)) linear infinite reverse; }
+  :root:not([data-motion='off']) .sc-w3 { animation: sc-drift calc(24s / max(var(--dur), 0.4)) linear infinite, sc-bob 6s ease-in-out infinite; }
+  :root:not([data-motion='off']) .o-boat { animation: sc-sail 140s linear infinite, sc-rock 5s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 100%; }
+  :root:not([data-motion='off']) .sc-gulls { animation: sc-glide 60s linear infinite; }
+  :root:not([data-motion='off']) .sc-mist1 { animation: sc-mist 70s ease-in-out infinite alternate; }
+  :root:not([data-motion='off']) .sc-mist2 { animation: sc-mist 52s ease-in-out infinite alternate-reverse; }
+  :root:not([data-motion='off']) .sc-rays i { animation: sc-ray 9s ease-in-out infinite alternate; }
+  :root:not([data-motion='off']) .sc-rays i:nth-child(2n) { animation-duration: 13s; }
+  :root:not([data-motion='off']) .sc-clouds .sc-layer { animation: sc-clouds 160s linear infinite alternate; }
+  :root:not([data-motion='off']) .sc-g1 { animation: sc-sway 7s ease-in-out infinite; transform-origin: 50% 100%; }
+  :root:not([data-motion='off']) .sc-g2 { animation: sc-sway 5s ease-in-out infinite reverse; transform-origin: 50% 100%; }
+  :root:not([data-motion='off']) .s-train { animation: sc-train 26s linear infinite; }
+  :root:not([data-motion='off']) .sc-sun { animation: sc-glow 8s ease-in-out infinite; }
+}
+@keyframes sc-drift { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes sc-bob { 50% { translate: 0 4px; } }
+@keyframes sc-sail { from { translate: -700px 0; } to { translate: 1000px 0; } }
+@keyframes sc-rock { 50% { rotate: 2deg; } }
+@keyframes sc-glide { from { translate: 30vw 0; } to { translate: -110vw -4vh; } }
+@keyframes sc-mist { to { transform: translateX(12%); } }
+@keyframes sc-ray { from { opacity: 0.25; } to { opacity: 0.6; } }
+@keyframes sc-clouds { to { transform: translateX(8%); } }
+@keyframes sc-sway { 50% { transform: skewX(-2deg); } }
+@keyframes sc-train { from { transform: translateX(-320px); } to { transform: translateX(1480px); } }
+@keyframes sc-glow { 50% { transform: scale(1.06); } }
+
+/* Scenes paint the whole page; drop the flat page-bg layer. */
+:root[data-bg='scene'] .page-bg { display: none; }
+:root[data-bg='scene'] .site-footer { background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(8px); }
+:root[data-bg='scene'] .site-header { background: color-mix(in srgb, var(--bg) 78%, transparent); }
+:root[data-bg='scene'] .article-shell .article { background: color-mix(in srgb, var(--bg) 90%, transparent); border-radius: var(--r-lg); box-shadow: 0 0 0 24px color-mix(in srgb, var(--bg) 90%, transparent); }

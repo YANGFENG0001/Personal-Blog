@@ -1,4 +1,5 @@
 import { cursorDataUri, getPreset, paletteVars, type ThemePreset } from './themes';
+import { getScene } from './scenes';
 
 export interface AppearanceSettings {
   preset: string;
@@ -11,8 +12,9 @@ export interface AppearanceSettings {
   cursor: 'system' | 'dot' | 'ring' | 'theme';
   cursorTrail: boolean;
   background: {
-    type: 'preset' | 'none' | 'solid' | 'gradient' | 'paper' | 'dots' | 'grid' | 'animated' | 'image';
+    type: 'preset' | 'none' | 'solid' | 'gradient' | 'paper' | 'dots' | 'grid' | 'animated' | 'image' | 'scene';
     effect: string;
+    scene: string;
     color: string;
     gradientFrom: string;
     gradientTo: string;
@@ -24,13 +26,16 @@ export interface AppearanceSettings {
   };
   iconMotion: boolean;
   cardMotion: boolean;
+  mascot: { mode: 'preset' | 'on' | 'off'; imageUrl: string; position: 'right' | 'left'; size: 'sm' | 'md' | 'lg' };
 }
 
 export interface ResolvedAppearance {
   preset: ThemePreset;
   attrs: Record<string, string>;
   style: string;
-  bg: { type: string; effect: string | null; intensity: string };
+  bg: { type: string; effect: string | null; intensity: string; scene: string | null };
+  /** Mascot to render, or null. imageUrl '' means the built-in original mascot. */
+  mascot: { imageUrl: string; position: 'right' | 'left'; size: 'sm' | 'md' | 'lg' } | null;
 }
 
 const DOT = '<circle cx="12" cy="12" r="3.5" fill="ACCENT"/>';
@@ -58,7 +63,11 @@ export function resolveAppearance(a: AppearanceSettings, theme: 'light' | 'dark'
 
   const fromPreset = a.background.type === 'preset';
   const bgType = fromPreset ? p.background.type : a.background.type;
-  const effect = fromPreset ? (p.background.effect ?? null) : bgType === 'animated' ? a.background.effect : null;
+  const sceneId = bgType === 'scene' ? (fromPreset ? p.background.scene : a.background.scene) ?? null : null;
+  const scene = sceneId ? getScene(sceneId) : undefined;
+  const effect = fromPreset
+    ? (p.background.effect ?? null)
+    : bgType === 'animated' ? a.background.effect : bgType === 'scene' ? (scene?.effect ?? null) : null;
 
   if (bgType === 'solid') vars['--page-bg'] = a.background.color;
   if (bgType === 'gradient') vars['--page-bg'] = `linear-gradient(160deg, ${a.background.gradientFrom}, ${a.background.gradientTo})`;
@@ -79,13 +88,14 @@ export function resolveAppearance(a: AppearanceSettings, theme: 'light' | 'dark'
       'data-density': a.density,
       'data-font': a.font === 'preset' ? p.font : a.font,
       'data-radius': a.radius === 'preset' ? p.radius : a.radius,
-      'data-bg': bgType === 'image' && !a.background.imageUrl ? 'none' : bgType,
+      'data-bg': (bgType === 'image' && !a.background.imageUrl) || (bgType === 'scene' && !scene) ? 'none' : bgType,
       'data-cursor': a.cursor,
       'data-icon-motion': a.iconMotion ? 'on' : 'off',
       'data-card-motion': a.cardMotion ? 'on' : 'off',
       ...(bgType === 'image' && a.background.fixed ? { 'data-bg-fixed': '' } : {}),
     },
     style: Object.entries(vars).map(([k, v]) => `${k}:${v}`).join(';'),
-    bg: { type: bgType, effect, intensity: a.background.intensity },
+    bg: { type: bgType, effect, intensity: a.background.intensity, scene: scene ? scene.id : null },
+    mascot: (a.mascot.mode === 'on' || (a.mascot.mode === 'preset' && p.mascot)) ? { imageUrl: a.mascot.imageUrl, position: a.mascot.position, size: a.mascot.size } : null,
   };
 }

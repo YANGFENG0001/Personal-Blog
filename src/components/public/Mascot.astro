@@ -1,0 +1,49 @@
+---
+/**
+ * Corner mascot: either the built-in original SVG character or an image the
+ * owner uploaded. Purely decorative (aria-hidden); clicking it shows a short
+ * line. Hidden on small screens and in print so it never covers content.
+ */
+import { MASCOT_SVG } from '../../lib/mascot';
+import '../../styles/mascot.css';
+
+interface Props {
+  imageUrl: string;
+  position: 'right' | 'left';
+  size: 'sm' | 'md' | 'lg';
+}
+const { imageUrl, position, size } = Astro.props;
+---
+
+<div class="mascot" data-pos={position} data-size={size} data-mascot>
+  <span class="mascot-bubble" data-mascot-bubble role="status" aria-live="polite"></span>
+  <button type="button" class="mascot-btn" aria-label="看板娘（点击和她打招呼）" data-mascot-btn>
+    {imageUrl ? <img src={imageUrl} alt="" loading="lazy" decoding="async" /> : <Fragment set:html={MASCOT_SVG} />}
+  </button>
+  <button type="button" class="mascot-hide" aria-label="暂时隐藏看板娘" data-mascot-hide>×</button>
+</div>
+
+<script>
+  import { MASCOT_LINES } from '../../lib/mascot';
+  const root = document.querySelector<HTMLElement>('[data-mascot]');
+  if (root) {
+    if (sessionStorage.getItem('fn-mascot-hidden')) root.hidden = true;
+    const bubble = root.querySelector<HTMLElement>('[data-mascot-bubble]')!;
+    let timer = 0;
+    let i = Math.floor(Math.random() * MASCOT_LINES.length);
+    root.querySelector('[data-mascot-btn]')?.addEventListener('click', () => {
+      i = (i + 1) % MASCOT_LINES.length;
+      bubble.textContent = MASCOT_LINES[i]!;
+      root.classList.remove('is-talking');
+      void root.offsetWidth;
+      root.classList.add('is-talking');
+      clearTimeout(timer);
+      timer = window.setTimeout(() => root.classList.remove('is-talking'), 3200);
+    });
+    root.querySelector('[data-mascot-hide]')?.addEventListener('click', () => {
+      sessionStorage.setItem('fn-mascot-hidden', '1');
+      root.classList.add('is-leaving');
+      setTimeout(() => (root.hidden = true), 400);
+    });
+  }
+</script>

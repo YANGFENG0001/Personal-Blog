@@ -2,6 +2,20 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { api, errMsg, toast } from '../../lib/client';
 import { BG_EFFECTS, EGG_SETS, PRESETS, getPreset, paletteVars, type ThemePreset } from '../../lib/themes';
 import { resolveAppearance, cursorCss } from '../../lib/appearance';
+import { SHAPE_LAYOUTS, dialHtml, effectiveLayout } from '../../lib/dial';
+import { SCENES, sceneHtml, type SceneId } from '../../lib/scenes';
+import { MASCOT_SVG } from '../../lib/mascot';
+import '../../styles/scenes.css';
+import '../../styles/mascot.css';
+
+/** Start either a scene effect or a generic particle effect on a preview canvas. */
+async function startPreviewEffect(effect: string, canvas: HTMLCanvasElement, intensity: 'low' | 'medium' | 'high', animate: boolean) {
+  const scene = await import('../../lib/scene-effects');
+  if (scene.isSceneEffect(effect)) return scene.startSceneEffect(effect, { intensity, animate, canvas });
+  const m = await import('../../lib/bg-effects');
+  return m.startBackground(effect, { intensity, animate, canvas });
+}
+import '../../styles/dial.css';
 type AS = Settings['appearance'];
 import type { Settings } from '../../server/seed';
 import { Icon, Segmented, Switch } from './ui';
@@ -96,7 +110,7 @@ export default function AppearanceManager(props: Props) {
         </div>
       </div>
 
-      {tab === 'theme' && <ThemeTab a={a} setA={setA} />}
+      {tab === 'theme' && <ThemeTab a={a} setA={setA} uploads={props.uploads} />}
       {tab === 'background' && <BackgroundTab a={a} setA={setA} setBg={setBg} uploads={props.uploads} />}
       {tab === 'motion' && <MotionTab a={a} setA={setA} />}
       {tab === 'dial' && <DialTab dial={dial} setDial={setDial} />}
@@ -113,19 +127,20 @@ function PresetCard({ p, active, onPick }: { p: ThemePreset; active: boolean; on
   useEffect(() => {
     if (!p.background.effect || !canvas.current) return;
     let stop: (() => void) | undefined;
+    let dead = false;
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    void import('../../lib/bg-effects').then((m) => {
-      stop = m.startBackground(p.background.effect!, { intensity: 'low', animate: !reduced, canvas: canvas.current! }).stop;
-    });
-    return () => stop?.();
+    void startPreviewEffect(p.background.effect, canvas.current, 'low', !reduced).then((h) => (dead ? h.stop() : (stop = h.stop)));
+    return () => { dead = true; stop?.(); };
   }, [p.id]);
   const style = (pal: ThemePreset['light']) => Object.entries(paletteVars(pal, null)).map(([k, v]) => `${k}:${v}`).join(';');
   return (
     <button type="button" class={`preset ${active ? 'on' : ''}`} aria-pressed={active} onClick={onPick} data-preset-id={p.id}>
       <span class="preset-thumbs">
         {(['light', 'dark'] as const).map((mode) => (
-          <span class={`mini mini-${mode} bg-${p.background.type}`} style={style(p[mode])}>
+          <span class={`mini mini-${mode} bg-${p.background.type}`} style={`${style(p[mode])};color-scheme:${mode}`}>
+            {p.background.scene && <span class="mini-scene" dangerouslySetInnerHTML={{ __html: sceneHtml(p.background.scene as SceneId) }} />}
             {mode === 'light' && p.background.effect && <canvas ref={canvas} class="mini-canvas" aria-hidden="true" />}
+            {p.mascot && <span class="mini-mascot" dangerouslySetInnerHTML={{ __html: MASCOT_SVG }} />}
             <span class="mini-head"><i /><b /></span>
             <span class="mini-title" style={`font-family:var(${p.font === 'sans' ? '--sans' : '--serif'})`}>Aa 标题</span>
             <span class="mini-line" /><span class="mini-line short" />
@@ -144,7 +159,7 @@ function PresetCard({ p, active, onPick }: { p: ThemePreset; active: boolean; on
 
 const ACCENTS = ['#315b50', '#4f6b2f', '#1f6e8c', '#496c96', '#4450a8', '#6b4fa0', '#b23c6f', '#a23b30', '#99694b', '#8a6a1f', '#1c1c1c'];
 
-function ThemeTab({ a, setA }: { a: AS; setA: (a: AS) => void }) {
+function ThemeTab({ a, setA, uploads }: { a: AS; setA: (a: AS) => void; uploads: { filename: string; originalName: string }[] }) {
   return (
     <div class="stack">
       <section class="panel">
@@ -182,14 +197,74 @@ function ThemeTab({ a, setA }: { a: AS; setA: (a: AS) => void }) {
           </div>
         </div>
       </section>
+      <MascotPanel a={a} setA={setA} uploads={uploads} />
     </div>
+  );
+}
+
+function MascotPanel({ a, setA, uploads }: { a: AS; setA: (a: AS) => void; uploads: { filename: string; originalName: string }[] }) {
+  const m = a.mascot;
+  const set = (patch: Partial<AS['mascot']>) => setA({ ...a, mascot: { ...m, ...patch } });
+  const shown = m.mode === 'on' || (m.mode === 'preset' && !!getPreset(a.preset).mascot);
+  const images = uploads.filter((u) => /.(png|webp|gif|svg)$/i.test(u.filename));
+  return (
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>看板娘</h2>
+          <p class="panel-sub">页面角落的小角色，点击会和访客打招呼。默认是本站原创的夏日制服少女；也可以换成你自己的角色立绘（建议透明背景 PNG / WebP）。宽度小于 900px 的屏幕和打印时自动隐藏。</p>
+        </div>
+      </div>
+      <div class="mascot-cfg">
+        <div class={`mascot-stage ${shown ? '' : 'is-off'}`} data-pos={m.position}>
+          <div class={`mascot-demo`} data-size={m.size}>
+            {m.imageUrl ? <img src={m.imageUrl} alt="" /> : <span dangerouslySetInnerHTML={{ __html: MASCOT_SVG }} />}
+          </div>
+          {!shown && <span class="mascot-off">当前主题下不显示</span>}
+        </div>
+        <div class="stack" style="gap:14px">
+          <div class="field">
+            <span class="label">显示</span>
+            <Segmented label="看板娘显示" value={m.mode} onChange={(v) => set({ mode: v })} options={[['preset', '跟随主题'], ['on', '始终显示'], ['off', '关闭']]} />
+            {m.mode === 'preset' && <p class="hint">目前只有“夏日物语”主题自带看板娘。</p>}
+          </div>
+          <div class="grid-2">
+            <div class="field">
+              <span class="label">位置</span>
+              <Segmented label="位置" value={m.position} onChange={(v) => set({ position: v })} options={[['right', '右下'], ['left', '左下']]} />
+            </div>
+            <div class="field">
+              <span class="label">大小</span>
+              <Segmented label="大小" value={m.size} onChange={(v) => set({ size: v })} options={[['sm', '小'], ['md', '中'], ['lg', '大']]} />
+            </div>
+          </div>
+          <div class="field">
+            <span class="label">角色立绘</span>
+            <div class="row">
+              <input value={m.imageUrl} placeholder="留空使用原创形象；/uploads/… 或 https://…" onInput={(e) => set({ imageUrl: e.currentTarget.value.trim() })} />
+              {m.imageUrl && <button type="button" class="btn btn-ghost" onClick={() => set({ imageUrl: '' })}>恢复原创</button>}
+            </div>
+            {images.length > 0 && (
+              <div class="bg-uploads">
+                {images.slice(0, 12).map((u) => (
+                  <button type="button" class={`bg-up ${m.imageUrl === `/uploads/${u.filename}` ? 'on' : ''}`} onClick={() => set({ imageUrl: `/uploads/${u.filename}` })} title={u.originalName}>
+                    <img src={`/uploads/${u.filename}`} alt="" loading="lazy" />
+                  </button>
+                ))}
+              </div>
+            )}
+            <p class="hint">在“文件”页上传图片后可在此选择。使用动漫角色等他人作品时，请确认你拥有相应授权。</p>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
 /* ---------------- Background & cursor ---------------- */
 
 const BG_TYPES: [Settings['appearance']['background']['type'], string][] = [
-  ['preset', '跟随主题'], ['none', '纯净'], ['solid', '纯色'], ['gradient', '渐变'], ['paper', '纸纹'], ['dots', '点阵'], ['grid', '网格'], ['animated', '动态'], ['image', '自定义图片'],
+  ['preset', '跟随主题'], ['scene', '意境场景'], ['none', '纯净'], ['solid', '纯色'], ['gradient', '渐变'], ['paper', '纸纹'], ['dots', '点阵'], ['grid', '网格'], ['animated', '动态'], ['image', '自定义图片'],
 ];
 
 function BackgroundTab({ a, setA, setBg, uploads }: {
@@ -198,16 +273,16 @@ function BackgroundTab({ a, setA, setBg, uploads }: {
 }) {
   const b = a.background;
   const preview = useRef<HTMLCanvasElement>(null);
-  const effect = b.type === 'animated' ? b.effect : b.type === 'preset' ? getPreset(a.preset).background.effect : undefined;
+  const look = resolveAppearance(a, 'light');
+  const effect = look.bg.effect;
+  const [dark, setDark] = useState(false);
   useEffect(() => {
     if (!effect || !preview.current) return;
     let stop: (() => void) | undefined;
-    void import('../../lib/bg-effects').then((m) => {
-      stop = m.startBackground(effect, { intensity: b.intensity, animate: true, canvas: preview.current! }).stop;
-    });
-    return () => stop?.();
-  }, [effect, b.intensity]);
-  const look = resolveAppearance(a, 'light');
+    let dead = false;
+    void startPreviewEffect(effect, preview.current, b.intensity, true).then((h) => (dead ? h.stop() : (stop = h.stop)));
+    return () => { dead = true; stop?.(); };
+  }, [effect, b.intensity, look.bg.scene]);
 
   return (
     <div class="stack">
@@ -237,6 +312,21 @@ function BackgroundTab({ a, setA, setBg, uploads }: {
               </div>
             )}
             {(b.type === 'solid' || b.type === 'gradient') && <p class="hint" style="margin-top:8px">纯色与渐变用于日间模式；夜间模式使用主题的深色背景。</p>}
+            {b.type === 'scene' && (
+              <div class="field" style="margin-top:16px">
+                <span class="label">场景</span>
+                <div class="scene-picks" role="radiogroup" aria-label="场景">
+                  {SCENES.map((sc) => (
+                    <button type="button" role="radio" aria-checked={b.scene === sc.id} class={`scene-pick ${b.scene === sc.id ? 'on' : ''}`} onClick={() => setBg({ scene: sc.id })}>
+                      <span class="scene-thumb" dangerouslySetInnerHTML={{ __html: sceneHtml(sc.id) }} />
+                      <strong>{sc.name}</strong>
+                      <small>{sc.desc}</small>
+                    </button>
+                  ))}
+                </div>
+                <p class="hint" style="margin-top:8px">场景由静态矢量分层绘制，只对少量图层做轻微位移动画；“动效关闭”或系统减少动态时保持静止。手机端不加载粒子效果。</p>
+              </div>
+            )}
             {b.type === 'animated' && (
               <div class="field" style="margin-top:16px">
                 <span class="label">动态效果</span>
@@ -247,7 +337,7 @@ function BackgroundTab({ a, setA, setBg, uploads }: {
                 </div>
               </div>
             )}
-            {(b.type === 'animated' || (b.type === 'preset' && effect)) && (
+            {(b.type === 'animated' || b.type === 'scene' || (b.type === 'preset' && effect)) && (
               <div class="field" style="margin-top:12px;max-width:320px">
                 <span class="label">粒子密度</span>
                 <Segmented label="粒子密度" value={b.intensity} onChange={(v) => setBg({ intensity: v })} options={[['low', '稀疏'], ['medium', '适中'], ['high', '丰富']]} />
@@ -277,8 +367,10 @@ function BackgroundTab({ a, setA, setBg, uploads }: {
               </div>
             )}
           </div>
-          <div class="bg-preview" data-bg={look.attrs['data-bg']} style={look.style.split(';').filter((d) => d.startsWith('--page')).join(';')}>
+          <div class={`bg-preview ${look.bg.scene ? 'has-scene' : ''}`} data-bg={look.attrs['data-bg']} style={`${look.style.split(';').filter((d) => d.startsWith('--page')).join(';')};color-scheme:${dark ? 'dark' : 'light'}`}>
             <div class="page-bg" />
+            {look.bg.scene && <div class="bgp-scene" dangerouslySetInnerHTML={{ __html: sceneHtml(look.bg.scene as SceneId) }} />}
+            <button type="button" class="bg-mode" onClick={() => setDark(!dark)} aria-label="切换预览的日夜">{dark ? '夜' : '日'}</button>
             {effect && <canvas ref={preview} class="mini-canvas" aria-hidden="true" />}
             <div class="bg-preview-card">
               <strong>阅读区域</strong>
@@ -372,38 +464,68 @@ function MotionTab({ a, setA }: { a: AS; setA: (a: AS) => void }) {
 
 /* ---------------- Dial ---------------- */
 
+const SHAPES: { id: Settings['dial']['shape']; name: string; desc: string }[] = [
+  { id: 'card', name: '圆角卡片', desc: '贴边展开的面板，适合任何布局' },
+  { id: 'capsule', name: '胶囊', desc: '整体悬浮的竖向胶囊，内部条目同为胶囊' },
+  { id: 'half', name: '半圆', desc: '贴边半圆，分站沿弧线扇形展开' },
+  { id: 'leaf', name: '叶形', desc: '对角圆角，柔和自然' },
+  { id: 'glass', name: '磨砂玻璃', desc: '半透明毛玻璃，透出背景' },
+];
+const LAYOUT_NAMES: Record<Settings['dial']['layout'], string> = { orbit: '环形轮盘', arc: '弧形', list: '纯列表', rail: '图标条' };
+
 function DialTab({ dial, setDial }: { dial: Settings['dial']; setDial: (d: Settings['dial']) => void }) {
   const set = (p: Partial<Settings['dial']>) => setDial({ ...dial, ...p });
-  const graphic = dial.layout === 'orbit' || dial.layout === 'arc';
+  const layouts = SHAPE_LAYOUTS[dial.shape];
+  const eff = effectiveLayout(dial);
+  const graphic = eff === 'orbit' || eff === 'arc';
+  const pickShape = (shape: Settings['dial']['shape']) => {
+    const allowed = SHAPE_LAYOUTS[shape];
+    set({ shape, layout: allowed.length && !allowed.includes(dial.layout) ? allowed[0]! : dial.layout });
+  };
   return (
     <section class="panel">
       <div class="panel-head">
         <div>
           <h2>分站切换器</h2>
-          <p class="panel-sub">页面左侧隐藏的分站悬浮窗。可以选择布局、整体形状、把手样式，并决定每段文字是否显示。移动端统一显示为底部抽屉。</p>
+          <p class="panel-sub">先选整体造型，再选该造型下的布局。造型决定整个切换器的结构，而不只是圆角；移动端统一显示为底部抽屉。</p>
         </div>
       </div>
       <div class="dial-cfg">
         <div class="stack-sm">
-          <div class="field"><span class="label">布局</span>
-            <Segmented label="布局" value={dial.layout} onChange={(v) => set({ layout: v })} options={[['orbit', '环形轮盘'], ['arc', '弧形'], ['list', '纯列表'], ['rail', '图标条']]} />
+          <div class="field">
+            <span class="label">整体造型</span>
+            <div class="shape-cards" role="radiogroup" aria-label="整体造型">
+              {SHAPES.map((s) => (
+                <button type="button" role="radio" aria-checked={dial.shape === s.id} class={`shape-card ${dial.shape === s.id ? 'on' : ''}`} onClick={() => pickShape(s.id)}>
+                  <span class={`shape-glyph g-${s.id}`} aria-hidden="true"><i /></span>
+                  <strong>{s.name}</strong>
+                  <small>{s.desc}</small>
+                </button>
+              ))}
+            </div>
           </div>
-          <div class="field"><span class="label">整体形状</span>
-            <Segmented label="整体形状" value={dial.shape} onChange={(v) => set({ shape: v })} options={[['card', '圆角卡片'], ['capsule', '胶囊'], ['half', '半圆贴边'], ['leaf', '叶形'], ['glass', '磨砂玻璃']]} />
-          </div>
-          <div class="field"><span class="label">收起时的把手</span>
-            <Segmented label="把手" value={dial.handle} onChange={(v) => set({ handle: v })} options={[['tab', '标签'], ['dot', '圆点'], ['line', '细线']]} />
-          </div>
+          {layouts.length > 0 ? (
+            <div class="field"><span class="label">布局</span>
+              <Segmented label="布局" value={eff as Settings['dial']['layout']} onChange={(v) => set({ layout: v })} options={layouts.map((l) => [l, LAYOUT_NAMES[l]] as [Settings['dial']['layout'], string])} />
+            </div>
+          ) : (
+            <p class="hint">{dial.shape === 'capsule' ? '胶囊造型自带竖向布局：顶部是首页标识，下面是一列胶囊形分站。' : '半圆造型自带扇形布局：分站沿弧线排列，悬停时圆心显示分站名称。'}</p>
+          )}
+          {(dial.shape === 'card' || dial.shape === 'leaf' || dial.shape === 'glass') && (
+            <div class="field"><span class="label">收起时的把手</span>
+              <Segmented label="把手" value={dial.handle} onChange={(v) => set({ handle: v })} options={[['tab', '标签'], ['dot', '圆点'], ['line', '细线']]} />
+            </div>
+          )}
           <div class="field"><label>垂直位置 {dial.offsetY}%</label>
             <input type="range" min={15} max={85} value={dial.offsetY} onInput={(e) => set({ offsetY: Number(e.currentTarget.value) })} />
           </div>
           <div class="field"><span class="label">显示内容</span>
             <div class="dial-toggles">
-              <Switch checked={dial.showTitle} onChange={(v) => set({ showTitle: v })} label={dial.layout === 'rail' ? '分站名称' : '“SITES · 分站”标题'} />
+              {eff !== 'fan' && <Switch checked={dial.showTitle} onChange={(v) => set({ showTitle: v })} label={eff === 'rail' || eff === 'capsule' ? '分站名称' : '“SITES · 分站”标题'} />}
               {graphic && <Switch checked={dial.showOrbit} onChange={(v) => set({ showOrbit: v, showList: v ? dial.showList : true })} label="图形（轮盘/弧形）" />}
               {graphic && <Switch checked={dial.showList} onChange={(v) => set({ showList: v, showOrbit: v ? dial.showOrbit : true })} label="名称列表" />}
-              {dial.layout !== 'rail' && <Switch checked={dial.showEnglish} onChange={(v) => set({ showEnglish: v })} label="英文副名" />}
-              {dial.layout !== 'rail' && <Switch checked={dial.showHint} onChange={(v) => set({ showHint: v })} label="键盘提示" />}
+              {(eff === 'orbit' || eff === 'arc' || eff === 'list' || eff === 'capsule') && <Switch checked={dial.showEnglish} onChange={(v) => set({ showEnglish: v })} label="英文副名" />}
+              {(eff === 'orbit' || eff === 'arc' || eff === 'list') && <Switch checked={dial.showHint} onChange={(v) => set({ showHint: v })} label="键盘提示" />}
             </div>
           </div>
         </div>
@@ -413,55 +535,26 @@ function DialTab({ dial, setDial }: { dial: Settings['dial']; setDial: (d: Setti
   );
 }
 
-const DEMO_SITES = [['学习', 'LEARNING', 'book'], ['研究', 'RESEARCH', 'atom'], ['技术', 'ENGINEERING', 'code'], ['日常', 'JOURNAL', 'pen'], ['资源', 'RESOURCES', 'archive']] as const;
+const DEMO_SITES = [
+  { id: 'a', slug: 'learning', name: '学习', enName: 'LEARNING', icon: 'book' },
+  { id: 'b', slug: 'research', name: '研究', enName: 'RESEARCH', icon: 'atom' },
+  { id: 'c', slug: 'tech', name: '技术', enName: 'ENGINEERING', icon: 'code' },
+  { id: 'd', slug: 'life', name: '日常', enName: 'JOURNAL', icon: 'pen' },
+  { id: 'e', slug: 'resources', name: '资源', enName: 'RESOURCES', icon: 'archive' },
+];
 
+/** Renders the exact public markup (shared dialHtml) in open and closed states. */
 function DialPreview({ dial }: { dial: Settings['dial'] }) {
-  const graphic = (dial.layout === 'orbit' || dial.layout === 'arc') && dial.showOrbit;
-  const list = dial.layout === 'list' || (dial.layout !== 'rail' && dial.showList);
-  const n = DEMO_SITES.length;
-  const pos = (i: number) => {
-    if (dial.layout === 'arc') {
-      const span = 120;
-      const a = ((-span / 2 + (span / (n - 1)) * i) * Math.PI) / 180;
-      return { x: 6 + Math.cos(a) * 78, y: 50 + Math.sin(a) * 42 };
-    }
-    const a = (-90 + (360 / n) * i) * (Math.PI / 180);
-    return { x: 50 + Math.cos(a) * 39, y: 50 + Math.sin(a) * 39 };
-  };
   return (
-    <div class="dial-stage" aria-label="切换器预览">
-      <div class={`dp dp--${dial.layout}`} data-shape={dial.shape} style={`top:${dial.offsetY}%`}>
-        {dial.showTitle && dial.layout !== 'rail' && <div class="dp-label">SITES · 分站</div>}
-        {graphic && (
-          <div class="dp-orbit">
-            <span class="dp-ring" />
-            <span class="dp-center">F</span>
-            {DEMO_SITES.map(([, , ic], i) => {
-              const p = pos(i);
-              return <span class={`dp-node ${i === 1 ? 'on' : ''}`} style={`left:${p.x}%;top:${p.y}%`}><Icon name={ic} size={12} /></span>;
-            })}
-          </div>
-        )}
-        {dial.layout === 'rail' && (
-          <div class="dp-rail">
-            {DEMO_SITES.map(([name, , ic], i) => (
-              <span class={`dp-rail-item ${i === 1 ? 'on' : ''}`}><i><Icon name={ic} size={12} /></i>{dial.showTitle && name}</span>
-            ))}
-          </div>
-        )}
-        {list && (
-          <div class="dp-list">
-            {DEMO_SITES.map(([name, en, ic], i) => (
-              <span class={i === 1 ? 'on' : ''}>
-                {dial.layout === 'list' && <Icon name={ic} size={12} />}
-                <b>{name}</b>{dial.showEnglish && <small>{en}</small>}
-              </span>
-            ))}
-          </div>
-        )}
-        {dial.showHint && dial.layout !== 'rail' && <div class="dp-hint">Alt+S 打开 · ↑↓ 选择</div>}
+    <div class="dial-previews">
+      <div class="dial-stage">
+        <span class="stage-cap">展开</span>
+        <div dangerouslySetInnerHTML={{ __html: dialHtml(dial, DEMO_SITES, 'b', 'F', { preview: 'open' }) }} />
       </div>
-      <span class={`dp-handle dp-handle-${dial.handle}`} style={`top:${dial.offsetY}%`} />
+      <div class="dial-stage dial-stage-sm">
+        <span class="stage-cap">收起</span>
+        <div dangerouslySetInnerHTML={{ __html: dialHtml(dial, DEMO_SITES, 'b', 'F', { preview: 'closed' }) }} />
+      </div>
     </div>
   );
 }

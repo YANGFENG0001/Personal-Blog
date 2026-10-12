@@ -18,10 +18,12 @@ export function initAmbientLayer(): void {
   const body = document.body;
   const level = motionLevel();
   const effect = body.dataset.bgEffect;
+  const intensity = (body.dataset.bgIntensity as 'low' | 'medium' | 'high') ?? 'medium';
   if (effect) {
-    void import('./bg-effects').then((m) =>
-      m.startBackground(effect, { intensity: (body.dataset.bgIntensity as 'low' | 'medium' | 'high') ?? 'medium', animate: level !== 'off' }),
-    );
+    const scene = document.documentElement.dataset.bg === 'scene';
+    // Scene effects are only worth their cost on screens wide enough to show the scene well.
+    if (scene && innerWidth >= 480) void import('./scene-effects').then((m) => m.startSceneEffect(effect, { intensity, animate: level !== 'off' }));
+    else if (!scene) void import('./bg-effects').then((m) => m.startBackground(effect, { intensity, animate: level !== 'off' }));
   }
   const fine = matchMedia('(pointer: fine)').matches;
   if ('trail' in body.dataset && fine && level !== 'off') void import('./cursor-trail').then((m) => m.startTrail());

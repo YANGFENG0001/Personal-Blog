@@ -1,0 +1,211 @@
+/* Site switcher ("dial"). Markup comes from src/lib/dial.ts. */
+
+.dial {
+  --hw: 30px; /* visible handle width when collapsed */
+  --dial-w: 240px;
+  position: fixed; left: 0; top: var(--dial-y, 50%); z-index: 60; display: flex; align-items: center;
+  transform: translate(calc(-100% + var(--hw)), -50%);
+  transition: transform calc(0.55s * var(--dur)) var(--ease);
+}
+.dial[data-handle='dot'], .dial[data-handle='line'] { --hw: 18px; }
+.dial[data-handle='pill'] { --hw: 26px; }
+.dial[data-handle='moon'] { --hw: 24px; }
+.dial:is([data-open], :focus-within) { transform: translate(0, -50%); }
+@media (hover: hover) { .dial:not(.is-preview):hover { transform: translate(0, -50%); } }
+
+/* ================= handles ================= */
+.dial-handle {
+  order: 1; flex: none; display: grid; place-items: center; align-content: center; gap: 4px; padding: 0; cursor: pointer;
+  border: 1px solid var(--line); border-left: 0; background: var(--surface); color: var(--accent);
+  transition: width calc(0.3s * var(--dur)) var(--ease), opacity calc(0.25s * var(--dur)), background 0.2s;
+}
+.dial[data-handle='tab'] .dial-handle { width: 30px; height: 88px; border-radius: 0 16px 16px 0; box-shadow: 6px 4px 18px color-mix(in srgb, var(--ink) 6%, transparent); }
+.dial[data-handle='tab'] .dial-handle:hover { width: 34px; }
+.dial-handle-mark { font: 14px var(--display); }
+.dial-handle .dial-handle-chev { width: 14px; height: 14px; transition: transform calc(0.4s * var(--dur)) var(--ease); }
+.dial[data-open] .dial-handle-chev { transform: rotate(180deg); }
+.dial:is([data-handle='dot'], [data-handle='line']) .dial-handle { width: 18px; height: 80px; border: 0; background: transparent; }
+.dial[data-handle='dot'] .dial-handle-glyph { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent); animation: dial-breathe calc(3s * var(--dur)) ease-in-out infinite; }
+.dial[data-handle='line'] .dial-handle-glyph { width: 4px; height: 56px; border-radius: 4px; background: color-mix(in srgb, var(--accent) 55%, transparent); transition: height calc(0.3s * var(--dur)) var(--ease), background 0.2s; }
+.dial[data-handle='line']:hover .dial-handle-glyph { height: 72px; background: var(--accent); }
+@keyframes dial-breathe { 50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent) 6%, transparent); } }
+/* Capsule: a slim pill floating just off the edge. */
+.dial[data-handle='pill'] .dial-handle { width: 14px; height: 64px; margin-left: 6px; border: 1px solid var(--line); border-radius: 999px; box-shadow: var(--shadow-sm); }
+.dial[data-handle='pill'] .dial-handle-glyph { width: 4px; height: 22px; border-radius: 4px; background: var(--accent); opacity: 0.7; }
+/* Half: a small half-moon that echoes the semicircle. */
+.dial[data-handle='moon'] .dial-handle { width: 24px; height: 48px; border-radius: 0 48px 48px 0; box-shadow: var(--shadow-sm); }
+.dial[data-handle='moon'] .dial-handle-mark { font-size: 12px; margin-left: -4px; }
+.dial:is([data-handle='pill'], [data-handle='moon']):is([data-open], :focus-within, .is-open) .dial-handle { opacity: 0; pointer-events: none; }
+@media (hover: hover) { .dial:is([data-handle='pill'], [data-handle='moon']):not(.is-preview):hover .dial-handle { opacity: 0; } }
+
+/* ================= panel (shared) ================= */
+.dial-panel {
+  order: 0; position: relative; flex: none;
+  background: color-mix(in srgb, var(--surface) 94%, transparent); backdrop-filter: blur(16px) saturate(1.3);
+  border: 1px solid var(--line); transition: box-shadow calc(0.4s * var(--dur));
+}
+.dial:is([data-open], :focus-within, .is-open) .dial-panel { box-shadow: var(--shadow); }
+@media (hover: hover) { .dial:not(.is-preview):hover .dial-panel { box-shadow: var(--shadow); } }
+.dial-grab, .dial .dial-list.dial-list--sheet { display: none; }
+.dial-label { font-size: 10px; letter-spacing: 0.2em; color: var(--faint); }
+.dial-foot { text-align: center; font-size: 10px; color: var(--faint); margin-top: 10px; }
+.dial-tip {
+  position: absolute; left: calc(100% + 8px); top: 50%; transform: translate(-4px, -50%); white-space: nowrap; pointer-events: none; z-index: 3;
+  font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--ink); color: var(--bg); opacity: 0; transition: opacity 0.15s, transform 0.2s var(--ease);
+}
+:is(.dial-node, .dial-rail-item, .cap-row):is(:hover, :focus-visible) .dial-tip { opacity: 1; transform: translate(0, -50%); }
+
+/* Staggered entrance shared by every item type. */
+.dial :is(.dial-list li, .dial-rail li, .cap-list li) {
+  opacity: 0; transform: translateX(-8px);
+  transition: opacity calc(0.3s * var(--dur)) calc(var(--i) * 35ms * var(--dur) + 80ms), transform calc(0.4s * var(--dur)) var(--ease) calc(var(--i) * 35ms * var(--dur) + 80ms);
+}
+.dial:is([data-open], :focus-within, .is-open) :is(.dial-list li, .dial-rail li, .cap-list li) { opacity: 1; transform: none; }
+@media (hover: hover) { .dial:not(.is-preview):hover :is(.dial-list li, .dial-rail li, .cap-list li) { opacity: 1; transform: none; } }
+
+/* ================= card / leaf / glass (edge-attached panel) ================= */
+.dial:is([data-shape='card'], [data-shape='leaf'], [data-shape='glass']) .dial-panel { width: var(--dial-w); padding: 18px 18px 14px 20px; border-left: 0; border-radius: 0 var(--r-lg) var(--r-lg) 0; }
+.dial[data-shape='leaf'] .dial-panel { border-radius: 0 44px 0 44px; padding: 22px 22px 18px 20px; }
+.dial[data-shape='leaf'][data-handle='tab'] .dial-handle { border-radius: 0 22px 0 22px; }
+.dial[data-shape='glass'] .dial-panel { background: color-mix(in srgb, var(--surface) 42%, transparent); backdrop-filter: blur(22px) saturate(1.6); border-color: color-mix(in srgb, var(--ink) 9%, transparent); }
+.dial[data-shape='glass'][data-handle='tab'] .dial-handle { background: color-mix(in srgb, var(--surface) 55%, transparent); backdrop-filter: blur(12px); }
+.dial[data-layout='list'] { --dial-w: 212px; }
+.dial[data-layout='rail'] { --dial-w: auto; }
+.dial[data-layout='rail'] .dial-panel { padding: 10px 8px 10px 10px; }
+.dial[data-layout='arc'] .dial-panel { overflow: hidden; }
+
+/* orbit & arc */
+.dial-orbit { position: relative; width: 140px; height: 140px; margin: 10px auto 8px; }
+.dial[data-layout='arc'] .dial-orbit { width: 150px; height: 170px; margin: 6px 0 6px -20px; }
+.dial-ring { position: absolute; inset: 11%; border: 1px solid var(--line); border-radius: 50%; transition: transform calc(1.1s * var(--dur)) var(--ease); }
+.dial-ring::after { content: ''; position: absolute; inset: 12px; border: 1px dashed var(--line); border-radius: 50%; }
+.dial[data-layout='arc'] .dial-ring { inset: auto; left: -72%; top: 8%; width: 156%; height: 84%; }
+.dial:is([data-open], :hover) .dial-ring { transform: rotate(50deg); }
+.dial[data-layout='arc']:is([data-open], :hover) .dial-ring { transform: rotate(12deg); }
+.dial-center {
+  position: absolute; left: 50%; top: 50%; width: 38px; height: 38px; transform: translate(-50%, -50%);
+  border: 1px solid var(--accent); color: var(--accent); border-radius: 50%; display: grid; place-items: center;
+  font: italic 17px Georgia, var(--serif); background: var(--surface); transition: background 0.2s, color 0.2s;
+}
+.dial-center:hover { background: var(--accent); color: var(--on-accent); }
+.dial[data-layout='arc'] .dial-center { left: 6%; }
+.dial-node {
+  position: absolute; width: 32px; height: 32px; transform: translate(-50%, -50%) scale(0.6); opacity: 0; border-radius: 50%;
+  border: 1px solid var(--line); background: var(--surface); display: grid; place-items: center; color: var(--muted);
+  transition: transform calc(0.45s * var(--dur)) var(--spring) calc(var(--i) * 40ms * var(--dur)), opacity calc(0.3s * var(--dur)) calc(var(--i) * 40ms * var(--dur)), border-color 0.2s, background 0.2s, color 0.2s;
+}
+.dial:is([data-open], :focus-within, .is-open) .dial-node { transform: translate(-50%, -50%); opacity: 1; }
+@media (hover: hover) { .dial:not(.is-preview):hover .dial-node { transform: translate(-50%, -50%); opacity: 1; } }
+.dial-node svg { width: 15px; height: 15px; }
+.dial .dial-node:is(:hover, :focus-visible) { transform: translate(-50%, -50%) scale(1.18); transition-delay: 0s; border-color: var(--accent); color: var(--accent); z-index: 2; }
+.dial-node.active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 16%, transparent); }
+.dial[data-layout='arc'] .dial-tip { display: none; }
+
+/* text list */
+.dial-list { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 2px; }
+.dial-list a { position: relative; display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: var(--r-sm); font-size: 13px; color: var(--muted); transition: background 0.15s, color 0.15s, padding 0.2s var(--ease); }
+.dial-list-name { flex: 1; }
+.dial-list-icon { display: none; color: var(--faint); }
+.dial[data-layout='list'] .dial-list-icon { display: grid; }
+.dial-list-icon svg { width: 16px; height: 16px; }
+.dial-list small { font-size: 9px; letter-spacing: 0.14em; color: var(--faint); }
+.dial-list a:is(:hover, :focus-visible) { background: var(--tint); color: var(--accent); padding-left: 14px; }
+.dial-list a.active { background: var(--tint); color: var(--accent); font-weight: 650; }
+.dial-list a.active::before { content: ''; position: absolute; left: 0; top: 7px; bottom: 7px; width: 2px; border-radius: 2px; background: var(--accent); }
+.dial-list a:is(:hover, .active) .dial-list-icon { color: var(--accent); }
+
+/* icon rail */
+.dial-rail { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.dial-rail-item { position: relative; display: flex; align-items: center; gap: 10px; padding: 4px; border-radius: var(--r); color: var(--muted); font-size: 13px; transition: background 0.15s, color 0.15s; }
+.dial-rail-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: var(--r); border: 1px solid var(--line); background: var(--surface); font: italic 16px Georgia, var(--serif); color: var(--accent); flex: none; transition: border-color 0.2s, background 0.2s, color 0.2s; }
+.dial-rail-icon svg { width: 16px; height: 16px; }
+.dial-rail-item:is(:hover, :focus-visible) { color: var(--accent); background: var(--tint); }
+.dial-rail-item.active .dial-rail-icon { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.dial-rail-name { padding-right: 10px; white-space: nowrap; }
+
+/* ================= capsule: one continuous floating pill ================= */
+.dial[data-shape='capsule'] .dial-panel {
+  margin-left: 14px; padding: 8px; border-radius: 999px; display: flex; flex-direction: column; align-items: stretch; gap: 6px;
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  box-shadow: var(--shadow-sm), inset 0 1px 0 color-mix(in srgb, #fff 50%, transparent);
+}
+.cap-home {
+  align-self: center; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; margin-bottom: 4px;
+  background: var(--accent); color: var(--on-accent); font: italic 18px Georgia, var(--serif);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 35%, transparent); transition: transform calc(0.3s * var(--dur)) var(--spring);
+}
+.cap-home:is(:hover, :focus-visible) { transform: scale(1.08) rotate(-8deg); }
+.cap-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.cap-row {
+  position: relative; display: flex; align-items: center; gap: 10px; padding: 4px; border-radius: 999px; color: var(--muted); font-size: 13px;
+  transition: background 0.18s, color 0.18s;
+}
+.cap-icon { width: 32px; height: 32px; flex: none; display: grid; place-items: center; border-radius: 50%; background: var(--pane); color: var(--muted); transition: background 0.18s, color 0.18s, transform calc(0.3s * var(--dur)) var(--spring); }
+.cap-icon svg { width: 15px; height: 15px; }
+.cap-name { display: grid; padding-right: 14px; white-space: nowrap; line-height: 1.25; }
+.cap-name small { font-size: 8px; letter-spacing: 0.16em; color: var(--faint); }
+.cap-row:is(:hover, :focus-visible) { background: var(--tint); color: var(--accent); }
+.cap-row:is(:hover, :focus-visible) .cap-icon { transform: scale(1.06); color: var(--accent); background: var(--surface); }
+.cap-row.active { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); color: var(--accent); font-weight: 650; }
+.cap-row.active .cap-icon { background: var(--accent); color: var(--on-accent); }
+.cap-foot { align-self: center; display: flex; gap: 4px; padding: 6px 0 4px; }
+.cap-foot i { width: 4px; height: 4px; border-radius: 50%; background: var(--line); }
+.cap-foot i:nth-child(2) { background: color-mix(in srgb, var(--accent) 50%, var(--line)); }
+
+/* ================= half: a true semicircle with a fan of sites ================= */
+.dial[data-shape='half'] .dial-panel {
+  width: var(--fan-r); height: calc(var(--fan-r) * 2); padding: 0; border-left: 0; border-radius: 0 999px 999px 0; overflow: hidden;
+  background:
+    radial-gradient(circle at 0 50%, color-mix(in srgb, var(--accent) 7%, transparent) 0 34%, transparent 34.5%),
+    color-mix(in srgb, var(--surface) 94%, transparent);
+}
+.fan { position: absolute; inset: 0; }
+.fan-ring { position: absolute; left: 0; top: 50%; border-radius: 50%; border: 1px solid var(--line); transform: translate(-50%, -50%); pointer-events: none; }
+.fan-ring-1 { width: calc(124px * 2); height: calc(124px * 2); border-style: dashed; }
+.fan-ring-2 { width: calc(var(--fan-hub) * 2 + 18px); height: calc(var(--fan-hub) * 2 + 18px); }
+.fan-node {
+  position: absolute; width: 38px; height: 38px; margin: -19px 0 0 -19px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--surface); border: 1px solid var(--line); color: var(--muted); opacity: 0; transform: scale(0.5) translateX(-30px);
+  transition: transform calc(0.5s * var(--dur)) var(--spring) calc(var(--i) * 45ms * var(--dur)), opacity calc(0.3s * var(--dur)) calc(var(--i) * 45ms * var(--dur)), background 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+.fan-node svg { width: 16px; height: 16px; }
+.dial:is([data-open], :focus-within, .is-open) .fan-node { opacity: 1; transform: none; }
+@media (hover: hover) { .dial:not(.is-preview):hover .fan-node { opacity: 1; transform: none; } }
+.dial .fan-node:is(:hover, :focus-visible) { transform: scale(1.16); transition-delay: 0s; color: var(--accent); border-color: var(--accent); box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 22%, transparent); }
+.fan-node.active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 15%, transparent); }
+.fan-hub {
+  position: absolute; left: 0; top: 50%; width: var(--fan-hub); height: calc(var(--fan-hub) * 2); transform: translateY(-50%);
+  border-radius: 0 999px 999px 0; background: var(--accent); color: var(--on-accent); display: grid; align-content: center; justify-items: start; padding-left: 8px; gap: 2px;
+}
+.fan-mono { font: italic 18px/1 Georgia, var(--serif); }
+.fan-label { font-size: 10px; letter-spacing: 0.08em; max-width: calc(var(--fan-hub) - 10px); overflow: hidden; white-space: nowrap; opacity: 0.85; min-height: 1em; }
+
+/* ================= preview (owner appearance page) ================= */
+.dial.is-preview { position: absolute; pointer-events: none; }
+.dial.is-preview.is-open { transform: translate(0, -50%); }
+.dial.is-preview.is-closed { transform: translate(calc(-100% + var(--hw)), -50%); }
+
+/* ================= touch / small screens: bottom sheet ================= */
+.dial-scrim { display: none; }
+@media (max-width: 760px), (hover: none) {
+  .dial:not(.is-preview) { --hw: 32px; top: auto; bottom: 18px; transform: translateX(calc(-100% + var(--hw))); }
+  .dial:not(.is-preview)[data-open] { transform: none; }
+  .dial:not(.is-preview) .dial-handle { width: 32px; height: 44px; margin: 0; border: 1px solid var(--line); border-left: 0; border-radius: 0 12px 12px 0; background: var(--surface); opacity: 1 !important; pointer-events: auto !important; }
+  .dial:not(.is-preview) .dial-handle-chev { display: none; }
+  .dial:not(.is-preview) .dial-handle-glyph { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: none; }
+  .dial:not(.is-preview) .dial-panel {
+    position: fixed; left: 0; right: 0; bottom: 0; width: auto; height: auto; margin: 0; overflow: visible;
+    padding: 10px 18px max(18px, env(safe-area-inset-bottom)); border: 1px solid var(--line); border-radius: 18px 18px 0 0;
+    background: var(--surface); backdrop-filter: none; box-shadow: var(--shadow); display: block;
+    transform: translateY(105%); transition: transform calc(0.42s * var(--dur)) var(--ease);
+  }
+  .dial:not(.is-preview)[data-open] .dial-panel { transform: none; }
+  .dial:not(.is-preview) :is(.dial-label, .dial-orbit, .dial-rail, .dial-foot, .cap-home, .cap-list, .cap-foot, .fan) { display: none; }
+  .dial:not(.is-preview) .dial-grab { display: block; width: 40px; height: 4px; border-radius: 4px; background: var(--line); margin: 0 auto 12px; }
+  .dial:not(.is-preview) .dial-list, .dial:not(.is-preview) .dial-list.dial-list--sheet { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .dial:not(.is-preview) .dial-list li { opacity: 1; transform: none; }
+  .dial:not(.is-preview) .dial-list a { padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r); }
+  .dial:not(.is-preview) .dial-list-icon { display: grid; }
+  .dial-scrim { display: block; position: fixed; inset: 0; z-index: 59; background: color-mix(in srgb, #000 30%, transparent); opacity: 0; pointer-events: none; transition: opacity calc(0.3s * var(--dur)); }
+  .dial[data-open] + .dial-scrim { opacity: 1; pointer-events: auto; }
+}

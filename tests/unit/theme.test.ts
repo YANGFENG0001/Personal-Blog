@@ -38,8 +38,9 @@ describe('resolveAppearance', () => {
   it('emits SSR attributes and palette variables', () => {
     const r = resolveAppearance({ ...base, preset: 'ocean' }, 'auto');
     expect(r.attrs['data-preset']).toBe('ocean');
-    expect(r.attrs['data-bg']).toBe('animated');
-    expect(r.bg.effect).toBe('bubbles');
+    expect(r.attrs['data-bg']).toBe('scene');
+    expect(r.bg.scene).toBe('ocean');
+    expect(r.bg.effect).toBe('glints');
     expect(r.style).toContain('--l-accent:#1f6e8c');
     expect(r.style).toContain('--d-bg:');
   });
@@ -61,6 +62,20 @@ describe('resolveAppearance', () => {
   it('treats an image background without a URL as none', () => {
     const r = resolveAppearance({ ...base, background: { ...base.background, type: 'image', imageUrl: '' } }, 'light');
     expect(r.attrs['data-bg']).toBe('none');
+  });
+
+  it('resolves an explicit scene background with its own effect', () => {
+    const r = resolveAppearance({ ...base, background: { ...base.background, type: 'scene', scene: 'forest' } }, 'light');
+    expect(r.attrs['data-bg']).toBe('scene');
+    expect(r.bg.scene).toBe('forest');
+    expect(r.bg.effect).toBe('motes');
+  });
+
+  it('shows the mascot only when the preset or the owner asks for it', () => {
+    expect(resolveAppearance({ ...base, preset: 'ink' }, 'auto').mascot).toBeNull();
+    expect(resolveAppearance({ ...base, preset: 'summer' }, 'auto').mascot).toMatchObject({ position: 'right', size: 'md', imageUrl: '' });
+    expect(resolveAppearance({ ...base, preset: 'summer', mascot: { ...base.mascot, mode: 'off' } }, 'auto').mascot).toBeNull();
+    expect(resolveAppearance({ ...base, mascot: { ...base.mascot, mode: 'on', imageUrl: '/uploads/a.png' } }, 'auto').mascot?.imageUrl).toBe('/uploads/a.png');
   });
 
   it('builds cursor data URIs only when not system', () => {

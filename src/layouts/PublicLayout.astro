@@ -4,6 +4,8 @@ import SiteDial from '../components/public/SiteDial.astro';
 import AvatarCard from '../components/public/AvatarCard.astro';
 import Ambient from '../components/public/Ambient.astro';
 import PreviewBall from '../components/PreviewBall.astro';
+import Mascot from '../components/public/Mascot.astro';
+import { resolveAppearance } from '../lib/appearance';
 import { iconSvg } from '../lib/icons';
 import { publicSiteTree, type Site, type Category } from '../server/services/sites';
 import { getAllSettings } from '../server/services/settings';
@@ -26,6 +28,7 @@ const tree = publicSiteTree();
 const currentTree = current ? tree.find((s) => s.id === current.id) : null;
 const monogram = settings.site.title.slice(0, 1).toUpperCase();
 const owner = Astro.locals.owner;
+const mascot = resolveAppearance(settings.appearance, 'auto').mascot;
 ---
 
 <Base title={title} description={description} canonical={canonical} ogType={ogType} noindex={noindex}>
@@ -106,6 +109,7 @@ const owner = Astro.locals.owner;
     </div>
   </footer>
 
+  {mascot && <Mascot {...mascot} />}
   <button class="to-top" type="button" aria-label="回到顶部" title="回到顶部" data-to-top set:html={iconSvg('arrow-up')} />
   <Ambient config={settings.encourage} easter={settings.easter} isArticle={isArticle} is404={is404} />
   {owner && settings.previewBall.enabled && <PreviewBall mode="visitor" config={settings.previewBall} />}
