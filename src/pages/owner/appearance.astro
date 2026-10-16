@@ -5,6 +5,7 @@ import { getSetting } from '../../server/services/settings';
 import { DEFAULT_SETTINGS } from '../../server/seed';
 import { listUploads } from '../../server/services/uploads';
 import { listPacks } from '../../server/services/mascot-packs';
+import { listThemes } from '../../server/services/custom-themes';
 import '../../styles/appearance.css';
 
 const props = {
@@ -20,6 +21,7 @@ const props = {
   },
   uploads: listUploads().map((u) => ({ filename: u.filename, originalName: u.originalName })),
   packs: listPacks(),
+  customThemes: listThemes(),
   // REPO_URL is read at runtime so the link can be changed without rebuilding.
   studioUrl: `${(process.env.REPO_URL || 'https://github.com/your-name/fieldnotes').replace(/\/+$/, '')}/tree/main/tools/asset-studio`,
 };

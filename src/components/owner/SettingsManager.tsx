@@ -226,13 +226,13 @@ function FilesPanel({ initial }: { initial: Upload[] }) {
     <section class="panel" id="files">
       <div class="panel-head">
         <div><h2>图片文件</h2><p class="panel-sub">支持 PNG / JPEG / GIF / WebP / AVIF，单个不超过 8MB。服务端校验文件内容并使用随机文件名。</p></div>
-        <label class="btn btn-primary">上传图片<input type="file" accept="image/*" multiple hidden onChange={upload} /></label>
+        <label class="btn btn-primary">上传图片 / 字体<input type="file" accept="image/*,.woff2" multiple hidden onChange={upload} /></label>
       </div>
       {files.length === 0 ? <p class="empty-note">还没有上传文件。</p> : (
         <div class="st-uploads">
           {files.map((u) => (
             <figure>
-              <img src={`/uploads/${u.filename}`} alt={u.originalName} loading="lazy" />
+              {u.filename.endsWith('.woff2') ? <span class="st-font">Aa 字体</span> : <img src={`/uploads/${u.filename}`} alt={u.originalName} loading="lazy" />}
               <figcaption>
                 <span class="faint">{u.originalName} · {Math.round(u.size / 1024)} KB</span>
                 <code>/uploads/{u.filename}</code>

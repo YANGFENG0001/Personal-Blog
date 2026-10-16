@@ -48,6 +48,7 @@ export const ICONS: Record<string, string> = {
   integral: '<path d="M15 4c-2 0-3 1-3 3v10c0 2-1 3-3 3"/>',
   checklist: '<path d="m4 7 2 2 3-3M4 16l2 2 3-3M12 8h8M12 17h8"/>',
   upload: '<path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/>',
+  download: '<path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
   bookmark: '<path d="M6 4h12v17l-6-4-6 4z"/>',
   'book-open': '<path d="M3 5.5C5.5 4.5 8.5 4.5 12 6.5c3.5-2 6.5-2 9-1v13c-2.5-1-5.5-1-9 1-3.5-2-6.5-2-9-1z"/><path d="M12 6.5v13"/>',

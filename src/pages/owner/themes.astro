@@ -1,0 +1,23 @@
+---
+import OwnerLayout from '../../layouts/OwnerLayout.astro';
+import ThemeStudio from '../../components/owner/ThemeStudio';
+import { getSetting } from '../../server/services/settings';
+import { listThemes } from '../../server/services/custom-themes';
+import { listUploads } from '../../server/services/uploads';
+import { listPacks } from '../../server/services/mascot-packs';
+import '../../styles/appearance.css';
+import '../../styles/theme-studio.css';
+
+const props = {
+  themes: listThemes(),
+  active: getSetting('appearance').preset,
+  rotation: getSetting('themeRotation'),
+  uploads: listUploads().map((u) => ({ filename: u.filename, originalName: u.originalName })),
+  packs: listPacks().map((p) => ({ id: p.id, name: p.name })),
+  studioUrl: `${(process.env.REPO_URL || 'https://github.com/your-name/fieldnotes').replace(/\/+$/, '')}/tree/main/tools/asset-studio`,
+};
+---
+
+<OwnerLayout title="主题工作室" heading="主题工作室" subtitle="自己做主题：配色、字体、多层背景、粒子、贴纸、光标与自定义 CSS；导入导出分享；设置主题轮换和彩蛋主题。" wide>
+  <ThemeStudio client:load {...props} />
+</OwnerLayout>

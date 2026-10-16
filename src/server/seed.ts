@@ -23,7 +23,7 @@ export const DEFAULT_SETTINGS = {
     links: [{ label: 'GitHub', url: 'https://github.com/' }],
   },
   appearance: {
-    preset: 'ink',
+    preset: 'ink' as string,
     theme: 'system' as 'system' | 'light' | 'dark',
     customAccent: '' as string,
     motion: 'normal' as 'off' | 'minimal' | 'normal' | 'rich',
@@ -85,6 +85,13 @@ export const DEFAULT_SETTINGS = {
       logo: true, konami: true, hello: true, lateNight: true, readEnd: true,
       avatar: true, festival: true, console: true, notFound: true,
     },
+  },
+  themeRotation: {
+    mode: 'fixed' as 'fixed' | 'random' | 'rotate' | 'schedule',
+    pool: [] as string[],
+    everyDays: 7,
+    rules: [] as { theme: string; time?: string; dates?: string; weekdays?: number[]; label: string }[],
+    eggs: [] as { trigger: 'konami' | 'logo-7' | 'typed-word' | 'idle-night' | 'read-3'; word?: string; theme: string; minutes: number }[],
   },
   previewBall: {
     enabled: true,

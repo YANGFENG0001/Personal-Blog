@@ -10,15 +10,16 @@ let ready: Promise<unknown> | null = null;
 
 const secureCookies = () => process.env.COOKIE_SECURE !== 'false' && process.env.NODE_ENV === 'production';
 
-function securityHeaders(res: Response, isOwnerArea: boolean): Response {
+function securityHeaders(res: Response, isOwnerArea: boolean, framable = false): Response {
   const h = res.headers;
   // Astro emits script/style policy (with hashes) per page; append header-only directives.
-  const extra = "frame-ancestors 'none'";
+  // Only the owner's theme-preview pages may be framed, and only by this site itself.
+  const extra = framable ? "frame-ancestors 'self'" : "frame-ancestors 'none'";
   const existing = h.get('content-security-policy');
   h.set('Content-Security-Policy', existing ? `${existing}; ${extra}` : `${extra}; object-src 'none'; base-uri 'self'`);
   h.set('X-Content-Type-Options', 'nosniff');
   h.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  h.set('X-Frame-Options', 'DENY');
+  h.set('X-Frame-Options', framable ? 'SAMEORIGIN' : 'DENY');
   h.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   if (isOwnerArea) {
     h.set('Cache-Control', 'no-store');
@@ -68,5 +69,7 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   ctx.locals.preview = !!ctx.locals.owner && !isOwnerPage && !isOwnerApi;
 
   const res = await next();
-  return securityHeaders(res, isOwnerPage || isOwnerApi || pathname.startsWith('/api/auth'));
+  const framable = !!ctx.locals.owner && !isOwnerPage && !isOwnerApi && ctx.url.searchParams.has('theme-preview');
+  if (framable) res.headers.set('Cache-Control', 'no-store');
+  return securityHeaders(res, isOwnerPage || isOwnerApi || pathname.startsWith('/api/auth'), framable);
 });

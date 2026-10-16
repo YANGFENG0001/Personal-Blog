@@ -28,4 +28,23 @@ export function initAmbientLayer(): void {
   const fine = matchMedia('(pointer: fine)').matches;
   if ('trail' in body.dataset && fine && level !== 'off') void import('./cursor-trail').then((m) => m.startTrail());
   if (level === 'rich') void import('./rich-motion').then((m) => m.startRichMotion());
+
+  // Custom theme extras: image particles and parallax background layers.
+  if (document.getElementById('fn-theme-eggs')) void import('./theme-eggs').then((m) => m.startThemeEggs());
+  const particles = document.getElementById('fn-particles');
+  if (particles && innerWidth >= 480) {
+    void import('./image-particles').then((m) => m.startImageParticles(JSON.parse(particles.textContent || '{}'), level !== 'off'));
+  }
+  if (document.querySelector('.theme-layers') && level !== 'off') {
+    let ticking = false;
+    const root = document.documentElement;
+    addEventListener('scroll', () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        ticking = false;
+        root.style.setProperty('--scroll', String(Math.round(scrollY)));
+      });
+    }, { passive: true });
+  }
 }

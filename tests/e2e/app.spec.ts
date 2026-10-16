@@ -327,6 +327,82 @@ test('mascot packs: import a pack from the asset studio, use it, drag it', async
   expect(errors).toEqual([]);
 });
 
+test('theme studio: create, edit, preview, export, use, rotate, egg switch', async ({ page, request }) => {
+  const errors = trackErrors(page);
+  await login(page);
+  await page.goto('/owner/themes');
+  // Copy a built-in theme into a custom one.
+  page.once('dialog', () => {});
+  await page.locator('.ts-card', { hasText: '墨韵' }).getByRole('button', { name: '复制并编辑' }).click();
+  await page.getByRole('dialog').locator('input').fill('E2E 主题');
+  await page.getByRole('dialog').getByRole('button', { name: '创建' }).click();
+  await expect(page.locator('.te-title')).toHaveText('E2E 主题');
+
+  // Palette, layers and custom CSS.
+  await page.locator('.te-nav').getByRole('button', { name: '配色' }).click();
+  await page.locator('.ts-palettes section').first().locator('input[type=color]').nth(7).evaluate((el: HTMLInputElement) => {
+    el.value = '#b03060';
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await page.locator('.te-nav').getByRole('button', { name: '背景图层' }).click();
+  await page.getByRole('radio', { name: '自定义图层' }).click();
+  await page.getByRole('button', { name: '添加图层' }).click();
+  await page.locator('.ts-layer').getByRole('radio', { name: '渐变' }).click();
+  await page.locator('.te-nav').getByRole('button', { name: '自定义 CSS' }).click();
+  await page.locator('.ts-css').fill('body { display: none; }');
+  await expect(page.locator('.ts-css-result')).toContainText('未通过');
+  await page.locator('.ts-css').fill('.post-title { letter-spacing: 0.05em; }');
+  await expect(page.locator('.ts-css-result')).toContainText('检查通过');
+  await page.getByRole('button', { name: '保存', exact: true }).click();
+  await expect(page.locator('.toast-text').last()).toContainText('主题已保存');
+
+  // The preview iframe renders the saved theme.
+  const frame = page.frameLocator('.te-frame-wrap iframe');
+  await expect(frame.locator('html')).toHaveAttribute('data-custom-theme', '');
+  await expect(frame.locator('.theme-layers .theme-layer')).toHaveCount(1);
+
+  // Export round-trip.
+  const id = (await page.locator('.te-bar a[href*="?export"]').getAttribute('href'))!.split('/')[4]!.split('?')[0]!;
+  const exported = await (await page.request.get(`/api/owner/themes/${id}?export`)).json();
+  expect(exported.format).toBe('fieldnotes-theme@1');
+  expect(exported.palette.light.accent).toBe('#b03060');
+  expect(exported.css).toContain('letter-spacing');
+
+  // Use it on the site.
+  await page.getByRole('button', { name: '返回主题库' }).click();
+  await page.locator('.ts-card', { hasText: 'E2E 主题' }).getByRole('button', { name: '设为网站主题' }).click();
+  await expect(page.locator('.ts-card', { hasText: 'E2E 主题' }).locator('.pill')).toHaveText('使用中');
+  const home = await visitorText(request, '/');
+  expect(home.text).toContain('data-custom-theme');
+  expect(home.text).toContain('--l-accent:#b03060');
+  expect(home.text).toContain(`/theme-css/${id}.css`);
+  const css = await (await request.get(`/theme-css/${id}.css`)).text();
+  expect(css).toContain('html[data-custom-theme] .post-title');
+
+  // Rotation: schedule a rule that always matches → visitors get that theme.
+  const csrf = await page.evaluate(() => document.querySelector<HTMLMetaElement>('meta[name=csrf-token]')!.content);
+  const headers = { 'x-csrf-token': csrf, origin: new URL(page.url()).origin };
+  await page.request.put('/api/owner/settings/themeRotation', { headers, data: { mode: 'schedule', pool: [], everyDays: 7, rules: [{ theme: 'ocean', time: '00:00-23:59', label: '' }], eggs: [{ trigger: 'konami', theme: 'tenki', minutes: 0 }] } });
+  expect((await visitorText(request, '/')).text).toContain('data-preset="ocean"');
+
+  // Egg: Konami switches this visitor to the egg theme; the chip restores it.
+  const v = await page.context().browser()!.newPage();
+  await v.goto('/');
+  await v.locator('body').click({ position: { x: 5, y: 300 } });
+  for (const k of ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a']) await v.keyboard.press(k);
+  await expect(v.locator('html')).toHaveAttribute('data-preset', 'tenki');
+  await v.locator('.egg-theme-chip').click();
+  await expect(v.locator('html')).toHaveAttribute('data-preset', 'ocean');
+  await v.close();
+
+  // Clean up.
+  await page.request.put('/api/owner/settings/themeRotation', { headers, data: { mode: 'fixed', pool: [], everyDays: 7, rules: [], eggs: [] } });
+  const a = await (await page.request.get('/api/owner/settings/appearance')).json();
+  await page.request.put('/api/owner/settings/appearance', { headers, data: { ...a, preset: 'ink' } });
+  await page.request.delete(`/api/owner/themes/${id}`, { headers });
+  expect(errors).toEqual([]);
+});
+
 test('papers: status pill changes reading state and persists', async ({ page }) => {
   const errors = trackErrors(page);
   await login(page);

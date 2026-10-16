@@ -271,6 +271,26 @@ CREATE TABLE mascot_packs (
 ALTER TABLE uploads ADD COLUMN pack_id TEXT REFERENCES mascot_packs(id) ON DELETE CASCADE;
 `,
   },
+  {
+    id: 4,
+    name: 'custom-themes',
+    sql: `
+CREATE TABLE custom_themes (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  data TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE TABLE custom_theme_versions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  theme_id TEXT NOT NULL REFERENCES custom_themes(id) ON DELETE CASCADE,
+  data TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX custom_theme_versions_theme ON custom_theme_versions(theme_id, id);
+`,
+  },
 ];
 
 export function migrate(db: Db): number[] {

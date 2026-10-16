@@ -6,6 +6,8 @@ import { SHAPE_LAYOUTS, dialHtml, effectiveLayout } from '../../lib/dial';
 import { SCENES, sceneHtml, type SceneId } from '../../lib/scenes';
 import { MASCOTS, mascotSvg, isMascotId } from '../../lib/mascot';
 import type { StoredMascotPack } from '../../lib/mascot-pack';
+import type { StoredTheme } from '../../lib/custom-theme';
+import { mergeCustom } from '../../lib/appearance';
 import { MascotPacks } from './MascotPacks';
 import '../../styles/scenes.css';
 import '../../styles/scenes-anime.css';
@@ -32,6 +34,7 @@ interface Props {
   uploads: { filename: string; originalName: string }[];
   packs: StoredMascotPack[];
   studioUrl: string;
+  customThemes: StoredTheme[];
 }
 
 type Tab = 'theme' | 'background' | 'motion' | 'dial' | 'ball' | 'eggs';
@@ -44,16 +47,20 @@ const TABS: [Tab, string, string][] = [
   ['eggs', '彩蛋', 'star'],
 ];
 
+let customList: StoredTheme[] = [];
+const customFor = (preset: string) => (preset.startsWith('custom:') ? customList.find((t) => `custom:${t.id}` === preset) ?? null : null);
+
 /** Apply appearance to the current page root so changes preview instantly. */
 function applyLive(a: AS) {
   const root = document.documentElement;
-  const look = resolveAppearance(a, (root.dataset.theme as 'light' | 'dark' | 'auto') ?? 'auto');
+  const look = resolveAppearance(a, (root.dataset.theme as 'light' | 'dark' | 'auto') ?? 'auto', customFor(a.preset));
   for (const [k, v] of Object.entries(look.attrs)) if (k !== 'data-theme' && k !== 'data-bg' && k !== 'data-cursor') root.setAttribute(k, v);
   // The workspace keeps its plain background; only palette variables are previewed here.
   root.setAttribute('style', look.style.split(';').filter((d) => d.startsWith('--l-') || d.startsWith('--d-')).join(';'));
 }
 
 export default function AppearanceManager(props: Props) {
+  customList = props.customThemes;
   const [tab, setTab] = useState<Tab>('theme');
   const [a, setA] = useState(props.appearance);
   const [dial, setDial] = useState(props.dial);
@@ -116,7 +123,7 @@ export default function AppearanceManager(props: Props) {
         </div>
       </div>
 
-      {tab === 'theme' && <ThemeTab a={a} setA={setA} uploads={props.uploads} packs={packs} setPacks={setPacks} studioUrl={props.studioUrl} />}
+      {tab === 'theme' && <ThemeTab a={a} setA={setA} uploads={props.uploads} packs={packs} setPacks={setPacks} studioUrl={props.studioUrl} customThemes={props.customThemes} />}
       {tab === 'background' && <BackgroundTab a={a} setA={setA} setBg={setBg} uploads={props.uploads} />}
       {tab === 'motion' && <MotionTab a={a} setA={setA} />}
       {tab === 'dial' && <DialTab dial={dial} setDial={setDial} />}
@@ -167,7 +174,7 @@ const ACCENTS = ['#315b50', '#4f6b2f', '#1f6e8c', '#496c96', '#4450a8', '#6b4fa0
 
 type PackProps = { packs: StoredMascotPack[]; setPacks: (p: StoredMascotPack[]) => void; studioUrl: string };
 
-function ThemeTab({ a, setA, uploads, packs, setPacks, studioUrl }: { a: AS; setA: (a: AS) => void; uploads: { filename: string; originalName: string }[] } & PackProps) {
+function ThemeTab({ a, setA, uploads, packs, setPacks, studioUrl, customThemes }: { a: AS; setA: (a: AS) => void; uploads: { filename: string; originalName: string }[]; customThemes: StoredTheme[] } & PackProps) {
   return (
     <div class="stack">
       <section class="panel">
@@ -180,6 +187,23 @@ function ThemeTab({ a, setA, uploads, packs, setPacks, studioUrl }: { a: AS; set
         <div class="presets">
           {PRESETS.map((p) => <PresetCard key={p.id} p={p} active={a.preset === p.id} onPick={() => setA({ ...a, preset: p.id })} />)}
         </div>
+      </section>
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>我的主题</h2>
+            <p class="panel-sub">在「主题工作室」里自己做的主题：多层背景、粒子、贴纸、字体、自定义 CSS，也可以导入别人分享的主题文件，还能设置轮换与彩蛋主题。</p>
+          </div>
+          <a class="btn" href="/owner/themes"><Icon name="sparkle" size={14} />打开主题工作室</a>
+        </div>
+        {customThemes.length === 0 ? <p class="hint">还没有自定义主题。</p> : (
+          <div class="presets">
+            {customThemes.map((t) => {
+              const p = { ...mergeCustom(t), id: `custom:${t.id}` };
+              return <PresetCard key={p.id} p={p} active={a.preset === p.id} onPick={() => setA({ ...a, preset: p.id })} />;
+            })}
+          </div>
+        )}
       </section>
       <section class="panel">
         <h2>配色</h2>

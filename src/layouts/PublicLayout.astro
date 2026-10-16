@@ -7,6 +7,7 @@ import PreviewBall from '../components/PreviewBall.astro';
 import Mascot from '../components/public/Mascot.astro';
 import { resolveAppearance } from '../lib/appearance';
 import { getPack } from '../server/services/mascot-packs';
+import { activeAppearance } from '../server/services/active-theme';
 import { iconSvg } from '../lib/icons';
 import { publicSiteTree, type Site, type Category } from '../server/services/sites';
 import { getAllSettings } from '../server/services/settings';
@@ -29,7 +30,8 @@ const tree = publicSiteTree();
 const currentTree = current ? tree.find((s) => s.id === current.id) : null;
 const monogram = settings.site.title.slice(0, 1).toUpperCase();
 const owner = Astro.locals.owner;
-const look = resolveAppearance(settings.appearance, 'auto');
+const active = activeAppearance(new Date(), Astro.locals.owner ? Astro.url.searchParams.get('theme-preview') : null, Astro.cookies.get('fn_egg_theme')?.value ?? null);
+const look = resolveAppearance(active.appearance, 'auto', active.custom);
 const mascot = look.mascot;
 // A pack character that was deleted falls back to the built-in default.
 const mascotPack = mascot?.character.startsWith('pack:') ? getPack(mascot.character.slice(5)) : null;
@@ -118,7 +120,7 @@ const mascotPage = is404 ? 'notFound' : isArticle ? 'article' : Astro.url.pathna
   {mascot && <Mascot {...mascot} pack={mascotPack} page={mascotPage} />}
   <button class="to-top" type="button" aria-label="回到顶部" title="回到顶部" data-to-top set:html={iconSvg('arrow-up')} />
   <Ambient config={settings.encourage} easter={settings.easter} isArticle={isArticle} is404={is404} />
-  {owner && settings.previewBall.enabled && <PreviewBall mode="visitor" config={settings.previewBall} />}
+  {owner && settings.previewBall.enabled && !Astro.url.searchParams.has('theme-preview') && <PreviewBall mode="visitor" config={settings.previewBall} />}
 </Base>
 
 <style>

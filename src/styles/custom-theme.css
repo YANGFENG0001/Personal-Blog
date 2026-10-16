@@ -1,0 +1,98 @@
+/* Custom themes (src/lib/custom-theme.ts): background layers, stickers,
+   uploaded fonts, shadows and the reading panel. Everything is driven by
+   CSS variables written into <html style> by resolveAppearance(). */
+
+/* ---------- fonts ---------- */
+:root[data-font-display='custom'] { --display: 'FN Theme Display', var(--serif); }
+:root[data-font-body='custom'] { --body: 'FN Theme Body', var(--sans); }
+:root[data-custom-theme] { --heading-weight: 700; --heading-tracking: 0; }
+:root[data-custom-theme] :is(h1, h2, h3, .post-title, .hero h1) { font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking); }
+:root[data-custom-theme] body { font-size: calc(var(--fs-body) * var(--type-scale, 1)); }
+:root[data-custom-theme] .prose { font-size: calc(var(--fs-prose) * var(--type-scale, 1)); }
+
+/* ---------- shadows & borders ---------- */
+:root[data-shadow='none'] { --shadow: none; --shadow-sm: none; }
+:root[data-shadow='paper'] { --shadow: 0 1px 0 color-mix(in srgb, var(--ink) 8%, transparent), 0 6px 0 -3px color-mix(in srgb, var(--ink) 5%, transparent); --shadow-sm: 0 1px 0 color-mix(in srgb, var(--ink) 10%, transparent); }
+:root[data-shadow='lifted'] { --shadow: 0 24px 60px color-mix(in srgb, var(--ink) 16%, transparent); --shadow-sm: 0 8px 24px color-mix(in srgb, var(--ink) 12%, transparent); }
+
+/* ---------- background layers ---------- */
+:root[data-layers] .page-bg { background: var(--bg); }
+.theme-layers { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+.theme-layer {
+  position: absolute; inset: 0; opacity: var(--tl-opacity, 1); mix-blend-mode: var(--tl-blend, normal);
+  background-image: var(--tl-img, none); background-position: var(--tl-pos, center); background-size: var(--tl-size, cover); background-repeat: var(--tl-repeat, no-repeat);
+}
+.theme-layer.tl-scene .scene { position: absolute; z-index: 0; }
+.theme-layer.tl-tex-paper { background-image: radial-gradient(color-mix(in srgb, var(--ink) 7%, transparent) 0.6px, transparent 0.7px); background-size: 7px 7px; background-repeat: repeat; }
+.theme-layer.tl-tex-dots { background-image: radial-gradient(color-mix(in srgb, var(--ink) 12%, transparent) 1px, transparent 1.2px); background-size: 16px 16px; background-repeat: repeat; }
+.theme-layer.tl-tex-grid { background-image: linear-gradient(color-mix(in srgb, var(--ink) 6%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--ink) 6%, transparent) 1px, transparent 1px); background-size: 22px 22px; background-repeat: repeat; }
+/* light/dark-only layers and dark variants */
+:root[data-theme='dark'] .theme-layer.tl-mode-light, :root[data-theme='light'] .theme-layer.tl-mode-dark { display: none; }
+:root[data-theme='dark'] .theme-layer.tl-has-dark { background-image: var(--tl-img-dark); }
+@media (prefers-color-scheme: dark) {
+  :root[data-theme='auto'] .theme-layer.tl-mode-light { display: none; }
+  :root[data-theme='auto'] .theme-layer.tl-has-dark { background-image: var(--tl-img-dark); }
+}
+@media (prefers-color-scheme: light) { :root[data-theme='auto'] .theme-layer.tl-mode-dark { display: none; } }
+/* Parallax: deeper layers move with the page (set by ambient-layer via --scroll). */
+.theme-layer { transform: translate3d(0, calc(var(--scroll, 0) * var(--tl-depth, 0) * -0.25px), 0); }
+.theme-layer.tl-drift-slow, .theme-layer.tl-drift-medium { inset: 0 -8%; }
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion='off']) .theme-layer.tl-drift-slow { animation: tl-drift 120s ease-in-out infinite alternate; }
+  :root:not([data-motion='off']) .theme-layer.tl-drift-medium { animation: tl-drift 60s ease-in-out infinite alternate; }
+}
+@keyframes tl-drift { to { translate: 6% 0; } }
+/* Reading comfort: content sits on a translucent panel over busy backgrounds. */
+:root[data-layers] .site-header { background: color-mix(in srgb, var(--bg) 82%, transparent); }
+:root[data-layers] .site-footer { background: color-mix(in srgb, var(--bg) var(--reading-panel, 90%), transparent); backdrop-filter: blur(var(--reading-blur, 6px)); }
+:root[data-layers] .content-shell, :root[data-layers] .article-shell .article {
+  background: color-mix(in srgb, var(--bg) var(--reading-panel, 90%), transparent);
+  backdrop-filter: blur(var(--reading-blur, 6px));
+  border-radius: var(--r-lg);
+  box-shadow: 0 0 0 20px color-mix(in srgb, var(--bg) var(--reading-panel, 90%), transparent);
+}
+
+/* ---------- stickers ---------- */
+:root[data-stickers] .sticker-slot { display: none; }
+:root[data-stickers~='hero'] .hero, :root[data-stickers~='hero'] .section-hero { position: relative; }
+:root[data-stickers~='hero'] .hero::after, :root[data-stickers~='hero'] .section-hero::after {
+  content: ''; position: absolute; right: 0; top: 50%; translate: 0 -50%; width: var(--sticker-hero-size); aspect-ratio: 1;
+  background: var(--sticker-hero) center / contain no-repeat; opacity: var(--sticker-hero-opacity); rotate: var(--sticker-hero-rotate); pointer-events: none;
+}
+:root[data-stickers~='card-corner'] .post { position: relative; }
+:root[data-stickers~='card-corner'] .post::before {
+  content: ''; position: absolute; right: -6px; top: -6px; width: var(--sticker-card-corner-size); aspect-ratio: 1;
+  background: var(--sticker-card-corner) center / contain no-repeat; opacity: 0; rotate: var(--sticker-card-corner-rotate); pointer-events: none;
+  transition: opacity 0.25s, translate 0.3s var(--spring);
+}
+:root[data-stickers~='card-corner'] .post:hover::before { opacity: var(--sticker-card-corner-opacity); translate: 0 -3px; }
+:root[data-stickers~='divider'] .block-head { position: relative; }
+:root[data-stickers~='divider'] .block-head::after {
+  content: ''; position: absolute; left: 50%; bottom: -1px; translate: -50% 50%; width: var(--sticker-divider-size); aspect-ratio: 1;
+  background: var(--sticker-divider) center / contain no-repeat; opacity: var(--sticker-divider-opacity); rotate: var(--sticker-divider-rotate); pointer-events: none;
+}
+:root[data-stickers~='footer'] .site-footer { position: relative; }
+:root[data-stickers~='footer'] .site-footer::before {
+  content: ''; position: absolute; right: 6%; top: 0; translate: 0 -60%; width: var(--sticker-footer-size); aspect-ratio: 1;
+  background: var(--sticker-footer) center / contain no-repeat; opacity: var(--sticker-footer-opacity); rotate: var(--sticker-footer-rotate); pointer-events: none;
+}
+:root[data-stickers~='empty'] .empty::before {
+  content: ''; display: block; margin: 0 auto 12px; width: var(--sticker-empty-size); aspect-ratio: 1;
+  background: var(--sticker-empty) center / contain no-repeat; opacity: var(--sticker-empty-opacity); rotate: var(--sticker-empty-rotate);
+}
+:root[data-stickers~='sidebar'] .sidebar::before {
+  content: ''; display: block; margin: 0 0 12px auto; width: var(--sticker-sidebar-size); aspect-ratio: 1;
+  background: var(--sticker-sidebar) center / contain no-repeat; opacity: var(--sticker-sidebar-opacity); rotate: var(--sticker-sidebar-rotate);
+}
+@media (max-width: 720px) { :root[data-stickers~='hero'] .hero::after, :root[data-stickers~='hero'] .section-hero::after { display: none; } }
+@media print { .theme-layers { display: none; } }
+
+/* Easter-egg theme switch: a chip to go back. */
+.egg-theme-chip {
+  position: fixed; left: 50%; bottom: 18px; translate: -50% 0; z-index: 60; padding: 7px 14px; border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line)); background: color-mix(in srgb, var(--surface) 92%, transparent);
+  color: var(--accent); font-size: 12px; box-shadow: var(--shadow-sm); cursor: pointer; backdrop-filter: blur(8px);
+  animation: egg-chip-in calc(0.5s * var(--dur)) var(--spring) both;
+}
+.egg-theme-chip:hover { background: var(--accent); color: var(--on-accent); }
+@keyframes egg-chip-in { from { translate: -50% 20px; opacity: 0; } }

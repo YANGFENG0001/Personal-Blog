@@ -5,7 +5,9 @@ import '../styles/themes.css';
 import '../styles/scenes.css';
 import '../styles/scenes-anime.css';
 import { getSetting } from '../server/services/settings';
-import { resolveAppearance } from '../lib/appearance';
+import { layerStyle, resolveAppearance } from '../lib/appearance';
+import { activeAppearance } from '../server/services/active-theme';
+import '../styles/custom-theme.css';
 import { sceneHtml, type SceneId } from '../lib/scenes';
 
 interface Props {
@@ -21,11 +23,21 @@ interface Props {
 
 const { title, description, canonical, noindex, ogType = 'website', bodyClass, ambient = true } = Astro.props;
 const site = getSetting('site');
-const appearance = getSetting('appearance');
+// The owner can preview any theme (the theme studio's iframe); visitors get the live / rotated theme.
+const previewId = Astro.locals.owner ? Astro.url.searchParams.get('theme-preview') : null;
+const eggCookie = ambient ? Astro.cookies.get('fn_egg_theme')?.value ?? null : null;
+const { appearance, custom, themeId } = activeAppearance(new Date(), previewId, eggCookie);
+const eggRules = ambient ? getSetting('themeRotation').eggs : [];
+const eggPayload = eggRules.length ? JSON.stringify({ rules: eggRules, active: eggCookie === themeId ? themeId : null }).replace(/</g, '\u003c') : null;
 // Visitor's own light/dark choice (cookie) overrides the owner's default.
 const cookieTheme = Astro.cookies.get('fn_theme')?.value;
 const theme = cookieTheme === 'light' || cookieTheme === 'dark' ? cookieTheme : appearance.theme === 'system' ? 'auto' : appearance.theme;
-const look = resolveAppearance(appearance, theme);
+const look = resolveAppearance(appearance, theme, ambient ? custom : null);
+const layers = ambient && custom?.background.use === 'layers' ? custom.background.layers : [];
+const customCss = ambient && custom && (custom.css.trim() || custom.typography.displayFont || custom.typography.bodyFont);
+const customParticles = ambient && custom?.particles.use === 'image' && custom.particles.images.length
+  ? JSON.stringify({ ...custom.particles }).replace(/</g, '\u003c')
+  : null;
 const attrs = ambient ? look.attrs : { ...look.attrs, 'data-bg': 'none', 'data-cursor': 'system' };
 const fullTitle = title === site.title ? title : `${title} · ${site.title}`;
 const desc = description || site.intro;
@@ -52,6 +64,7 @@ const canonicalUrl = canonical ? new URL(canonical, Astro.site ?? Astro.url).hre
     <meta name="theme-color" content={look.preset.dark.bg} media="(prefers-color-scheme: dark)" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="alternate" type="application/rss+xml" title={site.title} href="/rss.xml" />
+    {customCss && <link rel="stylesheet" href={`/theme-css/${themeId.slice(7)}.css?v=${encodeURIComponent((custom as { updatedAt?: string }).updatedAt ?? '')}`} />}
     <slot name="head" />
   </head>
   <body
@@ -63,6 +76,21 @@ const canonicalUrl = canonical ? new URL(canonical, Astro.site ?? Astro.url).hre
   >
     {ambient && <div class="page-bg" aria-hidden="true" />}
     {ambient && look.bg.scene && <Fragment set:html={sceneHtml(look.bg.scene as SceneId)} />}
+    {
+      layers.length > 0 && (
+        <div class="theme-layers" aria-hidden="true">
+          {layers.map((l) =>
+            l.kind === 'scene' && l.scene ? (
+              <div class={`theme-layer tl-scene tl-mode-${l.mode}`} style={`--tl-opacity:${l.opacity}`} set:html={sceneHtml(l.scene as SceneId)} />
+            ) : (
+              <div class={`theme-layer tl-${l.kind} tl-mode-${l.mode} tl-drift-${l.drift}${l.kind === 'texture' ? ` tl-tex-${l.texture ?? 'paper'}` : ''}${l.srcDark ? ' tl-has-dark' : ''}`} style={layerStyle(l)} />
+            ),
+          )}
+        </div>
+      )
+    }
+    {customParticles && <script type="application/json" id="fn-particles" set:html={customParticles} />}
+    {eggPayload && <script type="application/json" id="fn-theme-eggs" set:html={eggPayload} />}
     <slot />
   </body>
 </html>

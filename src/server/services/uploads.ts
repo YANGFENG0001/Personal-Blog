@@ -13,6 +13,8 @@ const SIGNATURES: { mime: string; ext: string; test: (b: Buffer) => boolean }[] 
   { mime: 'image/gif', ext: 'gif', test: (b) => b.subarray(0, 6).toString('ascii').startsWith('GIF8') },
   { mime: 'image/webp', ext: 'webp', test: (b) => b.subarray(0, 4).toString('ascii') === 'RIFF' && b.subarray(8, 12).toString('ascii') === 'WEBP' },
   { mime: 'image/avif', ext: 'avif', test: (b) => b.subarray(4, 12).toString('ascii') === 'ftypavif' },
+  // Fonts for custom themes (woff2 only: compressed, and supported by every current browser).
+  { mime: 'font/woff2', ext: 'woff2', test: (b) => b.subarray(0, 4).toString('ascii') === 'wOF2' },
 ];
 
 export function uploadsDir(): string {
@@ -30,7 +32,7 @@ export function saveUpload(buf: Buffer, originalName: string, packId: string | n
   if (buf.length === 0) throw badRequest('文件为空');
   if (buf.length > MAX_UPLOAD) throw badRequest(`文件不能超过 ${MAX_UPLOAD / 1024 / 1024}MB`);
   const type = sniff(buf);
-  if (!type) throw badRequest('只支持 PNG / JPEG / GIF / WebP / AVIF 图片');
+  if (!type) throw badRequest('只支持 PNG / JPEG / GIF / WebP / AVIF 图片和 WOFF2 字体');
   // Random, server-chosen filename: no path traversal, no user-controlled extension.
   const filename = `${crypto.randomBytes(12).toString('hex')}.${type.ext}`;
   fs.writeFileSync(path.join(uploadsDir(), filename), buf, { flag: 'wx' });
@@ -42,7 +44,7 @@ export function saveUpload(buf: Buffer, originalName: string, packId: string | n
 }
 
 export function readUpload(filename: string): { buf: Buffer; mime: string } {
-  if (!/^[a-f0-9]{24}\.(png|jpg|gif|webp|avif)$/.test(filename)) throw notFound('文件');
+  if (!/^[a-f0-9]{24}\.(png|jpg|gif|webp|avif|woff2)$/.test(filename)) throw notFound('文件');
   const row = getDb().prepare('SELECT mime FROM uploads WHERE filename = ?').get(filename) as { mime: string } | undefined;
   if (!row) throw notFound('文件');
   const file = path.join(uploadsDir(), filename);

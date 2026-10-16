@@ -4,6 +4,7 @@ import { DEFAULT_SETTINGS, type Settings } from '../seed';
 import { httpUrl, imageUrl } from '../validation';
 import { EGG_SETS, HEX, PRESET_IDS } from '../../lib/themes';
 import { SCENES } from '../../lib/scenes';
+import { rotationSchema } from '../../lib/custom-theme';
 
 const hex = z.string().regex(HEX, '颜色格式应为 #rrggbb');
 
@@ -26,7 +27,7 @@ const schemas = {
     links: z.array(z.object({ label: z.string().trim().min(1).max(40), url: httpUrl })).max(8),
   }),
   appearance: z.object({
-    preset: z.enum(PRESET_IDS),
+    preset: z.union([z.enum(PRESET_IDS), z.string().regex(/^custom:[a-f0-9]{16}$/)]),
     theme: z.enum(['system', 'light', 'dark']),
     customAccent: z.union([z.literal(''), hex]),
     motion: z.enum(['off', 'minimal', 'normal', 'rich']),
@@ -93,6 +94,7 @@ const schemas = {
       avatar: z.boolean(), festival: z.boolean(), console: z.boolean(), notFound: z.boolean(),
     }),
   }),
+  themeRotation: rotationSchema,
   previewBall: z.object({
     enabled: z.boolean(),
     position: z.enum(['right', 'left']),
