@@ -52,7 +52,7 @@ const schemas = {
     cardMotion: z.boolean(),
     mascot: z.object({
       mode: z.enum(['preset', 'on', 'off']),
-      character: z.enum(['preset', 'haru', 'sora', 'chibi']),
+      character: z.union([z.enum(['preset', 'haru', 'sora', 'chibi']), z.string().regex(/^pack:[a-f0-9]{16}$/)]),
       draggable: z.boolean(),
       imageUrl: z.union([z.literal(''), imageUrl]),
       position: z.enum(['right', 'left']),

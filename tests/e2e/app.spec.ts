@@ -286,6 +286,47 @@ test('appearance: anime presets render their scene and a draggable mascot', asyn
   await expect(page.locator('.toast-text').last()).toContainText('外观已保存');
 });
 
+test('mascot packs: import a pack from the asset studio, use it, drag it', async ({ page, request }) => {
+  const errors = trackErrors(page);
+  await login(page);
+  await page.goto('/owner/appearance');
+  const before = await page.locator('.mp-item').count();
+  await page.locator('input[type=file][accept*=zip]').setInputFiles('tests/fixtures/ink.mascot.zip');
+  await expect(page.locator('.toast-text').last()).toContainText('已导入角色包');
+  await page.locator('.mp-item').first().getByRole('button', { name: '使用', exact: true }).click();
+  await page.getByRole('radio', { name: '始终显示' }).click();
+  await page.getByRole('button', { name: '保存', exact: true }).click();
+  await expect(page.locator('.toast-text').last()).toContainText('外观已保存');
+  const home = await visitorText(request, '/');
+  expect(home.text).toContain('data-kind="pack"');
+  expect(home.text).toContain('data-frame="idle"');
+
+  const visitor = await page.context().browser()!.newPage({ viewport: { width: 1280, height: 800 } });
+  await visitor.goto('/');
+  const m = visitor.locator('[data-mascot]');
+  await m.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
+  // The frame image is transparent around the figure (no square box).
+  const box = (await visitor.locator('.mascot-frame[data-frame=idle]').boundingBox())!;
+  expect(box.height).toBeGreaterThan(150);
+  const b = (await visitor.locator('[data-mascot-btn]').boundingBox())!;
+  await visitor.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+  await visitor.mouse.down();
+  await visitor.mouse.move(b.x - 400, b.y - 150, { steps: 10 });
+  await expect(m).toHaveAttribute('data-state', 'held');
+  await visitor.mouse.up();
+  await expect.poll(async () => (await m.boundingBox())!.x).toBeLessThan(b.x - 300);
+  await visitor.close();
+
+  // Clean up: back to the built-in default and delete the pack.
+  await page.getByRole('radiogroup', { name: '看板娘显示' }).getByRole('radio', { name: '跟随主题' }).click();
+  await page.getByRole('button', { name: '保存', exact: true }).click();
+  await expect(page.locator('.toast-text').last()).toContainText('外观已保存');
+  await page.locator('.mp-item').first().getByRole('button', { name: /删除/ }).click();
+  await page.getByRole('dialog').getByRole('button', { name: '删除' }).click();
+  await expect(page.locator('.mp-item')).toHaveCount(before);
+  expect(errors).toEqual([]);
+});
+
 test('papers: status pill changes reading state and persists', async ({ page }) => {
   const errors = trackErrors(page);
   await login(page);

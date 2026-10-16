@@ -257,6 +257,20 @@ CREATE TABLE papers (
 );
 `,
   },
+  {
+    id: 3,
+    name: 'mascot-packs',
+    sql: `
+CREATE TABLE mascot_packs (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  manifest TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+ALTER TABLE uploads ADD COLUMN pack_id TEXT REFERENCES mascot_packs(id) ON DELETE CASCADE;
+`,
+  },
 ];
 
 export function migrate(db: Db): number[] {

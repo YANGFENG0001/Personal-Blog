@@ -4,6 +4,7 @@ import AppearanceManager from '../../components/owner/AppearanceManager';
 import { getSetting } from '../../server/services/settings';
 import { DEFAULT_SETTINGS } from '../../server/seed';
 import { listUploads } from '../../server/services/uploads';
+import { listPacks } from '../../server/services/mascot-packs';
 import '../../styles/appearance.css';
 
 const props = {
@@ -18,6 +19,9 @@ const props = {
     easter: DEFAULT_SETTINGS.easter,
   },
   uploads: listUploads().map((u) => ({ filename: u.filename, originalName: u.originalName })),
+  packs: listPacks(),
+  // REPO_URL is read at runtime so the link can be changed without rebuilding.
+  studioUrl: `${(process.env.REPO_URL || 'https://github.com/your-name/fieldnotes').replace(/\/+$/, '')}/tree/main/tools/asset-studio`,
 };
 ---
 

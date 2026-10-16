@@ -1,25 +1,67 @@
 ---
 /**
- * Corner mascot: one of the built-in original characters or an image the
- * owner uploaded. Clicking shows a short line; it can be dragged anywhere on
- * screen (pointer or Alt+arrow keys), and the spot is remembered per browser.
- * Double-click returns it to its corner. Hidden on small screens and in print.
+ * Corner mascot. Three sources:
+ *  - built-in SVG characters (haru / sora / chibi),
+ *  - a mascot pack (state images + anchors + lines, see lib/mascot-pack.ts),
+ *  - a legacy single image URL.
+ *
+ * Behaviour: click to talk (time/page aware lines), drag anywhere (swings like
+ * a held doll, lands with a bounce, snaps to screen edges and can peek from
+ * them), position remembered per browser, double-click returns to the corner,
+ * shrinks away when it would cover article text. Hidden under 900px and in print.
  */
-import { mascotSvg } from '../../lib/mascot';
+import { mascotSvg, MASCOT_LINES, isMascotId } from '../../lib/mascot';
+import { MASCOT_STATES, type StoredMascotPack } from '../../lib/mascot-pack';
 import '../../styles/mascot.css';
 
 interface Props {
-  character: 'haru' | 'sora' | 'chibi';
+  character: string;
+  pack?: StoredMascotPack | null;
   draggable: boolean;
   imageUrl: string;
   position: 'right' | 'left';
   size: 'sm' | 'md' | 'lg';
+  page: 'home' | 'article' | 'notFound' | 'other';
 }
-const { character, draggable, imageUrl, position, size } = Astro.props;
-const kind = imageUrl ? 'image' : character === 'chibi' ? 'chibi' : 'anime';
+const { character, pack = null, draggable, imageUrl, position, size, page } = Astro.props;
+const builtin = isMascotId(character) ? character : 'haru';
+const kind = pack ? 'pack' : imageUrl ? 'image' : builtin === 'chibi' ? 'chibi' : 'anime';
+// Packs without their own generic lines still get something to say.
+const lines = pack ? { ...pack.lines, click: pack.lines.click?.length ? pack.lines.click : MASCOT_LINES.haru } : { click: MASCOT_LINES[builtin] };
+const display = pack?.display;
+const anchors = pack?.anchors;
+const style = pack
+  ? [
+      `--ms-h:${display!.height}px`,
+      `--ms-ratio:${pack.width / pack.height}`,
+      `--ms-bx:${anchors!.bubble[0]}`,
+      `--ms-by:${anchors!.bubble[1]}`,
+      `--ms-base:${anchors!.baseline}`,
+      `--ms-hx:${anchors!.head[0]}`,
+      `--ms-hy:${anchors!.head[1]}`,
+    ].join(';')
+  : undefined;
+const payload = JSON.stringify({ lines, page, motion: pack?.motion ?? null, hasBlink: !!pack?.urls.blink }).replace(/</g, '\\u003c');
 ---
 
-<div class="mascot" data-pos={position} data-size={size} data-kind={kind} data-character={character} data-mascot data-draggable={draggable ? '' : undefined}>
+<div
+  class="mascot"
+  data-pos={position}
+  data-size={size}
+  data-kind={kind}
+  data-character={pack ? 'pack' : builtin}
+  data-display={display?.mode}
+  data-outline={display?.outline}
+  data-shadow={display ? String(display.shadow) : undefined}
+  data-flip={display?.flip ? '' : undefined}
+  data-breathe={pack && !pack.motion.breathe ? 'off' : undefined}
+  data-sway={pack && !pack.motion.sway ? 'off' : undefined}
+  data-state="idle"
+  data-mascot
+  data-draggable={draggable ? '' : undefined}
+  style={style}
+>
+  <script type="application/json" data-mascot-data set:html={payload} />
   <span class="mascot-bubble" data-mascot-bubble role="status" aria-live="polite"></span>
   <button
     type="button"
@@ -27,47 +69,127 @@ const kind = imageUrl ? 'image' : character === 'chibi' ? 'chibi' : 'anime';
     aria-label={draggable ? '看板娘：点击打招呼，拖动可移动位置，双击回到角落' : '看板娘（点击打招呼）'}
     data-mascot-btn
   >
-    {imageUrl ? <img src={imageUrl} alt="" loading="lazy" decoding="async" draggable="false" /> : <Fragment set:html={mascotSvg(character)} />}
+    <span class="mascot-body" data-mascot-body>
+      {
+        pack ? (
+          <span class="mascot-frames">
+            {MASCOT_STATES.filter((s) => pack.urls[s]).map((s) => (
+              <img class="mascot-frame" data-frame={s} src={pack.urls[s]} alt="" draggable="false" decoding="async" loading={s === 'idle' ? 'eager' : 'lazy'} width={pack.width} height={pack.height} />
+            ))}
+          </span>
+        ) : imageUrl ? (
+          <img src={imageUrl} alt="" loading="lazy" decoding="async" draggable="false" />
+        ) : (
+          <Fragment set:html={mascotSvg(builtin)} />
+        )
+      }
+    </span>
+    <span class="mascot-shadow" aria-hidden="true"></span>
   </button>
   <button type="button" class="mascot-hide" aria-label="暂时隐藏看板娘" data-mascot-hide>×</button>
 </div>
 
 <script>
-  import { MASCOT_LINES, isMascotId } from '../../lib/mascot';
+  import { pickLines, type LineGroup, type MascotPack } from '../../lib/mascot-pack';
+
   const root = document.querySelector<HTMLElement>('[data-mascot]');
   if (root) {
     if (sessionStorage.getItem('fn-mascot-hidden')) root.hidden = true;
+    const data = JSON.parse(root.querySelector('[data-mascot-data]')!.textContent || '{}') as {
+      lines: MascotPack['lines'];
+      page: 'home' | 'article' | 'notFound' | 'other';
+      motion: MascotPack['motion'] | null;
+      hasBlink: boolean;
+    };
     const btn = root.querySelector<HTMLElement>('[data-mascot-btn]')!;
+    const body = root.querySelector<HTMLElement>('[data-mascot-body]')!;
     const bubble = root.querySelector<HTMLElement>('[data-mascot-bubble]')!;
-    const id = root.dataset.character ?? 'haru';
-    const lines = MASCOT_LINES[isMascotId(id) ? id : 'haru'];
     const KEY = 'fn-mascot-pos';
-    let timer = 0;
-    let i = Math.floor(Math.random() * lines.length);
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.dataset.motion === 'off';
+    let talkTimer = 0;
+    let stateTimer = 0;
+    const used = new Map<string, number>();
 
-    const say = (text?: string) => {
-      if (!text) { i = (i + 1) % lines.length; text = lines[i]!; }
+    /* ---------------- state & lines ---------------- */
+    const setState = (s: string, ms = 0) => {
+      clearTimeout(stateTimer);
+      root.dataset.state = s;
+      if (ms) stateTimer = window.setTimeout(() => (root.dataset.state = 'idle'), ms);
+    };
+    const line = (group: LineGroup): string | undefined => {
+      const list = pickLines({ lines: data.lines }, group);
+      if (!list.length) return undefined;
+      const i = ((used.get(group) ?? Math.floor(Math.random() * list.length)) + 1) % list.length;
+      used.set(group, i);
+      return list[i];
+    };
+    const timeGroup = (): LineGroup | null => {
+      const h = new Date().getHours();
+      if (h >= 23 || h < 5) return 'night';
+      if (h >= 5 && h < 11) return 'morning';
+      if (h >= 11 && h < 14) return 'noon';
+      if (h >= 17 && h < 20) return 'evening';
+      return null;
+    };
+    const say = (text: string | undefined, state = 'talk') => {
+      if (!text) return;
       bubble.textContent = text;
       root.classList.remove('is-talking');
       void root.offsetWidth;
       root.classList.add('is-talking');
-      clearTimeout(timer);
-      timer = window.setTimeout(() => root.classList.remove('is-talking'), 3400);
+      setState(state, 3400);
+      clearTimeout(talkTimer);
+      talkTimer = window.setTimeout(() => root.classList.remove('is-talking'), 3400);
+    };
+    const clickLine = () => {
+      // Mix in context: time of day first, then the page, then generic lines.
+      const r = Math.random();
+      const t = timeGroup();
+      const pageGroup = ({ home: 'home', article: 'article', notFound: 'notFound', other: null } as const)[data.page];
+      if (t && r < 0.3 && data.lines[t]?.length) return line(t);
+      if (pageGroup && r < 0.55 && data.lines[pageGroup]?.length) return line(pageGroup);
+      return line('click');
     };
 
-    /* ---- position: stored as fractions of the viewport so it survives resizes ---- */
+    /* ---------------- blinking (packs with a blink frame) ---------------- */
+    if (data.hasBlink && !still) {
+      const every = (data.motion?.blinkEvery ?? 5) * 1000;
+      const blink = () => {
+        if (root.dataset.state === 'idle' && !document.hidden) {
+          root.dataset.state = 'blink';
+          setTimeout(() => { if (root.dataset.state === 'blink') root.dataset.state = 'idle'; }, 140);
+        }
+        setTimeout(blink, every * (0.6 + Math.random() * 0.8));
+      };
+      setTimeout(blink, every);
+    }
+    // Sleep late at night after a minute without interaction.
+    let idleTimer = 0;
+    const wake = () => {
+      if (root.dataset.state === 'sleep') root.dataset.state = 'idle';
+      clearTimeout(idleTimer);
+      idleTimer = window.setTimeout(() => { if (timeGroup() === 'night' && root.dataset.state === 'idle') root.dataset.state = 'sleep'; }, 60_000);
+    };
+    ['pointermove', 'keydown', 'scroll'].forEach((e) => addEventListener(e, wake, { passive: true }));
+    wake();
+
+    /* ---------------- position ---------------- */
     const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
-    const place = (x: number, y: number) => {
+    const SNAP = 28;
+    const place = (x: number, y: number, snap = false) => {
       const w = root.offsetWidth;
       const h = root.offsetHeight;
-      const px = clamp(x, 0, innerWidth - w);
+      let px = clamp(x, 0, innerWidth - w);
       const py = clamp(y, 0, innerHeight - h);
+      let edge = '';
+      if (snap && px < SNAP) { px = 0; edge = 'left'; }
+      if (snap && px > innerWidth - w - SNAP) { px = innerWidth - w; edge = 'right'; }
       root.style.left = `${px}px`;
       root.style.top = `${py}px`;
       root.style.right = 'auto';
       root.style.bottom = 'auto';
       root.classList.add('is-free');
-      // Keep the bubble on the roomier side.
+      root.dataset.edge = edge;
       root.dataset.bubble = px + w / 2 > innerWidth / 2 ? 'left' : 'right';
       return [px, py] as const;
     };
@@ -77,14 +199,16 @@ const kind = imageUrl ? 'image' : character === 'chibi' ? 'chibi' : 'anime';
       root.classList.remove('is-free');
       root.style.left = root.style.top = root.style.right = root.style.bottom = '';
       delete root.dataset.bubble;
+      delete root.dataset.edge;
     };
     const restore = () => {
       try {
         const p = JSON.parse(localStorage.getItem(KEY) ?? 'null') as { fx: number; fy: number } | null;
-        if (p && Number.isFinite(p.fx) && Number.isFinite(p.fy)) place(p.fx * innerWidth, p.fy * innerHeight);
+        if (p && Number.isFinite(p.fx) && Number.isFinite(p.fy)) place(p.fx * innerWidth, p.fy * innerHeight, true);
       } catch { /* ignore */ }
     };
 
+    /* ---------------- drag with pendulum swing ---------------- */
     const draggable = root.hasAttribute('data-draggable');
     if (draggable) {
       requestAnimationFrame(restore);
@@ -92,10 +216,24 @@ const kind = imageUrl ? 'image' : character === 'chibi' ? 'chibi' : 'anime';
 
       let start: { x: number; y: number; left: number; top: number; id: number } | null = null;
       let moved = false;
+      let angle = 0;
+      let vel = 0;
+      let lastX = 0;
+      let raf = 0;
+      const swing = () => {
+        // damped pendulum driven by horizontal pointer velocity
+        vel += -angle * 0.12;
+        vel *= 0.86;
+        angle += vel;
+        body.style.transform = `rotate(${angle.toFixed(2)}deg)`;
+        if (moved || Math.abs(angle) > 0.05 || Math.abs(vel) > 0.05) raf = requestAnimationFrame(swing);
+        else body.style.transform = '';
+      };
       btn.addEventListener('pointerdown', (e) => {
         if (e.button !== 0) return;
         const r = root.getBoundingClientRect();
         start = { x: e.clientX, y: e.clientY, left: r.left, top: r.top, id: e.pointerId };
+        lastX = e.clientX;
         moved = false;
       });
       btn.addEventListener('pointermove', (e) => {
@@ -107,8 +245,12 @@ const kind = imageUrl ? 'image' : character === 'chibi' ? 'chibi' : 'anime';
           moved = true;
           btn.setPointerCapture(e.pointerId);
           root.classList.add('is-dragging');
-          say('哇——');
+          setState('held');
+          say(line('drag') ?? '哇——', 'held');
+          if (!still && data.motion?.swing !== false) { cancelAnimationFrame(raf); raf = requestAnimationFrame(swing); }
         }
+        if (!still) vel -= (e.clientX - lastX) * 0.06;
+        lastX = e.clientX;
         place(start.left + dx, start.top + dy);
       });
       const end = (e: PointerEvent) => {
@@ -116,16 +258,24 @@ const kind = imageUrl ? 'image' : character === 'chibi' ? 'chibi' : 'anime';
         if (moved) {
           root.classList.remove('is-dragging');
           const r = root.getBoundingClientRect();
-          save(r.left, r.top);
-          say(lines[lines.length - 1]);
+          const [x, y] = place(r.left, r.top, true);
+          save(x, y);
+          if (!still) {
+            root.classList.remove('is-landing');
+            void root.offsetWidth;
+            root.classList.add('is-landing');
+            setTimeout(() => root.classList.remove('is-landing'), 520);
+          }
+          say(line('drop') ?? '放好啦。', 'happy');
         }
         start = null;
+        // `moved` is cleared by the click handler below.
+        setTimeout(() => (moved = false), 0);
       };
       btn.addEventListener('pointerup', end);
       btn.addEventListener('pointercancel', end);
-      // A drag must not also count as a click.
-      btn.addEventListener('click', (e) => { if (moved) { e.stopImmediatePropagation(); moved = false; } }, true);
-      btn.addEventListener('dblclick', () => { reset(); say('回到老位置啦。'); });
+      btn.addEventListener('click', (e) => { if (moved) e.stopImmediatePropagation(); }, true);
+      btn.addEventListener('dblclick', () => { reset(); say(line('reset') ?? '回到老位置啦。', 'happy'); });
       btn.addEventListener('keydown', (e) => {
         if (!e.altKey || !e.key.startsWith('Arrow')) return;
         e.preventDefault();
@@ -133,16 +283,40 @@ const kind = imageUrl ? 'image' : character === 'chibi' ? 'chibi' : 'anime';
         const step = e.shiftKey ? 60 : 20;
         const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
         const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
-        const [x, y] = place(r.left + dx, r.top + dy);
+        const [x, y] = place(r.left + dx, r.top + dy, true);
         save(x, y);
       });
     }
 
-    btn.addEventListener('click', () => say());
+    btn.addEventListener('click', () => {
+      // Peeking from an edge: the first click pops her out.
+      if (root.dataset.edge && !root.classList.contains('is-out')) {
+        root.classList.add('is-out');
+        setTimeout(() => root.classList.remove('is-out'), 4000);
+      }
+      say(clickLine(), Math.random() < 0.3 ? 'happy' : 'talk');
+    });
+    addEventListener('fn:read-end', () => say(line('readEnd') ?? '读完啦！', 'happy'));
+    // A greeting on arrival on the 404 page.
+    if (data.page === 'notFound') setTimeout(() => say(line('notFound')), 1200);
 
-    // Eyes follow the pointer (anime characters only; skipped when motion is off).
+    /* ---------------- stay clear of article text ---------------- */
+    const article = document.querySelector<HTMLElement>('.article, .prose, article');
+    if (article && 'IntersectionObserver' in window) {
+      const check = () => {
+        const a = article.getBoundingClientRect();
+        const m = root.getBoundingClientRect();
+        const overlap = m.left < a.right && m.right > a.left && m.top < a.bottom && m.bottom > a.top;
+        root.classList.toggle('is-shy', overlap && !root.classList.contains('is-dragging'));
+      };
+      let t = 0;
+      addEventListener('scroll', () => { if (!t) t = requestAnimationFrame(() => { t = 0; check(); }); }, { passive: true });
+      addEventListener('resize', check);
+      setTimeout(check, 400);
+    }
+
+    /* ---------------- eyes follow the pointer (built-in SVG characters) ---------------- */
     const iris = root.querySelectorAll<SVGGElement>('.ms-iris');
-    const still = matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.dataset.motion === 'off';
     if (iris.length && !still) {
       let raf = 0;
       addEventListener('pointermove', (e) => {
@@ -150,12 +324,9 @@ const kind = imageUrl ? 'image' : character === 'chibi' ? 'chibi' : 'anime';
         raf = requestAnimationFrame(() => {
           raf = 0;
           const r = btn.getBoundingClientRect();
-          const cx = r.left + r.width / 2;
-          const cy = r.top + r.height * 0.45;
-          const dx = clamp((e.clientX - cx) / 300, -1, 1);
-          const dy = clamp((e.clientY - cy) / 300, -1, 1);
+          const dx = clamp((e.clientX - (r.left + r.width / 2)) / 300, -1, 1);
+          const dy = clamp((e.clientY - (r.top + r.height * 0.45)) / 300, -1, 1);
           iris.forEach((g) => {
-            // The right eye is drawn mirrored, so its x offset flips.
             const sx = g.classList.contains('ms-iris-r') ? -1 : 1;
             g.style.transform = `translate(${(dx * 2.4 * sx).toFixed(2)}px, ${(dy * 1.8).toFixed(2)}px)`;
           });

@@ -12,3 +12,6 @@ playwright-report
 .env.*
 !.env.example
 框架
+tools/asset-studio/node_modules
+tools/asset-studio/out
+素材图

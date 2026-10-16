@@ -4,7 +4,9 @@ import { BG_EFFECTS, EGG_SETS, PRESETS, getPreset, paletteVars, type ThemePreset
 import { resolveAppearance, cursorCss } from '../../lib/appearance';
 import { SHAPE_LAYOUTS, dialHtml, effectiveLayout } from '../../lib/dial';
 import { SCENES, sceneHtml, type SceneId } from '../../lib/scenes';
-import { MASCOTS, mascotSvg } from '../../lib/mascot';
+import { MASCOTS, mascotSvg, isMascotId } from '../../lib/mascot';
+import type { StoredMascotPack } from '../../lib/mascot-pack';
+import { MascotPacks } from './MascotPacks';
 import '../../styles/scenes.css';
 import '../../styles/scenes-anime.css';
 import '../../styles/mascot.css';
@@ -28,6 +30,8 @@ interface Props {
   easter: Settings['easter'];
   defaults: { appearance: Settings['appearance']; dial: Settings['dial']; previewBall: Settings['previewBall']; easter: Settings['easter'] };
   uploads: { filename: string; originalName: string }[];
+  packs: StoredMascotPack[];
+  studioUrl: string;
 }
 
 type Tab = 'theme' | 'background' | 'motion' | 'dial' | 'ball' | 'eggs';
@@ -55,6 +59,7 @@ export default function AppearanceManager(props: Props) {
   const [dial, setDial] = useState(props.dial);
   const [ball, setBall] = useState(props.previewBall);
   const [egg, setEgg] = useState(props.easter);
+  const [packs, setPacks] = useState(props.packs);
   const [saving, setSaving] = useState(false);
   const initial = useRef(JSON.stringify([props.appearance, props.dial, props.previewBall, props.easter]));
   const dirty = JSON.stringify([a, dial, ball, egg]) !== initial.current;
@@ -111,7 +116,7 @@ export default function AppearanceManager(props: Props) {
         </div>
       </div>
 
-      {tab === 'theme' && <ThemeTab a={a} setA={setA} uploads={props.uploads} />}
+      {tab === 'theme' && <ThemeTab a={a} setA={setA} uploads={props.uploads} packs={packs} setPacks={setPacks} studioUrl={props.studioUrl} />}
       {tab === 'background' && <BackgroundTab a={a} setA={setA} setBg={setBg} uploads={props.uploads} />}
       {tab === 'motion' && <MotionTab a={a} setA={setA} />}
       {tab === 'dial' && <DialTab dial={dial} setDial={setDial} />}
@@ -160,7 +165,9 @@ function PresetCard({ p, active, onPick }: { p: ThemePreset; active: boolean; on
 
 const ACCENTS = ['#315b50', '#4f6b2f', '#1f6e8c', '#496c96', '#4450a8', '#6b4fa0', '#b23c6f', '#a23b30', '#99694b', '#8a6a1f', '#1c1c1c'];
 
-function ThemeTab({ a, setA, uploads }: { a: AS; setA: (a: AS) => void; uploads: { filename: string; originalName: string }[] }) {
+type PackProps = { packs: StoredMascotPack[]; setPacks: (p: StoredMascotPack[]) => void; studioUrl: string };
+
+function ThemeTab({ a, setA, uploads, packs, setPacks, studioUrl }: { a: AS; setA: (a: AS) => void; uploads: { filename: string; originalName: string }[] } & PackProps) {
   return (
     <div class="stack">
       <section class="panel">
@@ -198,17 +205,18 @@ function ThemeTab({ a, setA, uploads }: { a: AS; setA: (a: AS) => void; uploads:
           </div>
         </div>
       </section>
-      <MascotPanel a={a} setA={setA} uploads={uploads} />
+      <MascotPanel a={a} setA={setA} uploads={uploads} packs={packs} setPacks={setPacks} studioUrl={studioUrl} />
     </div>
   );
 }
 
-function MascotPanel({ a, setA, uploads }: { a: AS; setA: (a: AS) => void; uploads: { filename: string; originalName: string }[] }) {
+function MascotPanel({ a, setA, uploads, packs, setPacks, studioUrl }: { a: AS; setA: (a: AS) => void; uploads: { filename: string; originalName: string }[] } & PackProps) {
   const m = a.mascot;
   const set = (patch: Partial<AS['mascot']>) => setA({ ...a, mascot: { ...m, ...patch } });
   const preset = getPreset(a.preset);
   const shown = m.mode === 'on' || (m.mode === 'preset' && !!preset.mascot);
   const character = m.character === 'preset' ? (preset.mascot ?? 'haru') : m.character;
+  const pack = character.startsWith('pack:') ? packs.find((p) => `pack:${p.id}` === character) : undefined;
   const withMascot = PRESETS.filter((p) => p.mascot).map((p) => `“${p.name}”`).join('、');
   const images = uploads.filter((u) => /\.(png|webp|gif|svg)$/i.test(u.filename));
   return (
@@ -216,13 +224,13 @@ function MascotPanel({ a, setA, uploads }: { a: AS; setA: (a: AS) => void; uploa
       <div class="panel-head">
         <div>
           <h2>看板娘</h2>
-          <p class="panel-sub">页面角落的小角色：点击打招呼，眼睛会跟着鼠标，可以拖到屏幕任意位置（访客各自记住位置，双击回到角落）。全部为本站原创形象；也可以换成你自己的角色立绘（建议透明背景 PNG / WebP）。宽度小于 900px 的屏幕和打印时自动隐藏。</p>
+          <p class="panel-sub">页面角落的小角色：点击打招呼（按时间和页面说不同的话），可以拖到屏幕任意位置——被拎起时会摆动，放下会轻轻弹一下，靠近屏幕边缘会吸附并探出头。访客各自记住位置，双击回到角落；挡住正文时自动变淡。内置角色为本站原创；也可以用素材工作室制作自己的角色包。宽度小于 900px 的屏幕和打印时自动隐藏。</p>
         </div>
       </div>
       <div class="mascot-cfg">
         <div class={`mascot-stage ${shown ? '' : 'is-off'}`} data-pos={m.position}>
-          <div class="mascot-demo" data-size={m.size} data-kind={m.imageUrl ? 'image' : character === 'chibi' ? 'chibi' : 'anime'}>
-            {m.imageUrl ? <img src={m.imageUrl} alt="" /> : <span dangerouslySetInnerHTML={{ __html: mascotSvg(character) }} />}
+          <div class="mascot-demo" data-size={m.size} data-kind={pack || m.imageUrl ? 'image' : character === 'chibi' ? 'chibi' : 'anime'}>
+            {pack?.urls.idle ? <img src={pack.urls.idle} alt="" /> : m.imageUrl ? <img src={m.imageUrl} alt="" /> : <span dangerouslySetInnerHTML={{ __html: mascotSvg(isMascotId(character) ? character : 'haru') }} />}
           </div>
           {!shown && <span class="mascot-off">当前主题下不显示</span>}
         </div>
@@ -245,8 +253,15 @@ function MascotPanel({ a, setA, uploads }: { a: AS; setA: (a: AS) => void; uploa
                   <strong>{c.name}</strong><small>{c.desc}</small>
                 </button>
               ))}
+              {packs.map((p) => (
+                <button type="button" role="radio" aria-checked={m.character === `pack:${p.id}`} class={`mascot-pick ${m.character === `pack:${p.id}` ? 'on' : ''}`} onClick={() => set({ character: `pack:${p.id}` })}>
+                  <span class="mascot-pick-art">{p.urls.idle && <img src={p.urls.idle} alt="" loading="lazy" />}</span>
+                  <strong>{p.name}</strong><small>自制角色包 · {Object.keys(p.urls).length} 个状态</small>
+                </button>
+              ))}
             </div>
           </div>
+          <MascotPacks studioUrl={studioUrl} packs={packs} setPacks={setPacks} selected={m.character} onSelect={(c) => set({ character: c, imageUrl: '' })} />
           <div class="grid-2">
             <div class="field">
               <span class="label">默认位置</span>
@@ -258,8 +273,8 @@ function MascotPanel({ a, setA, uploads }: { a: AS; setA: (a: AS) => void; uploa
             </div>
           </div>
           <Switch checked={m.draggable} onChange={(v) => set({ draggable: v })} label="允许访客拖动看板娘（键盘：聚焦后 Alt + 方向键；双击回到角落）" />
-          <div class="field">
-            <span class="label">自定义立绘（可选，会替换上面的角色）</span>
+          <details class="field">
+            <summary class="label">单张图片（旧方式，不推荐：没有表情和动作，假透明背景会显示成方块）</summary>
             <div class="row">
               <input value={m.imageUrl} placeholder="留空使用原创角色；/uploads/… 或 https://…" onInput={(e) => set({ imageUrl: e.currentTarget.value.trim() })} />
               {m.imageUrl && <button type="button" class="btn btn-ghost" onClick={() => set({ imageUrl: '' })}>恢复原创</button>}
@@ -273,8 +288,8 @@ function MascotPanel({ a, setA, uploads }: { a: AS; setA: (a: AS) => void; uploa
                 ))}
               </div>
             )}
-            <p class="hint">在“文件”页上传图片后可在此选择。使用动漫角色等他人作品时，请确认你拥有相应授权。</p>
-          </div>
+            <p class="hint">使用动漫角色等他人作品时，请确认你拥有相应授权。</p>
+          </details>
         </div>
       </div>
     </section>

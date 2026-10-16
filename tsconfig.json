@@ -1,7 +1,7 @@
 {
   "extends": "astro/tsconfigs/strict",
   "include": [".astro/types.d.ts", "**/*"],
-  "exclude": ["dist", "node_modules", "框架", "data"],
+  "exclude": ["dist", "node_modules", "框架", "data", "tools", "素材图"],
   "compilerOptions": {
     "jsx": "react-jsx",
     "jsxImportSource": "preact",

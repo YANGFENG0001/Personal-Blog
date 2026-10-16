@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FIELDNOTES 素材工作室</title>
+<link rel="stylesheet" href="/ui/studio.css" />
+</head>
+<body>
+<header class="top">
+  <div class="brand"><b>FIELDNOTES</b><span>素材工作室</span></div>
+  <nav class="tabs" role="tablist">
+    <button role="tab" class="on" data-tab="mascot">看板娘角色包</button>
+    <button role="tab" data-tab="asset">单张素材</button>
+    <button role="tab" data-tab="help">使用说明</button>
+  </nav>
+  <div class="ai" id="ai-status">检测 AI 抠图…</div>
+</header>
+
+<main>
+  <!-- ========== Mascot pack ========== -->
+  <section data-panel="mascot">
+    <div class="cols">
+      <aside class="side">
+        <h2>1. 状态图</h2>
+        <p class="hint">每个状态一张图：<b>同画布、同站位、只改表情 / 手势</b>。只有 idle 必需，其余缺省时自动用 idle。</p>
+        <div id="slots" class="slots"></div>
+
+        <h2>2. 抠图设置</h2>
+        <label>方式
+          <select id="mode">
+            <option value="auto">自动（推荐）：算法优先，复杂背景用 AI</option>
+            <option value="algo">只用算法（假棋盘格 / 纯色背景）</option>
+            <option value="both">算法 + AI 取交集（最干净）</option>
+            <option value="ai">只用 AI 模型</option>
+            <option value="none">不抠图（已是透明 PNG）</option>
+          </select>
+        </label>
+        <label>AI 模型
+          <select id="model">
+            <option value="anime">二次元角色（ISNet，约 170MB）</option>
+            <option value="general">通用小模型（U²-Net-p，约 4.6MB）</option>
+          </select>
+        </label>
+        <label>容差 <output id="tol-out">自动</output>
+          <input id="tol" type="range" min="0" max="60" value="0" />
+        </label>
+        <label>指定背景色（纯色 / 绿幕时可选）
+          <input id="key" type="color" value="#00ff00" /> <input id="use-key" type="checkbox" /> 使用
+        </label>
+      </aside>
+
+      <section class="stage">
+        <div class="stage-bar">
+          <span id="stage-title">选择左侧一个状态开始</span>
+          <div class="seg" id="bg-seg">
+            <button data-bg="checker" class="on">棋盘</button>
+            <button data-bg="#f3f6fa">浅色</button>
+            <button data-bg="#1a2038">深色</button>
+            <button data-bg="scene">场景</button>
+          </div>
+          <div class="seg" id="view-seg">
+            <button data-view="result" class="on">结果</button>
+            <button data-view="original">原图</button>
+            <button data-view="split">对比</button>
+          </div>
+        </div>
+        <div class="canvas-wrap" id="wrap">
+          <canvas id="cv"></canvas>
+          <div class="drop" id="drop">把图片拖到这里，或点击左侧状态的“选择图片”</div>
+        </div>
+        <div class="tools">
+          <span>修补画笔</span>
+          <div class="seg" id="brush-seg">
+            <button data-brush="off" class="on">关闭</button>
+            <button data-brush="erase">擦除（去残留）</button>
+            <button data-brush="restore">恢复（找回误删）</button>
+          </div>
+          <label>大小 <input id="bsize" type="range" min="2" max="80" value="18" /></label>
+          <button id="undo">撤销</button>
+          <button id="apply" class="primary">应用修补</button>
+          <span id="stat" class="stat"></span>
+        </div>
+      </section>
+
+      <aside class="side">
+        <h2>3. 角色设定</h2>
+        <label>名字 <input id="m-name" value="我的看板娘" maxlength="40" /></label>
+        <label>作者 <input id="m-author" maxlength="60" /></label>
+        <label>授权说明 <input id="m-license" maxlength="120" placeholder="例：原创 / 已获授权 / CC BY 4.0" /></label>
+        <label>显示方式
+          <select id="m-mode">
+            <option value="full">全身</option>
+            <option value="bust">半身（底部渐隐）</option>
+            <option value="peek">探头（只露出头部）</option>
+          </select>
+        </label>
+        <label>显示高度（px）<input id="m-height" type="number" min="80" max="520" value="240" /></label>
+        <label class="row"><input id="m-flip" type="checkbox" /> 水平翻转</label>
+        <label class="row"><input id="m-shadow" type="checkbox" checked /> 脚下阴影</label>
+        <label>描边
+          <select id="m-outline"><option value="soft">柔和</option><option value="white">白色描边</option><option value="none">无</option></select>
+        </label>
+        <label class="row"><input id="m-breathe" type="checkbox" checked /> 呼吸</label>
+        <label class="row"><input id="m-sway" type="checkbox" checked /> 轻微摇摆</label>
+        <label class="row"><input id="m-swing" type="checkbox" checked /> 拖动时摆动</label>
+
+        <h2>4. 台词</h2>
+        <p class="hint">每行一句，最多 60 字。没填的分组会用“点击”的台词。</p>
+        <div id="lines"></div>
+
+        <button id="export" class="primary big">导出角色包 .zip</button>
+        <p class="hint">导出后到网站：外观与主题 → 看板娘 → 导入角色包。</p>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ========== Single asset ========== -->
+  <section data-panel="asset" hidden>
+    <div class="cols two">
+      <aside class="side">
+        <h2>单张素材</h2>
+        <p class="hint">贴纸、粒子、光标、背景等。贴纸“合集图”可以自动切成单张。</p>
+        <label>素材类型
+          <select id="a-kind">
+            <option value="sticker">贴纸 / 装饰（≤480px）</option>
+            <option value="particle">粒子小图（≤64px）</option>
+            <option value="cursor">光标（≤32px）</option>
+            <option value="background">背景图层（宽 1920，不抠图）</option>
+            <option value="cover">主题封面（宽 640，不抠图）</option>
+          </select>
+        </label>
+        <input id="a-file" type="file" accept="image/*" />
+        <button id="a-split">自动切分合集</button>
+        <div id="a-pieces" class="pieces"></div>
+      </aside>
+      <section class="stage">
+        <div class="canvas-wrap checker" id="a-wrap"><img id="a-img" alt="" /></div>
+        <div class="tools"><button id="a-webp" class="primary">导出 WebP</button><button id="a-png">导出 PNG</button><span id="a-stat" class="stat"></span></div>
+      </section>
+    </div>
+  </section>
+
+  <section data-panel="help" hidden class="help">
+    <h2>为什么上传的“透明图”还是一个方块？</h2>
+    <p>很多生图模型会把“透明背景”画成一张<b>灰白棋盘格的图片</b>，看起来透明，其实每个像素都是不透明的。网站拿到它只能原样显示。本工具会识别这种假棋盘格并把它去掉。</p>
+    <h2>推荐的生图方式</h2>
+    <ol>
+      <li>不要要求“透明背景”。改为：<code>纯绿色背景 #00FF00，无阴影，无渐变，人物与背景边界清晰</code>（人物身上没有绿色时）或<code>纯白背景</code>。</li>
+      <li>同一个角色的所有状态图：同尺寸、同站位、同光源，只改表情和手势。</li>
+      <li>把图拖进本工具 → 检查 → 用画笔修补 → 导出角色包。</li>
+    </ol>
+    <h2>AI 抠图</h2>
+    <p>算法处理不了的复杂背景（照片、场景插画）需要 AI 模型。首次使用会下载模型到 <code>~/.fieldnotes-studio/models</code>（国内自动走镜像）。需要先在本目录运行 <code>npm install</code>（会安装 onnxruntime-node）。</p>
+    <h2>隐私</h2>
+    <p>本工具只在你的电脑上运行（127.0.0.1），图片不会上传到任何地方。</p>
+  </section>
+</main>
+<script type="module" src="/ui/studio.js"></script>
+</body>
+</html>

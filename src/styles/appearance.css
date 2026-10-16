@@ -218,3 +218,38 @@
 .mascot-pick strong { font-size: 13px; margin-top: 6px; }
 .mascot-pick small { font-size: 11px; color: var(--muted); line-height: 1.5; padding: 0 8px; }
 .mini-mascot .mascot-svg.ms-anime { filter: none; }
+
+/* Mascot packs */
+.mascot-pick-art img { max-height: 92px; max-width: 100%; object-fit: contain; }
+.mp { display: grid; gap: 12px; padding: 14px; border: 1px dashed var(--line); border-radius: var(--r-lg); background: color-mix(in srgb, var(--pane) 60%, transparent); }
+.mp-studio { display: grid; grid-template-columns: auto 1fr; gap: 12px; padding: 12px 14px; border-radius: var(--r); background: color-mix(in srgb, var(--accent) 7%, var(--surface)); border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line)); color: var(--accent); }
+.mp-studio strong { color: var(--ink); font-size: 13px; }
+.mp-studio p { margin: 4px 0 8px; font-size: 12px; color: var(--muted); line-height: 1.7; }
+.mp-studio b { color: var(--ink); }
+.mp-cmd { font-size: 11px; color: var(--muted); }
+.mp-head { display: flex; justify-content: space-between; align-items: center; }
+.mp-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.mp-item { display: grid; grid-template-columns: 76px 1fr; gap: 12px; padding: 10px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+.mp-item.on { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent); }
+.mp-thumb { width: 76px; height: 96px; padding: 0; border: 0; border-radius: var(--r-sm); cursor: pointer; display: flex; align-items: flex-end; justify-content: center; overflow: hidden;
+  background: repeating-conic-gradient(color-mix(in srgb, var(--ink) 6%, transparent) 0 25%, transparent 0 50%) 0 0 / 12px 12px; }
+.mp-thumb img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.mp-meta { display: grid; gap: 2px; align-content: start; }
+.mp-meta small { color: var(--faint); font-size: 11px; }
+.mp-edit { grid-column: 1 / -1; display: grid; grid-template-columns: 220px 1fr; gap: 18px; padding-top: 10px; border-top: 1px solid var(--line); }
+.mp-preview { display: grid; gap: 8px; align-content: start; }
+.seg-mini { display: flex; flex-wrap: wrap; gap: 4px; }
+.seg-mini button { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); cursor: pointer; }
+.seg-mini button.on { color: var(--accent); border-color: var(--accent); }
+.mp-stage { position: relative; height: 280px; display: flex; align-items: flex-end; justify-content: center; border-radius: var(--r); overflow: hidden;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 14%, var(--surface)), var(--surface)); border: 1px solid var(--line); }
+.mp-stage img { max-height: 100%; max-width: 100%; object-fit: contain; display: block; }
+.mp-stage.flip img { transform: scaleX(-1); }
+.mp-stage.mode-bust img { -webkit-mask: linear-gradient(180deg, #000 72%, transparent 98%); mask: linear-gradient(180deg, #000 72%, transparent 98%); }
+/* the dot is positioned against the stage, which matches the image box when the image fills the height */
+.mp-bubble-dot { position: absolute; translate: -50% -50%; font-size: 18px; pointer-events: none; filter: drop-shadow(0 1px 2px #0004); }
+.mp-lines summary { cursor: pointer; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+.mp-lines textarea { width: 100%; font-size: 12px; }
+@media (max-width: 720px) { .mp-edit { grid-template-columns: 1fr; } }
+.mp-fig { position: relative; height: 100%; max-width: 100%; cursor: crosshair; }
+.mp-fig img { width: 100%; height: 100%; }

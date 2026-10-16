@@ -26,7 +26,7 @@ export interface AppearanceSettings {
   };
   iconMotion: boolean;
   cardMotion: boolean;
-  mascot: { mode: 'preset' | 'on' | 'off'; character: 'preset' | 'haru' | 'sora' | 'chibi'; draggable: boolean; imageUrl: string; position: 'right' | 'left'; size: 'sm' | 'md' | 'lg' };
+  mascot: { mode: 'preset' | 'on' | 'off'; character: string; draggable: boolean; imageUrl: string; position: 'right' | 'left'; size: 'sm' | 'md' | 'lg' };
 }
 
 export interface ResolvedAppearance {
@@ -34,8 +34,11 @@ export interface ResolvedAppearance {
   attrs: Record<string, string>;
   style: string;
   bg: { type: string; effect: string | null; intensity: string; scene: string | null };
-  /** Mascot to render, or null. imageUrl '' means the built-in original mascot. */
-  mascot: { character: 'haru' | 'sora' | 'chibi'; draggable: boolean; imageUrl: string; position: 'right' | 'left'; size: 'sm' | 'md' | 'lg' } | null;
+  /**
+   * Mascot to render, or null. character is a built-in id or `pack:<id>`
+   * (resolved server-side by the layout). imageUrl is a legacy single-image override.
+   */
+  mascot: { character: string; draggable: boolean; imageUrl: string; position: 'right' | 'left'; size: 'sm' | 'md' | 'lg' } | null;
 }
 
 const DOT = '<circle cx="12" cy="12" r="3.5" fill="ACCENT"/>';

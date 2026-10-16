@@ -119,6 +119,7 @@ export function startEggs(cfg: EggConfig, ctx: { isArticle: boolean; is404: bool
         if (entries.some((x) => x.isIntersecting) && scrollY > 400) {
           io.disconnect();
           note('读完啦，谢谢你认真看到这里。');
+          dispatchEvent(new CustomEvent('fn:read-end'));
           play('firework', set());
         }
       }, { threshold: 0.6 });

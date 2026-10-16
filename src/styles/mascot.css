@@ -111,3 +111,77 @@ body:has(.mascot[data-pos='right'][data-size='sm']:not([hidden]):not(.is-free)) 
 body:has(.mascot[data-kind='anime'][data-pos='right']:not([hidden]):not(.is-free)) .to-top { right: 182px; }
 body:has(.mascot[data-kind='anime'][data-pos='right'][data-size='lg']:not([hidden]):not(.is-free)) .to-top { right: 226px; }
 body:has(.mascot[data-kind='anime'][data-pos='right'][data-size='sm']:not([hidden]):not(.is-free)) .to-top { right: 148px; }
+
+/* ---------- Mascot packs (state images) ---------- */
+.mascot-body { display: block; position: relative; transform-origin: 50% 0; }
+.mascot[data-kind='pack'] { --ms-h: 240px; width: auto; }
+.mascot[data-kind='pack'][data-size='sm'] { --ms-scale: 0.78; }
+.mascot[data-kind='pack'][data-size='lg'] { --ms-scale: 1.25; }
+.mascot[data-kind='pack'] .mascot-btn { width: calc(var(--ms-h) * var(--ms-scale, 1) * var(--ms-ratio, 0.6)); }
+.mascot-frames { display: grid; }
+.mascot-frame {
+  grid-area: 1 / 1; display: block; width: 100%; height: auto; pointer-events: none; user-select: none;
+  opacity: 0; transition: opacity 90ms linear;
+}
+/* Show the frame for the current state; fall back to idle when a state has no image. */
+.mascot-frame[data-frame='idle'] { opacity: 1; }
+.mascot[data-state='talk'] .mascot-frames:has([data-frame='talk']) .mascot-frame[data-frame='idle'],
+.mascot[data-state='happy'] .mascot-frames:has([data-frame='happy']) .mascot-frame[data-frame='idle'],
+.mascot[data-state='held'] .mascot-frames:has([data-frame='held']) .mascot-frame[data-frame='idle'],
+.mascot[data-state='sleep'] .mascot-frames:has([data-frame='sleep']) .mascot-frame[data-frame='idle'],
+.mascot[data-state='blink'] .mascot-frames:has([data-frame='blink']) .mascot-frame[data-frame='idle'] { opacity: 0; }
+.mascot[data-state='talk'] .mascot-frame[data-frame='talk'],
+.mascot[data-state='happy'] .mascot-frame[data-frame='happy'],
+.mascot[data-state='held'] .mascot-frame[data-frame='held'],
+.mascot[data-state='sleep'] .mascot-frame[data-frame='sleep'],
+.mascot[data-state='blink'] .mascot-frame[data-frame='blink'] { opacity: 1; }
+.mascot[data-state='blink'] .mascot-frame { transition: none; }
+.mascot[data-flip] .mascot-frames { transform: scaleX(-1); }
+
+/* Outline so the figure reads on any background. */
+.mascot[data-outline='soft'] .mascot-frames { filter: drop-shadow(0 0 1px color-mix(in srgb, var(--bg) 85%, transparent)) drop-shadow(0 4px 10px color-mix(in srgb, var(--ink) 16%, transparent)); }
+.mascot[data-outline='white'] .mascot-frames { filter: drop-shadow(1.5px 0 0 #fff) drop-shadow(-1.5px 0 0 #fff) drop-shadow(0 1.5px 0 #fff) drop-shadow(0 -1.5px 0 #fff) drop-shadow(0 4px 10px color-mix(in srgb, var(--ink) 18%, transparent)); }
+
+/* Bust: the lower part fades out instead of ending in a hard edge. */
+.mascot[data-display='bust'] .mascot-frames { -webkit-mask: linear-gradient(180deg, #000 72%, transparent 98%); mask: linear-gradient(180deg, #000 72%, transparent 98%); }
+
+/* Ground shadow, shrinks while she is lifted. */
+.mascot-shadow {
+  position: absolute; left: 50%; bottom: calc((1 - var(--ms-base, 1)) * 100% - 4px); width: 56%; height: 10px; translate: -50% 0;
+  border-radius: 50%; background: radial-gradient(closest-side, color-mix(in srgb, var(--ink) 22%, transparent), transparent); pointer-events: none;
+  transition: transform 0.25s var(--ease), opacity 0.25s;
+}
+.mascot[data-shadow='false'] .mascot-shadow, .mascot:not([data-kind='pack']) .mascot-shadow { display: none; }
+.mascot.is-dragging .mascot-shadow { transform: scale(0.55); opacity: 0.4; }
+.mascot.is-dragging .mascot-btn { transform: none; }
+
+/* Bubble anchored at the pack's bubble point. */
+.mascot[data-kind='pack'] .mascot-bubble { bottom: auto; top: calc(var(--ms-by, 0.05) * 100% - 12px); translate: 0 -100%; right: calc((1 - var(--ms-bx, 0.5)) * 100% - 24px); }
+.mascot[data-kind='pack'][data-pos='left']:not([data-bubble]) .mascot-bubble, .mascot[data-kind='pack'][data-bubble='right'] .mascot-bubble { right: auto; left: calc(var(--ms-bx, 0.5) * 100% - 24px); }
+
+/* Landing bounce after a drop. */
+.mascot.is-landing .mascot-body { animation: ms-land 0.5s var(--spring); transform-origin: 50% 100%; }
+@keyframes ms-land { 0% { transform: scale(1.04, 0.94); } 45% { transform: scale(0.97, 1.03) translateY(-4px); } 100% { transform: none; } }
+
+/* Peek from a screen edge: only the head shows until clicked or hovered. */
+.mascot[data-edge='left'] .mascot-btn { transform: translateX(calc(-100% + var(--ms-hx, 0.5) * 100% + 34px)) rotate(12deg); transform-origin: 0 100%; }
+.mascot[data-edge='right'] .mascot-btn { transform: translateX(calc(var(--ms-hx, 0.5) * 100% - 34px)) rotate(-12deg); transform-origin: 100% 100%; }
+.mascot[data-edge]:hover .mascot-btn, .mascot[data-edge].is-out .mascot-btn, .mascot[data-edge].is-dragging .mascot-btn { transform: none; }
+.mascot[data-edge] .mascot-btn { transition: transform calc(0.45s * var(--dur)) var(--spring); }
+
+/* Shy: shrink and fade when covering article text. */
+.mascot.is-shy:not(:hover) { opacity: 0.35; }
+.mascot.is-shy:not(:hover) .mascot-btn { transform: scale(0.72); transform-origin: 100% 100%; }
+.mascot { transition: opacity 0.3s; }
+
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion='off']) .mascot[data-kind='pack']:not([data-breathe='off']) .mascot-frames { animation: ms-breathe-img 4.8s ease-in-out infinite; transform-origin: 50% 100%; }
+  :root:not([data-motion='off']) .mascot[data-kind='pack']:not([data-sway='off']):not(.is-dragging) .mascot-body { animation: ms-sway-img 7s ease-in-out infinite; transform-origin: 50% 100%; }
+  :root:not([data-motion='off']) .mascot[data-kind='pack'].is-talking:not(.is-dragging) .mascot-body { animation: ms-hop-img 0.45s var(--spring); }
+  :root:not([data-motion='off']) .mascot[data-kind='image'] .mascot-btn img { animation: ms-breathe-img 4.8s ease-in-out infinite; transform-origin: 50% 100%; }
+}
+.mascot[data-flip][data-kind='pack'] .mascot-frames { animation-name: ms-breathe-img-flip; }
+@keyframes ms-breathe-img { 50% { transform: scale(1.008, 1.016); } }
+@keyframes ms-breathe-img-flip { 0%, 100% { transform: scaleX(-1); } 50% { transform: scale(-1.008, 1.016); } }
+@keyframes ms-sway-img { 0%, 100% { transform: rotate(0); } 30% { transform: rotate(-0.8deg); } 70% { transform: rotate(0.8deg); } }
+@keyframes ms-hop-img { 40% { transform: translateY(-8px); } }

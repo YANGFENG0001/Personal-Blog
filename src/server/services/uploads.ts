@@ -26,7 +26,7 @@ export function sniff(buf: Buffer): { mime: string; ext: string } | null {
   return hit ? { mime: hit.mime, ext: hit.ext } : null;
 }
 
-export function saveUpload(buf: Buffer, originalName: string) {
+export function saveUpload(buf: Buffer, originalName: string, packId: string | null = null) {
   if (buf.length === 0) throw badRequest('文件为空');
   if (buf.length > MAX_UPLOAD) throw badRequest(`文件不能超过 ${MAX_UPLOAD / 1024 / 1024}MB`);
   const type = sniff(buf);
@@ -36,8 +36,8 @@ export function saveUpload(buf: Buffer, originalName: string) {
   fs.writeFileSync(path.join(uploadsDir(), filename), buf, { flag: 'wx' });
   const id = newId();
   getDb()
-    .prepare('INSERT INTO uploads (id, filename, original_name, mime, size, created_at) VALUES (?, ?, ?, ?, ?, ?)')
-    .run(id, filename, originalName.slice(0, 200), type.mime, buf.length, now());
+    .prepare('INSERT INTO uploads (id, filename, original_name, mime, size, created_at, pack_id) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .run(id, filename, originalName.slice(0, 200), type.mime, buf.length, now(), packId);
   return { id, url: `/uploads/${filename}`, mime: type.mime, size: buf.length };
 }
 
@@ -52,8 +52,34 @@ export function readUpload(filename: string): { buf: Buffer; mime: string } {
 
 export function listUploads() {
   return getDb()
-    .prepare('SELECT id, filename, original_name AS originalName, mime, size, created_at AS createdAt FROM uploads ORDER BY created_at DESC LIMIT 200')
+    .prepare('SELECT id, filename, original_name AS originalName, mime, size, created_at AS createdAt FROM uploads WHERE pack_id IS NULL ORDER BY created_at DESC LIMIT 200')
     .all() as { id: string; filename: string; originalName: string; mime: string; size: number; createdAt: string }[];
+}
+
+/** Remove the files of a mascot pack (rows go with the pack via ON DELETE CASCADE). */
+export function deletePackFiles(packId: string): void {
+  const rows = getDb().prepare('SELECT filename FROM uploads WHERE pack_id = ?').all(packId) as { filename: string }[];
+  for (const r of rows) fs.rmSync(path.join(uploadsDir(), r.filename), { force: true });
+}
+
+/** Whether an image has a real alpha channel with transparent pixels (PNG/WebP header check + sample). */
+export function hasTransparency(buf: Buffer): boolean | null {
+  const type = sniff(buf);
+  if (!type) return null;
+  if (type.ext === 'jpg') return false;
+  if (type.ext === 'png') {
+    // IHDR colour type at byte 25: 4 = grey+alpha, 6 = RGBA; a tRNS chunk also means transparency.
+    const ct = buf[25];
+    return ct === 4 || ct === 6 || buf.includes(Buffer.from('tRNS'));
+  }
+  if (type.ext === 'webp') {
+    // VP8X chunk flags: alpha bit 0x10; VP8L has an alpha hint bit.
+    const chunk = buf.subarray(12, 16).toString('ascii');
+    if (chunk === 'VP8X') return (buf[20]! & 0x10) !== 0;
+    if (chunk === 'VP8L') return ((buf[24]! >> 4) & 1) === 1;
+    return false;
+  }
+  return null;
 }
 
 export function deleteUpload(id: string): void {
