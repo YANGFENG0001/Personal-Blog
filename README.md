@@ -91,11 +91,31 @@ src/
   components/owner   编辑器、任务板、分站管理、展示模块、设置、知识库、论文（Preact）
   pages/             公开路由、/owner/*、/api/owner/*（全部经中间件鉴权和 CSRF 校验）
   middleware.ts      会话解析、权限拦截、安全头
-scripts/             create-owner / migrate / backup / smoke.sh
+scripts/             create-owner / migrate / backup / smoke.sh / theme-check
+tools/asset-studio/  本地素材工作室：抠图（算法 + 可选 AI）、修补、看板娘角色包、贴纸切分
+skills/              给其他 AI 用的素材 / 主题制作规范（fieldnotes-theme-pack）
 tests/               unit / integration / e2e
 docs/                部署、架构与决策记录
 框架/                原始需求书与 V4 原型（仅供参考）
 ```
+
+## 主题与看板娘 DIY
+
+- **主题工作室**（工作台 → 主题工作室）：从任一内置主题复制后修改。
+  - 可改的内容：配色、字体（可上传 woff2）、圆角阴影、最多 6 层背景、粒子、装饰贴纸、光标、彩蛋和看板娘。
+  - 自定义 CSS：先导出，修改后再导入，导入时会做安全检查。
+  - 主题可以导出为 `.theme.json` 分享给别人。
+  - 可以设置主题轮换：每天随机、按天轮换，或按时间和日期规则切换。
+  - 彩蛋主题：访客触发 Konami 秘籍、连点标识、输入关键词等条件后，临时切换到指定主题。
+- **看板娘角色包**（外观与主题 → 看板娘 → 导入角色包）：
+  - 包含多个状态图和台词。
+  - 访客可以拖动看板娘：拖起时会摆动，放下会回弹，靠近屏幕边缘会吸附并探出头。
+- **素材工作室**（`tools/asset-studio`，在本地运行）：
+  - 生图模型给的“透明 PNG”通常是假棋盘格，需要先用它处理。
+  - 启动：`cd tools/asset-studio && npm install && npm start`，然后打开 http://127.0.0.1:4777。
+  - 后台里“下载素材工作室”的链接由环境变量 `REPO_URL` 决定。
+- **让其他 AI 产出素材**：把 `skills/fieldnotes-theme-pack/` 交给它，里面有素材规格、提示词模板和打包格式。
+  - 导入前可以检查主题文件：`npm run theme:check 主题.theme.json`。
 
 ## 数据安全提示
 

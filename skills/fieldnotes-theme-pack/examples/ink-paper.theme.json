@@ -1,0 +1,30 @@
+{
+  "format": "fieldnotes-theme@1",
+  "name": "墨韵 · 纸墨札记",
+  "description": "示例主题：在内置“墨韵”上叠加纸墨背景、墨滴贴纸与水墨分隔线。演示图层、贴纸、字体排版与少量自定义 CSS 的写法。",
+  "author": "FIELDNOTES",
+  "version": "1.0.0",
+  "base": "ink",
+  "palette": {
+    "light": { "bg": "#f6f4ee", "surface": "#fdfcf8", "ink": "#25292a", "muted": "#5a605e", "faint": "#6a706d", "line": "#e2e0d6", "pane": "#efede5", "accent": "#2f5a4d", "tint": "#e6ece6" }
+  },
+  "typography": { "display": "serif", "body": "sans", "scale": 1, "lineHeight": 2, "headingWeight": 700, "letterSpacing": 0.04 },
+  "shape": { "radius": "soft", "border": 1, "shadow": "paper" },
+  "background": {
+    "use": "layers",
+    "layers": [
+      { "kind": "image", "src": "/uploads/REPLACE-paper-bg.webp", "position": "center", "size": "cover", "opacity": 1, "mode": "light" },
+      { "kind": "texture", "texture": "paper", "opacity": 0.5 }
+    ],
+    "readingPanel": 0.88,
+    "blur": 4
+  },
+  "particles": { "use": "none" },
+  "stickers": [
+    { "slot": "hero", "src": "/uploads/REPLACE-ink-drop.webp", "size": 110, "opacity": 0.85, "rotate": -8 },
+    { "slot": "divider", "src": "/uploads/REPLACE-seal.webp", "size": 28, "opacity": 0.8 },
+    { "slot": "empty", "src": "/uploads/REPLACE-bookmark.webp", "size": 96 }
+  ],
+  "eggSet": "ink",
+  "css": ".post-title {\n  letter-spacing: 0.03em;\n}\n\n.prose blockquote {\n  border-left-color: var(--accent);\n  background: color-mix(in srgb, var(--accent) 5%, transparent);\n}\n"
+}
