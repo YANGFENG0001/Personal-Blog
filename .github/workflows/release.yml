@@ -232,6 +232,9 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          # 需要完整历史才能找到上一个 tag，用来生成 compare 链接
+          fetch-depth: 0
 
       - name: 打包部署文件
         shell: bash
@@ -243,35 +246,56 @@ jobs:
           zip -q -j "$out" docker-compose.yml Caddyfile .env.example
           unzip -l "$out"
 
+      # 注意：GitHub API 不允许同时传 body 和 generate_release_notes（422），
+      # 所以这里自己拼正文，并把上一版本的 compare 链接写进去。
+      - name: 生成发布说明
+        shell: bash
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+          TAG: ${{ needs.verify.outputs.tag }}
+          IMAGE: ${{ needs.verify.outputs.image }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          git fetch --tags --force --quiet || true
+          prev=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)
+
+          {
+            echo "## 镜像"
+            echo
+            echo '```bash'
+            echo "docker pull ${IMAGE}:${VERSION}"
+            echo '```'
+            echo
+            echo "| 标签 | 架构 |"
+            echo "| --- | --- |"
+            echo "| \`${VERSION}\` / \`latest\` | amd64 + arm64（manifest list） |"
+            echo "| \`${VERSION}-amd64\` | 仅 amd64 |"
+            echo "| \`${VERSION}-arm64\` | 仅 arm64 |"
+            echo
+            echo "## 升级"
+            echo
+            echo '```bash'
+            echo "APP_IMAGE=${IMAGE}:${VERSION} \\"
+            echo "  docker compose pull app && docker compose up -d"
+            echo '```'
+            echo
+            echo "数据库迁移在容器启动时自动执行（幂等）；回滚只需把版本号改回旧 tag 再 \`up -d\`。升级前先备份 \`data/\` 目录。"
+            echo
+            if [ -n "$prev" ]; then
+              echo "**完整变更**：[\`${prev}...${TAG}\`](https://github.com/${REPO}/compare/${prev}...${TAG})"
+            else
+              echo "**完整变更**：[\`${TAG}\`](https://github.com/${REPO}/releases/tag/${TAG})"
+            fi
+            echo
+            echo "部署细节见 [docs/deploy.md](https://github.com/${REPO}/blob/main/docs/deploy.md)、[docs/release.md](https://github.com/${REPO}/blob/main/docs/release.md)。"
+          } > RELEASE_BODY.md
+
+          cat RELEASE_BODY.md
+
       - uses: softprops/action-gh-release@v2
         with:
           name: fieldnotes ${{ needs.verify.outputs.tag }}
-          generate_release_notes: true
           fail_on_unmatched_files: true
           files: fieldnotes-${{ needs.verify.outputs.version }}-deploy.zip
-          body: |
-            ## 镜像
-
-            ```bash
-            docker pull ${{ needs.verify.outputs.image }}:${{ needs.verify.outputs.version }}
-            ```
-
-            | 标签 | 架构 |
-            | --- | --- |
-            | `${{ needs.verify.outputs.version }}` / `latest` | amd64 + arm64（manifest list） |
-            | `${{ needs.verify.outputs.version }}-amd64` | 仅 amd64 |
-            | `${{ needs.verify.outputs.version }}-arm64` | 仅 arm64 |
-
-            ## 升级
-
-            在服务器项目目录里改 `.env` 的镜像版本，然后重建：
-
-            ```bash
-            APP_IMAGE=${{ needs.verify.outputs.image }}:${{ needs.verify.outputs.version }} \
-              docker compose pull app && docker compose up -d
-            ```
-
-            数据库迁移在容器启动时自动执行（幂等），回滚只需把版本号改回旧 tag 再 `up -d`。
-            升级前请先备份 `data/` 目录。
-
-            部署细节见 [docs/deploy.md](https://github.com/${{ github.repository }}/blob/main/docs/deploy.md)。
+          body_path: RELEASE_BODY.md
