@@ -158,6 +158,22 @@ server {
 - `data/` 目录属主必须是 `1000:1000`（容器内 node 用户），否则启动报 `SQLITE_CANTOPEN`。
 - `DOMAIN` 即使不用 Caddy 也得在 `.env` 里有值，否则 compose 解析 `${DOMAIN:?}` 会直接报错。
 
+### 域名走 Cloudflare 代理（橙色云）
+
+代理模式下浏览器连的是 Cloudflare，源站只跟 CF 通信，证书仍然可以直接在源站签：
+
+```bash
+apt-get install -y certbot python3-certbot-nginx
+certbot certonly --nginx -d blog.example.com --agree-tos --register-unsafely-without-email
+```
+
+HTTP-01 校验能穿过 CF，前提是 CF 到源站走的是 80。三个注意点：
+
+1. **SSL/TLS 模式设成 Full (strict)**。Flexible 会让 CF 用明文回源，等于 HTTPS 只做了半程；
+   而在 Flexible 期间，源站 80 不要直接 `return 301`，否则会绕成重定向死循环。
+2. 加一段 `set_real_ip_from` + `real_ip_header CF-Connecting-IP;`，否则限流和日志看到的全是 CF 节点 IP。
+3. nginx 1.24（Ubuntu 24.04）不支持 `http2 on;`，只能写 `listen 443 ssl http2;`。
+
 ## 7. “连续在线”统计（可选）
 
 应用每 5 分钟会写一次心跳。如果希望“连续在线”反映外部真实的可用性：
