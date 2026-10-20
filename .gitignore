@@ -38,6 +38,3 @@ tools/asset-studio/out/
 # scratch / one-off debugging artifacts
 .tmp-*
 .merkle-snapshot.json
-
-# 原始素材：体积大且不参与构建，成品已落到 data/ 与 public/
-素材图/
