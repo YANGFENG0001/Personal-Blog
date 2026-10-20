@@ -1,6 +1,6 @@
 {
   "name": "fieldnotes",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "type": "module",
   "description": "个人博客与 AI 学习研究平台：公开博客 + 站主私人工作台",

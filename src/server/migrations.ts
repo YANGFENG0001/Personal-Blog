@@ -291,6 +291,13 @@ CREATE TABLE custom_theme_versions (
 CREATE INDEX custom_theme_versions_theme ON custom_theme_versions(theme_id, id);
 `,
   },
+  {
+    id: 5,
+    name: 'login-attempts-expiry-index',
+    sql: `
+CREATE INDEX login_attempts_at ON login_attempts(at);
+`,
+  },
 ];
 
 export function migrate(db: Db): number[] {
