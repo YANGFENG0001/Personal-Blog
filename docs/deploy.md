@@ -114,6 +114,50 @@ docker compose pull app && docker compose up -d
 
 镜像标签规则、发版流程见 [release.md](release.md)。如果仓库是私有的，需要先执行 `docker login ghcr.io`。
 
+### 服务器上已经有 nginx（80 端口被占用）
+
+`docker-compose.yml` 里的 Caddy 需要 80/443，会和宿主机 nginx 抢端口。这种情况只跑 app，让 nginx 反代过去：
+
+```yaml
+# docker-compose.override.yml —— 只绑定回环，不对外暴露
+services:
+  app:
+    ports:
+      - "127.0.0.1:4321:4321"
+```
+
+```nginx
+# /etc/nginx/sites-available/fieldnotes
+server {
+    listen 80 default_server;
+    server_name _;
+    client_max_body_size 12m;
+
+    location /_astro/ {
+        proxy_pass http://127.0.0.1:4321;
+        proxy_set_header Host $host;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:4321;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+启动时只起 app，别把 Caddy 拉起来：`docker compose up -d app`。
+走 HTTP 时 `.env` 要设 `COOKIE_SECURE=false`，拿到证书后改回 `true`。
+
+两个容易踩的坑：
+
+- `data/` 目录属主必须是 `1000:1000`（容器内 node 用户），否则启动报 `SQLITE_CANTOPEN`。
+- `DOMAIN` 即使不用 Caddy 也得在 `.env` 里有值，否则 compose 解析 `${DOMAIN:?}` 会直接报错。
+
 ## 7. “连续在线”统计（可选）
 
 应用每 5 分钟会写一次心跳。如果希望“连续在线”反映外部真实的可用性：
