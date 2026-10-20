@@ -174,6 +174,48 @@ HTTP-01 校验能穿过 CF，前提是 CF 到源站走的是 80。三个注意�
 2. 加一段 `set_real_ip_from` + `real_ip_header CF-Connecting-IP;`，否则限流和日志看到的全是 CF 节点 IP。
 3. nginx 1.24（Ubuntu 24.04）不支持 `http2 on;`，只能写 `listen 443 ssl http2;`。
 
+#### 自查 TLS 配置
+
+代理模式下有两段独立的 TLS，浏览器看到的证书属于 CF 边缘，不是源站签的那张：
+
+| | 边缘（浏览器 ↔ CF） | 源站（CF ↔ nginx） |
+| --- | --- | --- |
+| 证书 | CF 通用证书，覆盖 `*.example.com` | certbot 签发的 `blog.example.com` |
+| 查看方式 | 浏览器锁形图标 / DevTools Security | `openssl s_client -connect <源站IP>:443 -servername blog.example.com` |
+
+命令行核对（`-servername` 不能省，否则 SNI 为空会被源站拒绝握手）：
+
+```bash
+# 协商结果
+echo | openssl s_client -connect blog.example.com:443 -servername blog.example.com 2>/dev/null \
+  | grep -E "Protocol|Cipher|subject=|issuer="
+
+# 证书有效期与 SAN
+echo | openssl s_client -connect blog.example.com:443 -servername blog.example.com 2>/dev/null \
+  | openssl x509 -noout -dates -ext subjectAltName
+
+# 协议下限：1.0/1.1 应报 alert 70 protocol version
+for v in tls1 tls1_1 tls1_2 tls1_3; do
+  echo | openssl s_client -connect blog.example.com:443 -servername blog.example.com \
+    -$v -cipher 'ALL:@SECLEVEL=0' 2>&1 | grep -E "^ *Protocol|alert" | head -1
+done
+```
+
+**CF 的 `min_tls_version` 默认是 1.0**，即使源站只开了 TLS 1.2，边缘仍会接受 1.0/1.1 握手。
+必须在面板改成 TLS 1.2，或调 API：
+
+```bash
+curl -X PATCH -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json" \
+  --data '{"value":"1.2"}' \
+  "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/settings/min_tls_version"
+```
+
+同一套接口还能改 `ssl`（`full` → `strict`）、`always_use_https`、`security_header`（HSTS）。
+查当前值把 `PATCH` 换成 `GET`、去掉 `--data` 即可。
+
+> 判断 HTTP 版本别用带代理的 `curl -w "%{http_version}"`：代理会回 `HTTP/1.1 200 Connection Established`，
+> 显示成 1.1 不代表站点没开 h2/h3。看 `alt-svc` 响应头或浏览器 DevTools 的 Protocol 列。
+
 ## 7. “连续在线”统计（可选）
 
 应用每 5 分钟会写一次心跳。如果希望“连续在线”反映外部真实的可用性：
