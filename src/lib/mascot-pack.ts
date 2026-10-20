@@ -71,11 +71,17 @@ export const mascotPackSchema = z.object({
       mode: z.enum(['full', 'bust', 'peek']).default('full'),
       /** Rendered height in CSS px at size "md". */
       height: z.number().int().min(80).max(520).default(240),
+      /**
+       * How much of the figure is revealed, measured from the top (1 = the
+       * whole figure). The figure keeps its scale — lowering this crops the
+       * bottom away, so the mascot sits shorter against the screen edge.
+       */
+      crop: z.number().min(0.2).max(1).default(1),
       flip: z.boolean().default(false),
       shadow: z.boolean().default(true),
       outline: z.enum(['none', 'soft', 'white']).default('soft'),
     })
-    .default({ mode: 'full', height: 240, flip: false, shadow: true, outline: 'soft' }),
+    .default({ mode: 'full', height: 240, crop: 1, flip: false, shadow: true, outline: 'soft' }),
   motion: z
     .object({
       breathe: z.boolean().default(true),

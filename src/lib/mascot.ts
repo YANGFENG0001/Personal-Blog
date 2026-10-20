@@ -26,6 +26,11 @@ export function isMascotId(id: string): id is MascotId {
 }
 
 const CHIBI = `<svg class="mascot-svg ms-chibi" viewBox="0 0 160 200" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="chibi-skin" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe9dc"/><stop offset="1" stop-color="#f3c9b8"/></linearGradient>
+    <linearGradient id="chibi-shirt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#dfe6f6"/></linearGradient>
+    <linearGradient id="chibi-skirt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3d4c96"/><stop offset="1" stop-color="#2a3468"/></linearGradient>
+  </defs>
   <ellipse class="ms-shadow" cx="80" cy="192" rx="42" ry="6"/>
   <g class="ms-body">
     <path class="ms-hair" d="M30 70 q-22 26 -10 64 q6 -20 18 -30 z"/>
@@ -40,9 +45,14 @@ const CHIBI = `<svg class="mascot-svg ms-chibi" viewBox="0 0 160 200" aria-hidde
     <path class="ms-scarf" d="M76 128 l4 8 l4 -8 l-4 -3z"/>
     <path class="ms-skin" d="M52 122 q-10 16 0 28 l8 -4 q-6 -10 0 -20z"/>
     <path class="ms-skin" d="M108 122 q10 16 0 28 l-8 -4 q6 -10 0 -20z"/>
+    <ellipse class="ms-cuff" cx="52" cy="148" rx="5" ry="4"/>
+    <ellipse class="ms-cuff" cx="108" cy="148" rx="5" ry="4"/>
     <g class="ms-book"><path class="ms-cover" d="M58 136 l22 6 l22 -6 v18 l-22 6 l-22 -6z"/><path class="ms-pages" d="M80 142 v18"/></g>
     <g class="ms-head">
       <circle class="ms-skin" cx="80" cy="74" r="40"/>
+      <ellipse class="ms-face-shade" cx="80" cy="99" rx="32" ry="23"/>
+      <ellipse class="ms-earring" cx="42" cy="97" rx="2.4" ry="2.4"/>
+      <ellipse class="ms-earring" cx="118" cy="97" rx="2.4" ry="2.4"/>
       <path class="ms-hair" d="M40 76 q-2 -46 40 -48 q42 2 40 48 q-8 -22 -22 -26 q-6 12 -20 14 q4 -8 2 -14 q-14 14 -40 26z"/>
       <path class="ms-hair-hi" d="M58 40 q10 -6 22 -6"/>
       <g class="ms-eyes">

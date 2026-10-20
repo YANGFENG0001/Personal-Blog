@@ -280,7 +280,7 @@ function MascotPanel({ a, setA, uploads, packs, setPacks, studioUrl }: { a: AS; 
               {packs.map((p) => (
                 <button type="button" role="radio" aria-checked={m.character === `pack:${p.id}`} class={`mascot-pick ${m.character === `pack:${p.id}` ? 'on' : ''}`} onClick={() => set({ character: `pack:${p.id}` })}>
                   <span class="mascot-pick-art">{p.urls.idle && <img src={p.urls.idle} alt="" loading="lazy" />}</span>
-                  <strong>{p.name}</strong><small>自制角色包 · {Object.keys(p.urls).length} 个状态</small>
+                  <strong>{p.name}</strong><small>{/^\d+$/.test(p.author || '') || !p.author ? '自制角色包' : p.author} · {Object.keys(p.urls).length} 个状态</small>
                 </button>
               ))}
             </div>

@@ -115,11 +115,11 @@ function PackEditor({ pack, onSaved }: { pack: StoredMascotPack; onSaved: (p: St
     }
   }
 
-  /** Click on the preview to move the speech-bubble anchor. */
+  /** Click on the preview to move the speech-bubble anchor (stored in whole-image coords). */
   function setBubble(e: MouseEvent) {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const x = Math.round(((e.clientX - r.left) / r.width) * 1000) / 1000;
-    const y = Math.round(((e.clientY - r.top) / r.height) * 1000) / 1000;
+    const y = Math.round((((e.clientY - r.top) / r.height) * d.crop) * 1000) / 1000;
     setP({ ...p, anchors: { ...p.anchors, bubble: [Math.min(1, Math.max(0, x)), Math.min(1, Math.max(0, y))] } });
   }
 
@@ -132,9 +132,9 @@ function PackEditor({ pack, onSaved }: { pack: StoredMascotPack; onSaved: (p: St
           ))}
         </div>
         <div class={`mp-stage mode-${d.mode} ${d.flip ? 'flip' : ''}`}>
-          <span class="mp-fig" onClick={setBubble} title="点击设置对话气泡的位置" style={`aspect-ratio:${p.width}/${p.height}`}>
+          <span class="mp-fig" onClick={setBubble} title="点击设置对话气泡的位置" style={`aspect-ratio:${p.width}/${p.height * d.crop};height:${d.crop * 100}%`}>
             <img src={p.urls[state] ?? p.urls.idle} alt="" />
-            <span class="mp-bubble-dot" style={`left:${p.anchors.bubble[0] * 100}%;top:${p.anchors.bubble[1] * 100}%`}>💬</span>
+            <span class="mp-bubble-dot" style={`left:${p.anchors.bubble[0] * 100}%;top:${(p.anchors.bubble[1] / d.crop) * 100}%`}>💬</span>
           </span>
         </div>
         <p class="hint">点击图片设置对话气泡位置。缺少的状态会自动用“默认”。</p>
@@ -146,6 +146,9 @@ function PackEditor({ pack, onSaved }: { pack: StoredMascotPack; onSaved: (p: St
         </div>
         <label class="field"><span class="label">显示高度 {d.height}px（“中”尺寸时）</span>
           <input type="range" min={120} max={420} step={10} value={d.height} onInput={(e) => setD({ height: Number(e.currentTarget.value) })} />
+        </label>
+        <label class="field"><span class="label">显示范围 {Math.round(d.crop * 100)}%（从头顶向下露出到哪一段，100% = 全身）</span>
+          <input type="range" min={20} max={100} step={5} value={Math.round(d.crop * 100)} onInput={(e) => setD({ crop: Number(e.currentTarget.value) / 100 })} />
         </label>
         <div class="field"><span class="label">描边</span>
           <Segmented label="描边" value={d.outline} onChange={(v) => setD({ outline: v })} options={[['soft', '柔和'], ['white', '白描边'], ['none', '无']]} />

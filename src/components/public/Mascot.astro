@@ -33,6 +33,7 @@ const anchors = pack?.anchors;
 const style = pack
   ? [
       `--ms-h:${display!.height}px`,
+      `--ms-crop:${display!.crop}`,
       `--ms-ratio:${pack.width / pack.height}`,
       `--ms-bx:${anchors!.bubble[0]}`,
       `--ms-by:${anchors!.bubble[1]}`,
@@ -51,6 +52,7 @@ const payload = JSON.stringify({ lines, page, motion: pack?.motion ?? null, hasB
   data-kind={kind}
   data-character={pack ? 'pack' : builtin}
   data-display={display?.mode}
+  data-crop={display && display.crop < 1 ? '' : undefined}
   data-outline={display?.outline}
   data-shadow={display ? String(display.shadow) : undefined}
   data-flip={display?.flip ? '' : undefined}

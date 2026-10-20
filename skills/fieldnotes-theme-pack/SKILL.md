@@ -13,6 +13,9 @@ FIELDNOTES 是一个个人研究博客，支持**主题包**（全站外观）�
 生图模型 / 手绘  →  素材工作室（tools/asset-studio，本地）抠图·修补·压缩·打包  →  网站后台导入
 ```
 
+> **想直接用网上现成的开放许可立绘（CC0 / CC-BY / 授权明确）做看板娘？**
+> 走 `skills/fieldnotes-mascot-sourcing/SKILL.md` —— 那份讲找素材、判许可、避坑（VN 立绘没有脚等）和打包导入；本技能负责"自己画/自己生图"这一路。产出物格式相同。
+
 ## 0. 最重要的规则（必读）
 
 1. **绝不要让生图模型输出“透明背景”。** 模型会把灰白棋盘格*画*进图片里（假透明），上传后会变成一个方块。
@@ -81,7 +84,7 @@ node cli.mjs check 角色名.mascot.zip
   "width": 360, "height": 720,
   "states": { "idle": "idle.webp", "talk": "talk.webp", "blink": "blink.webp" },
   "anchors": { "baseline": 1, "bubble": [0.62, 0.04], "head": [0.5, 0.12] },
-  "display": { "mode": "full", "height": 240, "flip": false, "shadow": true, "outline": "soft" },
+  "display": { "mode": "full", "height": 240, "crop": 1, "flip": false, "shadow": true, "outline": "soft" },
   "motion": { "breathe": true, "sway": true, "swing": true, "blinkEvery": 5 },
   "lines": {
     "click":   ["今天也一起读一点吧。", "慢慢读就好。"],
@@ -103,6 +106,9 @@ node cli.mjs check 角色名.mascot.zip
   - `full`：全身。
   - `bust`：半身，下半部分渐隐。
   - `peek`：只从屏幕边缘探出头。
+- `display.crop`：0.2–1，**只裁下半身、不缩放**。`1` 露全身；`0.6` 露到腰胯；`0.35` 只露头。想让人物"站"在视口底边、按屏幕高度露出不同段数时用它。
+- `display.height`：80–520，按 `md` 尺寸渲染的高度（CSS px）。
+- `motion.blinkEvery`：**最小 2**（写 0/1 会被接口打回）。
 - 每句台词 ≤ 60 字，每组 ≤ 40 句。没填的组会回退到 `click` 组。
 
 ## 3. 主题文件（`.theme.json`）
