@@ -62,6 +62,7 @@ npm run dev                       # http://localhost:4321  ，工作台 /owner
 | `npm run db:migrate` | 手动执行数据库迁移 |
 | `npm run owner:create -- <用户名>` | 创建或重置站主账号（重置后所有设备会被登出） |
 | `npm run backup` | 在线备份数据库和上传文件到 `data/backups/` |
+| `npm run version:bump -- <x.y.z>` | 同步 `VERSION` 与 `package.json` 的版本号，为发版做准备 |
 
 ## 部署
 
@@ -73,6 +74,26 @@ cp .env.example .env && nano .env          # 设置 DOMAIN 和 SITE_URL
 docker compose up -d --build
 docker compose exec app node scripts/create-owner.ts admin
 ```
+
+## 版本与镜像发布
+
+版本号在 `VERSION` 文件里，发版只需打 tag：
+
+```bash
+npm run version:bump 1.0.1
+git commit -am "release: v1.0.1" && git push
+git tag v1.0.1 && git push origin v1.0.1
+```
+
+推 tag 后 GitHub Actions 会跑类型检查和单元测试、构建 amd64 + arm64 镜像推到
+`ghcr.io/yangfeng0001/personal-blog`、起容器做冒烟测试，最后生成 GitHub Release 和部署包。
+服务器上就不用本机编译：
+
+```bash
+APP_IMAGE=ghcr.io/yangfeng0001/personal-blog:1.0.1 docker compose pull app && docker compose up -d
+```
+
+main 分支每次提交还会自动构建 `:edge` 预览镜像。完整说明见 **[`docs/release.md`](docs/release.md)**。
 
 ## 目录结构
 

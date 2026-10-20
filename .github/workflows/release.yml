@@ -1,0 +1,277 @@
+# 发布流水线：打 tag → 多架构镜像 → GitHub Release
+#
+#   npm run version:bump 1.0.1
+#   git commit -am "release: v1.0.1" && git push
+#   git tag v1.0.1 && git push origin v1.0.1
+#
+# 产物：
+#   ghcr.io/<owner>/personal-blog:v1.0.1-amd64   单架构（构建中间产物）
+#   ghcr.io/<owner>/personal-blog:v1.0.1-arm64   单架构（构建中间产物）
+#   ghcr.io/<owner>/personal-blog:v1.0.1         多架构 manifest（amd64 + arm64）
+#   ghcr.io/<owner>/personal-blog:1.0.1          同上，不带 v
+#   ghcr.io/<owner>/personal-blog:latest         同上
+#   GitHub Release v1.0.1 + 部署包 fieldnotes-v1.0.1-deploy.zip
+#
+# 架构说明：amd64 在 ubuntu-latest 构建，arm64 在原生 ubuntu-24.04-arm 构建
+# （better-sqlite3 要现场编译，QEMU 模拟下会慢十倍以上），最后用 imagetools
+# 合成 manifest list，和 vm2api 的 release 流程一致。
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+# 同一个 ref 的发布串行执行，但不要取消进行中的（避免推到一半的镜像）
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------- 版本闸门
+  verify:
+    name: verify version
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      tag: ${{ steps.meta.outputs.tag }}
+      image: ${{ steps.meta.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: VERSION / package.json / tag 三者必须一致
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(tr -d '[:space:]' < VERSION)
+          [ -n "$version" ] || { echo "VERSION 文件为空" >&2; exit 1; }
+
+          pkg=$(node -p "require('./package.json').version")
+          [ "$pkg" = "$version" ] || {
+            echo "package.json 版本 $pkg 与 VERSION $version 不一致，先跑 npm run version:bump" >&2
+            exit 1
+          }
+
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            [ "${GITHUB_REF_NAME}" = "v${version}" ] || {
+              echo "tag ${GITHUB_REF_NAME} 与 VERSION v${version} 不一致" >&2
+              exit 1
+            }
+          fi
+
+          owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          repo=$(echo "${{ github.event.repository.name }}" | tr '[:upper:]' '[:lower:]')
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v${version}" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/${owner}/${repo}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+      - name: Typecheck
+        run: npm run check
+      - name: Unit & integration tests
+        run: npm test
+
+  # ------------------------------------------------------------------ amd64
+  image-amd64:
+    name: image amd64
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          provenance: false
+          push: true
+          tags: ${{ needs.verify.outputs.image }}:${{ needs.verify.outputs.tag }}-amd64
+          cache-from: type=gha,scope=amd64
+          cache-to: type=gha,scope=amd64,mode=max
+
+  # ------------------------------------------------------------------ arm64
+  image-arm64:
+    name: image arm64
+    needs: verify
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/arm64
+          provenance: false
+          push: true
+          tags: ${{ needs.verify.outputs.image }}:${{ needs.verify.outputs.tag }}-arm64
+          cache-from: type=gha,scope=arm64
+          cache-to: type=gha,scope=arm64,mode=max
+
+  # ---------------------------------------------------------------- 冒烟测试
+  smoke:
+    name: smoke test
+    needs: [verify, image-amd64]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 起容器、等健康检查、探一次首页
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="${{ needs.verify.outputs.image }}:${{ needs.verify.outputs.tag }}-amd64"
+          docker run -d --name smoke -p 4321:4321 \
+            -e SITE_URL=http://127.0.0.1:4321 \
+            -e COOKIE_SECURE=false \
+            "$image"
+
+          ok=0
+          for _ in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:4321/robots.txt > /dev/null 2>&1; then ok=1; break; fi
+            sleep 2
+          done
+
+          echo "--- container logs ---"
+          docker logs smoke || true
+          docker rm -f smoke > /dev/null 2>&1 || true
+
+          [ "$ok" = 1 ] || { echo "容器 120 秒内没有就绪" >&2; exit 1; }
+          echo "容器启动正常"
+
+  # ------------------------------------------------------------ 合并多架构
+  manifest:
+    name: publish manifest
+    needs: [verify, image-amd64, image-arm64]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 合成 manifest list 并校验架构
+        shell: bash
+        env:
+          IMAGE: ${{ needs.verify.outputs.image }}
+          TAG: ${{ needs.verify.outputs.tag }}
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          set -euo pipefail
+          targets=(-t "${IMAGE}:${TAG}" -t "${IMAGE}:${VERSION}")
+          # 只有正式 tag 才动 latest，手动触发的预发布不污染 latest
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            targets+=(-t "${IMAGE}:latest")
+          fi
+
+          docker buildx imagetools create "${targets[@]}" \
+            "${IMAGE}:${TAG}-amd64" "${IMAGE}:${TAG}-arm64"
+
+          docker buildx imagetools inspect --raw "${IMAGE}:${TAG}" | python3 -c '
+          import json, sys
+          found = {(m.get("platform") or {}).get("architecture") for m in json.load(sys.stdin).get("manifests", [])}
+          missing = {"amd64", "arm64"} - found
+          assert not missing, f"manifest list 缺少 {sorted(missing)}"
+          print("manifest platforms:", sorted(p for p in found if p))
+          '
+
+  # --------------------------------------------------------- GitHub Release
+  release:
+    name: github release
+    needs: [verify, manifest, smoke]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 打包部署文件
+        shell: bash
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          set -euo pipefail
+          out="fieldnotes-v${VERSION}-deploy.zip"
+          zip -q -j "$out" docker-compose.yml Caddyfile .env.example
+          unzip -l "$out"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: fieldnotes ${{ needs.verify.outputs.tag }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: fieldnotes-${{ needs.verify.outputs.version }}-deploy.zip
+          body: |
+            ## 镜像
+
+            ```bash
+            docker pull ${{ needs.verify.outputs.image }}:${{ needs.verify.outputs.version }}
+            ```
+
+            | 标签 | 架构 |
+            | --- | --- |
+            | `${{ needs.verify.outputs.version }}` / `latest` | amd64 + arm64（manifest list） |
+            | `${{ needs.verify.outputs.version }}-amd64` | 仅 amd64 |
+            | `${{ needs.verify.outputs.version }}-arm64` | 仅 arm64 |
+
+            ## 升级
+
+            在服务器项目目录里改 `.env` 的镜像版本，然后重建：
+
+            ```bash
+            APP_IMAGE=${{ needs.verify.outputs.image }}:${{ needs.verify.outputs.version }} \
+              docker compose pull app && docker compose up -d
+            ```
+
+            数据库迁移在容器启动时自动执行（幂等），回滚只需把版本号改回旧 tag 再 `up -d`。
+            升级前请先备份 `data/` 目录。
+
+            部署细节见 [docs/deploy.md](https://github.com/${{ github.repository }}/blob/main/docs/deploy.md)。

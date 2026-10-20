@@ -1,39 +1,63 @@
-name: Docker image
+# 预览镜像：main 每次 push 都构建一份 :edge，方便在服务器上试最新代码。
+#
+#   docker pull ghcr.io/<owner>/personal-blog:edge
+#
+# 正式版本走 release.yml（打 v* tag）：amd64 + arm64 双架构，并附带 GitHub Release。
+# 这里只构建 amd64，省时间；需要 arm64 请用正式 tag 的镜像。
+name: docker image (edge)
 
-# Builds and pushes ghcr.io/<owner>/<repo> on version tags (v1.2.3) or manually.
 on:
   push:
-    tags: ['v*']
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - '素材图/**'
+      - '框架/**'
   workflow_dispatch:
+
+concurrency:
+  group: edge-image
+  cancel-in-progress: true
 
 permissions:
   contents: read
   packages: write
 
 jobs:
-  image:
+  edge:
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+
       - uses: docker/setup-buildx-action@v3
+
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=raw,value=latest
+
+      - name: 解析镜像名（GHCR 只接受小写）
+        id: meta
+        shell: bash
+        run: |
+          owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          repo=$(echo "${{ github.event.repository.name }}" | tr '[:upper:]' '[:lower:]')
+          echo "image=ghcr.io/${owner}/${repo}" >> "$GITHUB_OUTPUT"
+
       - uses: docker/build-push-action@v6
         with:
           context: .
+          platforms: linux/amd64
+          provenance: false
           push: true
-          platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: |
+            ${{ steps.meta.outputs.image }}:edge
+            ${{ steps.meta.outputs.image }}:edge-${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=amd64
+          cache-to: type=gha,scope=amd64,mode=max

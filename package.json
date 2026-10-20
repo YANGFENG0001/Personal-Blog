@@ -21,7 +21,8 @@
     "db:migrate": "node --no-warnings scripts/migrate.ts",
     "backup": "node --no-warnings scripts/backup.ts",
     "owner:create": "node --no-warnings scripts/create-owner.ts",
-    "theme:check": "node --no-warnings scripts/theme-check.mjs"
+    "theme:check": "node --no-warnings scripts/theme-check.mjs",
+    "version:bump": "node --no-warnings scripts/version.mjs"
   },
   "dependencies": {
     "@astrojs/node": "^11.1.7",

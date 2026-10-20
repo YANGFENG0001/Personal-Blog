@@ -101,16 +101,18 @@ docker compose up -d --build      # 数据库迁移会在启动时自动执行
 
 建议升级前先备份一次。
 
-### 用预构建镜像部署（可选）
+### 用预构建镜像部署（可选，推荐）
 
-推送形如 `v1.0.0` 的 tag 后，GitHub Actions 会构建镜像并发布到 `ghcr.io/<用户名>/<仓库名>`。在 VPS 上可以不在本机编译，直接拉取镜像：
+推送形如 `v1.0.0` 的 tag 后，GitHub Actions 会构建 amd64 + arm64 双架构镜像并发布到 `ghcr.io/yangfeng0001/personal-blog`，同时在 Releases 页生成版本记录。在 VPS 上就不必本机编译：
 
 ```bash
-# .env 中加入：APP_IMAGE=ghcr.io/<用户名>/<仓库名>:latest
+# .env 中加入固定版本（生产环境不要用 latest，回滚时才好定位）
+APP_IMAGE=ghcr.io/yangfeng0001/personal-blog:1.0.0
+
 docker compose pull app && docker compose up -d
 ```
 
-如果仓库是私有的，需要先执行 `docker login ghcr.io`。
+镜像标签规则、发版流程见 [release.md](release.md)。如果仓库是私有的，需要先执行 `docker login ghcr.io`。
 
 ## 7. “连续在线”统计（可选）
 
