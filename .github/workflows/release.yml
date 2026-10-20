@@ -293,9 +293,23 @@ jobs:
 
           cat RELEASE_BODY.md
 
-      - uses: softprops/action-gh-release@v2
-        with:
-          name: fieldnotes ${{ needs.verify.outputs.tag }}
-          fail_on_unmatched_files: true
-          files: fieldnotes-${{ needs.verify.outputs.version }}-deploy.zip
-          body_path: RELEASE_BODY.md
+      - name: 创建 GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.verify.outputs.tag }}
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          set -uo pipefail
+          if out=$(gh release create "$TAG" \
+              --title "fieldnotes ${TAG}" \
+              --notes-file RELEASE_BODY.md \
+              --verify-tag \
+              "fieldnotes-v${VERSION}-deploy.zip" 2>&1); then
+            echo "$out"
+          else
+            # 把错误原文放进 annotation：公开仓库可匿名读取，方便排查
+            msg=${out//$'\n'/'%0A'}
+            echo "::error title=gh release create failed::${msg}"
+            exit 1
+          fi
