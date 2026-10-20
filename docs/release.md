@@ -60,12 +60,12 @@ APP_IMAGE=ghcr.io/yangfeng0001/personal-blog:1.0.0 \
 tar czf ~/fieldnotes-data-$(date +%F).tar.gz data/
 ```
 
-## 仓库设置（首次需要确认一次）
+## 仓库设置
 
-1. **Settings → Actions → General → Workflow permissions** 选 **Read and write permissions**
-   —— 否则 `GITHUB_TOKEN` 推不了 GHCR、也建不了 Release。
-2. 第一次发布后，去 **Packages** 页面把 `personal-blog` 包设为 **Public**。
-   不设的话 VPS 上 `docker compose pull` 会 401，需要先 `docker login ghcr.io`。
+1. **Settings → Actions → General → Workflow permissions** 需要是 **Read and write permissions**
+   —— 否则 `GITHUB_TOKEN` 推不了 GHCR、也建不了 Release。当前仓库已验证可用。
+2. GHCR 包 `personal-blog` 当前是 **Public**，服务器上直接 `docker compose pull` 即可，无需 `docker login`。
+   如果以后改成私有，拉取前要先 `docker login ghcr.io`。
 
 ## 手动触发
 
