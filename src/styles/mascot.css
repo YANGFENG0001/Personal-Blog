@@ -134,6 +134,14 @@ body:has(.mascot[data-kind='anime'][data-pos='right']:not([hidden]):not(.is-free
 body:has(.mascot[data-kind='anime'][data-pos='right'][data-size='sm']:not([hidden]):not(.is-free)) > .pball[data-pos='right'] { right: 146px; }
 body:has(.mascot[data-kind='anime'][data-pos='right'][data-size='lg']:not([hidden]):not(.is-free)) > .pball[data-pos='right'] { right: 220px; }
 
+/* A docked mascot overlaps the right edge of the sidebar, where the metric
+   values are right-aligned. Give those rows room so the numbers stay readable.
+   Offsets are upper bounds for the widest pack ratio, so a narrow pack just
+   ends up with a little extra breathing space rather than hidden text. */
+body:has(.mascot[data-pos='right']:not([hidden]):not(.is-free)) .metric { padding-right: 64px; }
+body:has(.mascot[data-pos='right'][data-size='sm']:not([hidden]):not(.is-free)) .metric { padding-right: 40px; }
+body:has(.mascot[data-pos='right'][data-size='lg']:not([hidden]):not(.is-free)) .metric { padding-right: 88px; }
+
 /* ---------- Mascot packs (state images) ---------- */
 .mascot-body { display: block; position: relative; transform-origin: 50% 0; }
 .mascot[data-kind='pack'] { --ms-h: 240px; width: auto; }
