@@ -181,7 +181,21 @@ curl -s -b /tmp/c.txt -X POST http://localhost:4321/api/owner/mascots \
 
 `GET /api/owner/settings/appearance` → 改 `mascot.character = "pack:<id>"`、`mascot.mode = "on"` → `PUT` 回去（同样要 csrf）。
 
-### 5.3 验证（不要只看 200）
+### 5.3 让某个主题自动用上这个角色包（可选）
+
+想让"切到樱花坂就自动换成小铃"这种效果，在 `src/lib/themes.ts` 的对应预设上加一行：
+
+```ts
+{ id: 'sakura', ..., mascot: 'haru', mascotPack: '小铃' },
+```
+
+- `mascotPack` 写的是**角色包名字**，不是 id —— id 是内容哈希，重新导入就变了；名字稳定，且找不到时**自动回退**到 `mascot`（内置角色），删包不会把主题搞坏。
+- 只在站主把看板娘设成「跟随主题」（`character: 'preset'`）时生效；手动选定的角色永远优先。
+- 解析发生在 `PublicLayout.astro`（`findPackIdByName` 只查一列，开销可忽略）。
+
+当前绑定：`sakura → 小铃`、`summer → 小穗`；`tenki` 仍用内置「小晴」，因为她撑着透明伞，正是这个主题的点。
+
+### 5.4 验证（不要只看 200）
 
 ```js
 // 用 Playwright 量真实渲染，而不是猜

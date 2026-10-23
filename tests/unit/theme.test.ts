@@ -81,6 +81,17 @@ describe('resolveAppearance', () => {
     expect(resolveAppearance({ ...base, mascot: { ...base.mascot, mode: 'on', imageUrl: '/uploads/a.png' } }, 'auto').mascot?.imageUrl).toBe('/uploads/a.png');
   });
 
+  it('carries the theme\u2019s preferred mascot pack while following the theme', () => {
+    // Follow-the-theme: the pack name rides along so the layout can resolve it.
+    expect(resolveAppearance({ ...base, preset: 'sakura' }, 'auto').mascot).toMatchObject({ character: 'haru', presetPack: '小铃' });
+    expect(resolveAppearance({ ...base, preset: 'summer' }, 'auto').mascot?.presetPack).toBe('小穗');
+    // Themes without a preferred pack simply omit it.
+    expect(resolveAppearance({ ...base, preset: 'tenki' }, 'auto').mascot?.presetPack).toBeUndefined();
+    // An explicit pick always wins — no pack override leaks through.
+    expect(resolveAppearance({ ...base, preset: 'sakura', mascot: { ...base.mascot, character: 'pack:0123456789abcdef' } }, 'auto').mascot).toMatchObject({ character: 'pack:0123456789abcdef' });
+    expect(resolveAppearance({ ...base, preset: 'sakura', mascot: { ...base.mascot, character: 'pack:0123456789abcdef' } }, 'auto').mascot?.presetPack).toBeUndefined();
+  });
+
   it('builds cursor data URIs only when not system', () => {
     expect(cursorCss({ cursor: 'system', preset: 'ink', customAccent: '' })).toBeNull();
     expect(cursorCss({ cursor: 'theme', preset: 'anime', customAccent: '' })).toMatch(/^url\("data:image\/svg\+xml,/);

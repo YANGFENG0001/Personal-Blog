@@ -31,6 +31,13 @@ export interface ThemePreset {
   background: { type: BgType; effect?: string; scene?: string };
   /** Optional mascot character shown in a page corner (anime-style themes); ids from mascot.ts. */
   mascot?: 'chibi' | 'haru' | 'sora';
+  /**
+   * Preferred mascot *pack* for this theme, referenced by pack name. Takes
+   * priority over `mascot` when the owner left the mascot on "跟随主题".
+   * Resolved to an id at render time; a missing/renamed pack silently falls
+   * back to `mascot`, so deleting a pack can never break a theme.
+   */
+  mascotPack?: string;
   /** SVG body (24×24) for the theme cursor. */
   cursorGlyph: string;
   eggSet: EggSet;
@@ -126,7 +133,7 @@ export const PRESETS: ThemePreset[] = [
     font: 'sans', radius: 'round', background: { type: 'scene', scene: 'summer', effect: 'summer' },
     cursorGlyph: '<path d="m12 3 2.4 5.6 6 .6-4.6 4 1.4 6L12 16l-5.2 3.2 1.4-6-4.6-4 6-.6z" fill="#ffd36e" stroke="#1f78c8" stroke-width="1.1"/>',
     eggSet: 'summer', fx: ['#ffb3cf', '#9ed8ff', '#ffe28a', '#ffffff'],
-    mascot: 'chibi',
+    mascot: 'chibi', mascotPack: '小穗',
   },
   {
     id: 'sakura', name: '樱花坂', description: '日系动画升级版：通透的蓝天与高耸的积雨云，坡下校舍、踏切与电线，樱花纷飞；看板娘「小春」在角落陪你。夜里是夜樱与道口红灯。',
@@ -135,7 +142,7 @@ export const PRESETS: ThemePreset[] = [
     font: 'sans', radius: 'round', background: { type: 'scene', scene: 'sakura', effect: 'petals' },
     cursorGlyph: '<g transform="translate(12 12)">' + [0, 72, 144, 216, 288].map((a) => `<path transform="rotate(${a})" d="M0 0C-4 -3.6 -3.3 -9.4 -.9 -10.5L0 -9.1 .9 -10.5C3.3 -9.4 4 -3.6 0 0Z" fill="#ffc6da" stroke="#c2457a" stroke-width=".8"/>`).join('') + '<circle r="1.7" fill="#ffd877"/></g>',
     eggSet: 'sakura', fx: ['#ffc6da', '#ff9fc0', '#fff0f6', '#ffe08a'],
-    mascot: 'haru',
+    mascot: 'haru', mascotPack: '小铃',
   },
   {
     id: 'tenki', name: '晴空之子', description: '致敬《天气之子》的氛围：雨中的东京天际线，厚重云层裂开一道阳光洒向城市，屋顶上的小鸟居与彩虹；看板娘「小晴」撑着透明伞。夜里霓虹映着雨。',

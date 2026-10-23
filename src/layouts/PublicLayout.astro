@@ -6,7 +6,7 @@ import Ambient from '../components/public/Ambient.astro';
 import PreviewBall from '../components/PreviewBall.astro';
 import Mascot from '../components/public/Mascot.astro';
 import { resolveAppearance } from '../lib/appearance';
-import { getPack } from '../server/services/mascot-packs';
+import { findPackIdByName, getPack } from '../server/services/mascot-packs';
 import { activeAppearance } from '../server/services/active-theme';
 import { iconSvg } from '../lib/icons';
 import { publicSiteTree, type Site, type Category } from '../server/services/sites';
@@ -33,6 +33,13 @@ const owner = Astro.locals.owner;
 const active = activeAppearance(new Date(), Astro.locals.owner ? Astro.url.searchParams.get('theme-preview') : null, Astro.cookies.get('fn_egg_theme')?.value ?? null);
 const look = resolveAppearance(active.appearance, 'auto', active.custom);
 const mascot = look.mascot;
+// The theme's preferred pack (declared by name) wins while the mascot follows
+// the theme. A missing or renamed pack just keeps the built-in character.
+if (mascot?.presetPack) {
+  const preferred = findPackIdByName(mascot.presetPack);
+  if (preferred) mascot.character = `pack:${preferred}`;
+  delete mascot.presetPack;
+}
 // A pack character that was deleted falls back to the built-in default.
 const mascotPack = mascot?.character.startsWith('pack:') ? getPack(mascot.character.slice(5)) : null;
 if (mascot && mascot.character.startsWith('pack:') && !mascotPack) mascot.character = look.preset.mascot ?? 'haru';

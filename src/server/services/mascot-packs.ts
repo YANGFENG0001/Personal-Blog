@@ -50,6 +50,16 @@ export function getPack(id: string): StoredMascotPack | null {
 }
 
 /**
+ * Id of the pack with this name, or null. Themes reference packs by name so the
+ * mapping survives re-importing (ids are content hashes); a rename or delete
+ * simply makes the theme fall back to its built-in character.
+ */
+export function findPackIdByName(name: string): string | null {
+  const r = getDb().prepare('SELECT id FROM mascot_packs WHERE name = ? ORDER BY created_at LIMIT 1').get(name) as { id: string } | undefined;
+  return r?.id ?? null;
+}
+
+/**
  * Import a mascot pack zip. Everything is validated before anything is written:
  * manifest schema, file names (no paths), image type by magic bytes, sizes.
  * Returns the stored pack plus warnings (e.g. images without transparency).

@@ -40,8 +40,10 @@ export interface ResolvedAppearance {
   /**
    * Mascot to render, or null. character is a built-in id or `pack:<id>`
    * (resolved server-side by the layout). imageUrl is a legacy single-image override.
+   * presetPack carries the theme's preferred pack *name* while the owner is on
+   * "跟随主题" — the layout swaps it for the real pack id when that pack exists.
    */
-  mascot: { character: string; draggable: boolean; imageUrl: string; position: 'right' | 'left'; size: 'sm' | 'md' | 'lg' } | null;
+  mascot: { character: string; presetPack?: string; draggable: boolean; imageUrl: string; position: 'right' | 'left'; size: 'sm' | 'md' | 'lg' } | null;
 }
 
 const DOT = '<circle cx="12" cy="12" r="3.5" fill="ACCENT"/>';
@@ -183,6 +185,8 @@ export function resolveAppearance(a: AppearanceSettings, theme: 'light' | 'dark'
     mascot: (a.mascot.mode === 'on' || (a.mascot.mode === 'preset' && p.mascot))
       ? {
           character: a.mascot.character === 'preset' ? (p.mascot ?? 'haru') : a.mascot.character,
+          // Only while the owner is on "跟随主题": an explicit pick always wins.
+          ...(a.mascot.character === 'preset' && p.mascotPack ? { presetPack: p.mascotPack } : {}),
           draggable: a.mascot.draggable,
           imageUrl: a.mascot.imageUrl,
           position: a.mascot.position,
