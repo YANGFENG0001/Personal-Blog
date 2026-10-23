@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { PRESETS, contrast, getPreset, mix } from '../../src/lib/themes';
+import { PRESETS, contrast, getPreset, mix, EGG_SETS } from '../../src/lib/themes';
+import { SCENES, sceneHtml } from '../../src/lib/scenes';
+import { isSceneEffect } from '../../src/lib/scene-effects';
+import { MASCOT_LINES, mascotSvg } from '../../src/lib/mascot';
 import { resolveAppearance, cursorCss } from '../../src/lib/appearance';
 import { toggleChip } from '../../src/components/owner/ui';
 import { dueInfo } from '../../src/components/owner/TaskBoards';
@@ -90,6 +93,22 @@ describe('resolveAppearance', () => {
     // An explicit pick always wins — no pack override leaks through.
     expect(resolveAppearance({ ...base, preset: 'sakura', mascot: { ...base.mascot, character: 'pack:0123456789abcdef' } }, 'auto').mascot).toMatchObject({ character: 'pack:0123456789abcdef' });
     expect(resolveAppearance({ ...base, preset: 'sakura', mascot: { ...base.mascot, character: 'pack:0123456789abcdef' } }, 'auto').mascot?.presetPack).toBeUndefined();
+  });
+
+  it('ships the 蕾西亚 theme wired end to end', () => {
+    const p = getPreset('lacia');
+    expect(p.name).toBe('蕾西亚');
+    expect(p.mascot).toBe('lacia');
+    expect(p.eggSet).toBe('lacia');
+    expect(p.background).toMatchObject({ type: 'scene', scene: 'lacia', effect: 'data' });
+    expect(SCENES.some((s) => s.id === 'lacia')).toBe(true);
+    expect(EGG_SETS.some((e) => e.id === 'lacia')).toBe(true);
+    expect(isSceneEffect('data')).toBe(true);
+    // The mascot is a real anime bust with its own lines, not a fallback.
+    expect(mascotSvg('lacia')).toContain('ms-anime');
+    expect(mascotSvg('lacia')).toContain('ms-monolith');
+    expect(MASCOT_LINES.lacia.length).toBeGreaterThanOrEqual(5);
+    expect(sceneHtml('lacia')).toContain('l-mono-seam');
   });
 
   it('builds cursor data URIs only when not system', () => {

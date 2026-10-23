@@ -6,7 +6,7 @@
  * disabled with the site's motion setting / prefers-reduced-motion.
  */
 
-export type SceneId = 'ocean' | 'forest' | 'meadow' | 'nightsky' | 'summer' | 'sakura' | 'tenki';
+export type SceneId = 'ocean' | 'forest' | 'meadow' | 'nightsky' | 'summer' | 'sakura' | 'tenki' | 'lacia';
 
 export const SCENES: { id: SceneId; name: string; effect: string; desc: string }[] = [
   { id: 'ocean', name: '蔚蓝海面', effect: 'glints', desc: '晴空、远岛、帆影与起伏的海浪；夜晚是月光海面。' },
@@ -16,6 +16,7 @@ export const SCENES: { id: SceneId; name: string; effect: string; desc: string }
   { id: 'summer', name: '夏日物语', effect: 'summer', desc: '积雨云、海边小镇与电车；夜里有远处的烟花。' },
   { id: 'sakura', name: '樱花坂', effect: 'petals', desc: '日系动画风：通透蓝天与积雨云、坡下的校舍、踏切与电线，樱花纷飞；夜里是夜樱与道口的红灯。' },
   { id: 'tenki', name: '雨后晴空', effect: 'rain', desc: '《天气之子》风：雨中的东京天际线，云层破开一道阳光照进城市，屋顶的小鸟居；夜里霓虹映着雨。' },
+  { id: 'lacia', name: '秘棺城市', effect: 'data', desc: '《BEATLESS》风：冷灰的城市天际线，尽头立着黑色秘棺，一道冰蓝的光缝亮着；数据光点向上飘，夜里只剩那道冷光。' },
 ];
 
 export function getScene(id: string) {
@@ -407,7 +408,68 @@ function tenki(): string {
   ].join('');
 }
 
-const BUILDERS: Record<SceneId, () => string> = { ocean, forest, meadow, nightsky, summer, sakura, tenki };
+/**
+ * 秘棺城市 — after BEATLESS: a cold, desaturated near-future skyline with a
+ * black monolith standing at the end of it, one ice-blue seam lit along its
+ * edge. Flat slabs, no organic curves — the point is the stillness.
+ * At night the city drops away and only the seam and the data motes remain.
+ */
+function lacia(): string {
+  const r = rng(307);
+
+  // Far skyline: wide, low slabs with the odd antenna.
+  let far = '';
+  for (let x = -20; x < 1460; ) {
+    const w = 26 + r() * 56;
+    const h = 18 + r() * 54;
+    far += `<rect x="${x.toFixed(0)}" y="${(302 - h).toFixed(0)}" width="${w.toFixed(0)}" height="${(h + 12).toFixed(0)}"/>`;
+    if (r() > 0.76) far += `<rect x="${(x + w * 0.5).toFixed(0)}" y="${(302 - h - 15).toFixed(0)}" width="1.6" height="15"/>`;
+    x += w + r() * 7;
+  }
+
+  // The monolith: a tall slab, tilted a touch, one luminous seam.
+  const mono =
+    '<g class="l-mono">' +
+    '<path class="l-mono-body" d="M676 302 L684 52 L734 44 L740 302Z"/>' +
+    '<path class="l-mono-edge" d="M684 52 L676 302 M734 44 L740 302"/>' +
+    '<path class="l-mono-seam" d="M711 60 L714 298"/>' +
+    '<path class="l-mono-glow" d="M711 60 L714 298"/>' +
+    '</g>';
+
+  // Mid buildings with a sparse window grid (most lights are off).
+  let mid = '';
+  let win = '';
+  for (let x = -20; x < 1460; ) {
+    const w = 44 + r() * 66;
+    const h = 38 + r() * 84;
+    const top = 344 - h;
+    mid += `<rect x="${x.toFixed(0)}" y="${top.toFixed(0)}" width="${w.toFixed(0)}" height="${(h + 6).toFixed(0)}"/>`;
+    for (let wy = top + 10; wy < 334; wy += 14) {
+      for (let wx = x + 7; wx < x + w - 9; wx += 12) {
+        if (r() > 0.74) win += `<rect x="${wx.toFixed(0)}" y="${wy.toFixed(0)}" width="4.5" height="5.5"/>`;
+      }
+    }
+    x += w + 3 + r() * 9;
+  }
+
+  // Floating hexagonal frames — the "analog hack" made visible.
+  const hex = (i: number, x: number, y: number, s: number) =>
+    `<g transform="translate(${x} ${y}) scale(${(s / 22).toFixed(2)})"><path class="l-hex l-hex-${i}" d="M0 -22 L19 -11 L19 11 L0 22 L-19 11 L-19 -11Z"/></g>`;
+  const rings = hex(1, 296, 206, 26) + hex(2, 1118, 174, 18) + hex(3, 1006, 238, 12) + hex(4, 392, 250, 10);
+
+  const rail =
+    '<path class="l-rail" d="M0 336 H1440 M0 344 H1440"/>' +
+    Array.from({ length: 121 }, (_, i) => `M${i * 12} 336 V346`).join(' ');
+
+  return [
+    '<div class="l-bloom"></div>',
+    svg('sc-far', `<g class="l-far">${far}</g>${mono}<rect class="l-haze" x="0" y="252" width="1440" height="54"/>`),
+    svg('sc-mid', `<g class="l-mid">${mid}</g><g class="l-win">${win}</g>`),
+    svg('sc-near', `${rings}${rail}<path class="l-ground" d="M0 346 H1440 V400 H0Z"/>`),
+  ].join('');
+}
+
+const BUILDERS: Record<SceneId, () => string> = { ocean, forest, meadow, nightsky, summer, sakura, tenki, lacia };
 const cache = new Map<SceneId, string>();
 
 /** Static scene markup (server-rendered once, then cached). */

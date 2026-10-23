@@ -342,8 +342,50 @@ function rain(n: number): Effect {
   };
 }
 
-const FACTORY: Record<string, (n: number) => Effect> = { glints, motes, seeds, nightsky, summer, petals, rain };
-const COUNT: Record<string, number> = { glints: 60, motes: 34, seeds: 18, nightsky: 140, summer: 40, petals: 46, rain: 110 };
+/**
+ * Lacia: cold data motes drifting upward — thin vertical light threads that
+ * pulse like a heartbeat monitor that never quite flatlines.
+ */
+function dataMotes(n: number): Effect {
+  let d: { x: number; y: number; v: number; len: number; ph: number; w: number }[] = [];
+  const spawn = (h: number, anywhere: boolean) => ({ x: rnd(0, 2000), y: anywhere ? rnd(0, h) : h + rnd(0, 90), v: rnd(0.18, 0.85), len: rnd(9, 48), ph: rnd(0, 6.28), w: rnd(0.5, 1.7) });
+  return {
+    init(w, h) {
+      d = Array.from({ length: n }, () => {
+        const p = spawn(h, true);
+        p.x = rnd(0, w);
+        return p;
+      });
+    },
+    draw(ctx, w, h, t, dark) {
+      ctx.lineCap = 'round';
+      for (const p of d) {
+        p.y -= p.v;
+        if (p.y + p.len < -20) {
+          const q = spawn(h, false);
+          p.x = rnd(0, w);
+          p.y = q.y;
+          p.v = q.v;
+          p.len = q.len;
+          p.w = q.w;
+          p.ph = q.ph;
+        }
+        const pulse = 0.35 + 0.65 * Math.abs(Math.sin(t / 95 + p.ph));
+        ctx.globalAlpha = (dark ? 0.55 : 0.3) * pulse;
+        ctx.strokeStyle = dark ? '#a9d8ff' : '#6f7fd0';
+        ctx.lineWidth = p.w;
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(p.x, p.y + p.len);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    },
+  };
+}
+
+const FACTORY: Record<string, (n: number) => Effect> = { glints, motes, seeds, nightsky, summer, petals, rain, data: dataMotes };
+const COUNT: Record<string, number> = { glints: 60, motes: 34, seeds: 18, nightsky: 140, summer: 40, petals: 46, rain: 110, data: 26 };
 
 export function isSceneEffect(effect: string): boolean {
   return effect in FACTORY;

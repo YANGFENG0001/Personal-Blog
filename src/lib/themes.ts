@@ -2,6 +2,7 @@
  * Theme registry — pure data shared by server (SSR attributes / CSS vars)
  * and client (owner live preview, background effects, egg sets).
  */
+import type { MascotId } from './mascot';
 
 export interface Palette {
   bg: string;
@@ -17,7 +18,7 @@ export interface Palette {
 
 export type BgEffect = 'particles' | 'sakura' | 'leaves' | 'bubbles' | 'stars' | 'waves' | 'fireflies' | 'snow';
 export type BgType = 'none' | 'solid' | 'gradient' | 'paper' | 'dots' | 'grid' | 'animated' | 'image' | 'scene';
-export type EggSet = 'ink' | 'nature' | 'ocean' | 'anime' | 'starry' | 'paper' | 'minimal' | 'eyecare' | 'summer' | 'sakura' | 'tenki';
+export type EggSet = 'ink' | 'nature' | 'ocean' | 'anime' | 'starry' | 'paper' | 'minimal' | 'eyecare' | 'summer' | 'sakura' | 'tenki' | 'lacia';
 
 export interface ThemePreset {
   id: string;
@@ -30,7 +31,7 @@ export interface ThemePreset {
   /** effect is a canvas effect id (bg-effects or scene-effects); scene is a scenes.ts id. */
   background: { type: BgType; effect?: string; scene?: string };
   /** Optional mascot character shown in a page corner (anime-style themes); ids from mascot.ts. */
-  mascot?: 'chibi' | 'haru' | 'sora';
+  mascot?: MascotId;
   /**
    * Preferred mascot *pack* for this theme, referenced by pack name. Takes
    * priority over `mascot` when the owner left the mascot on "跟随主题".
@@ -153,6 +154,15 @@ export const PRESETS: ThemePreset[] = [
     eggSet: 'tenki', fx: ['#ffd36e', '#9fd4ff', '#ffffff', '#ffb38a'],
     mascot: 'sora',
   },
+  {
+    id: 'lacia', name: '蕾西亚', description: '致敬《BEATLESS》：淡紫与冰蓝，黑色秘棺立在城市尽头，数据的光点向上飘；看板娘「蕾西亚」在角落陪你。夜里只剩秘棺的一道冷光。',
+    light: { bg: '#f7f6fb', surface: '#ffffff', ink: '#1a1926', muted: '#545169', faint: '#6a6780', line: '#e5e2f0', pane: '#eeecf8', accent: '#5b52c9', tint: '#e9e6fb' },
+    dark: { bg: '#0b0c12', surface: '#13141d', ink: '#e9e9f3', muted: '#a9abc2', faint: '#8b8da6', line: '#272a3b', pane: '#171923', accent: '#a99bff', tint: '#221f3a' },
+    font: 'sans', radius: 'soft', background: { type: 'scene', scene: 'lacia', effect: 'data' },
+    cursorGlyph: '<path d="M12 4 L18 12 L12 20 L6 12Z" fill="none" stroke="#5b52c9" stroke-width="1.5"/><circle cx="12" cy="12" r="2.1" fill="#8fd0ff"/><path d="M12 1.6 V4 M12 20 V22.4" stroke="#5b52c9" stroke-width="1.1" stroke-linecap="round"/>',
+    eggSet: 'lacia', fx: ['#a99bff', '#8fd0ff', '#ffffff', '#5b52c9'],
+    mascot: 'lacia',
+  },
 ];
 
 export const PRESET_IDS = PRESETS.map((p) => p.id) as [string, ...string[]];
@@ -161,6 +171,7 @@ export const EGG_SETS: { id: EggSet; name: string }[] = [
   { id: 'ink', name: '墨滴' }, { id: 'nature', name: '落叶' }, { id: 'ocean', name: '气泡' }, { id: 'anime', name: '樱花与星' },
   { id: 'starry', name: '流星' }, { id: 'paper', name: '纸片' }, { id: 'minimal', name: '几何' }, { id: 'eyecare', name: '萤火' },
   { id: 'summer', name: '夏日烟花' }, { id: 'sakura', name: '樱吹雪' }, { id: 'tenki', name: '晴天祈愿' },
+  { id: 'lacia', name: '秘棺之钥' },
 ];
 
 export const BG_EFFECTS: { id: BgEffect; name: string }[] = [

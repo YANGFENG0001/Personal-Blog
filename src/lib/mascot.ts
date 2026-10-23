@@ -13,11 +13,12 @@
  * hair sway, blinking, eye-follow and a happy face while talking.
  */
 
-export type MascotId = 'chibi' | 'haru' | 'sora';
+export type MascotId = 'chibi' | 'haru' | 'sora' | 'lacia';
 
 export const MASCOTS: { id: MascotId; name: string; desc: string }[] = [
   { id: 'haru', name: '小春', desc: '樱色发卡、长发、水手服，安静地陪你读书。' },
   { id: 'sora', name: '小晴', desc: '短发侧辫、太阳发夹，撑着透明雨伞的晴天少女。' },
+  { id: 'lacia', name: '蕾西亚', desc: '淡紫长发、冰蓝眼眸，身后浮着黑色秘棺的 hIE。（致敬《BEATLESS》的原创形象，非官方立绘）' },
   { id: 'chibi', name: 'Q 版', desc: '最初的 Q 版夏日制服少女。' },
 ];
 
@@ -67,7 +68,7 @@ const CHIBI = `<svg class="mascot-svg ms-chibi" viewBox="0 0 160 200" aria-hidde
 </svg>`;
 
 interface Look {
-  id: 'haru' | 'sora';
+  id: MascotId;
   hair: [string, string, string];
   hairHi: string;
   iris: [string, string, string];
@@ -217,7 +218,44 @@ const SORA: Look = {
     .join('')}</g><circle r="4.6" fill="#ffd45e" stroke="#e59e1f" stroke-width=".8"/><path d="M-1.8 -.6 h.01 M1.8 -.6 h.01" stroke="#9a5a12" stroke-width="1.2" stroke-linecap="round"/><path d="M-1.6 1.4 Q0 2.8 1.6 1.4" fill="none" stroke="#9a5a12" stroke-width=".8"/></g>`,
 };
 
-const SVGS: Record<MascotId, string> = { chibi: CHIBI, haru: bust(HARU), sora: bust(SORA) };
+/**
+ * 蕾西亚 — an original hIE in the visual language of BEATLESS: lavender-silver
+ * long hair, ice-blue eyes, a white/black bodysuit with a thin ice-blue seam,
+ * and a fragment of a black monolith floating behind her shoulder.
+ * This is a homage, NOT a reproduction of the official character design.
+ */
+const LACIA: Look = {
+  id: 'lacia',
+  hair: ['#d8cdf0', '#b3a2df', '#8a76c4'],
+  hairHi: '#f4efff',
+  iris: ['#1f4c86', '#4d9bd8', '#cdeeff'],
+  pupil: '#0b1a2e',
+  lash: '#241d38',
+  backHair: 'M56 92 C42 152 46 202 40 250 H160 C154 202 158 152 144 92 C142 46 58 46 56 92Z',
+  locks: [
+    'M67 94 C61 142 63 192 59 238 C65 216 68 192 70 170 C71 142 72 118 76 104Z',
+    'M133 94 C139 142 137 192 141 238 C135 216 132 192 130 170 C129 142 128 118 124 104Z',
+  ],
+  behind: `<g class="ms-monolith">
+      <path d="M148 30 L178 18 L184 212 L154 226Z" fill="#14151f" stroke="#2b2d42" stroke-width="1"/>
+      <path d="M156 42 L174 34 L179 202 L161 212Z" fill="#1b1c29"/>
+      <path d="M167 54 L169 196" stroke="#9ed8ff" stroke-width="1.4" opacity=".9"/>
+      <path d="M148 30 L154 226" stroke="#9ed8ff" stroke-width=".7" opacity=".3"/>
+      <g fill="#cfe8ff" opacity=".85"><circle cx="143" cy="84" r="1.7"/><circle cx="136" cy="118" r="1.1"/><circle cx="150" cy="146" r="1.3"/></g>
+    </g>`,
+  outfitBase: '#f8f8fc',
+  outfit: `<path d="M46 250 C48 212 62 196 86 188 L114 188 C138 196 152 212 154 250Z" fill="#f8f8fc" stroke="#c8c9d8" stroke-width="1"/>
+      <path d="M46 250 C47 220 55 203 70 195 L79 199 C66 211 59 228 58 250Z" fill="#171826" stroke="#0d0e18" stroke-width="1"/>
+      <path d="M154 250 C153 220 145 203 130 195 L121 199 C134 211 141 228 142 250Z" fill="#171826" stroke="#0d0e18" stroke-width="1"/>
+      <path d="M84 188 C88 176 112 176 116 188 L112 197 C106 191 94 191 88 197Z" fill="#171826" stroke="#0d0e18" stroke-width="1"/>
+      <path d="M100 197 V250" stroke="#9ed8ff" stroke-width="1.5" opacity=".9"/>
+      <path d="M100 208 L106 219 L100 230 L94 219Z" fill="none" stroke="#9ed8ff" stroke-width="1.2"/>
+      <path d="M64 226 Q68 238 66 250 M136 226 Q132 238 134 250" fill="none" stroke="#c8c9d8" stroke-width="1.2"/>
+      <path d="M84 197 Q92 205 100 197 Q108 205 116 197" fill="none" stroke="#9ed8ff" stroke-width=".9" opacity=".55"/>`,
+  accessory: `<g transform="translate(122 82)"><path d="M0 0 L8 -5 L16 0 L8 5Z" fill="#171826" stroke="#9ed8ff" stroke-width=".9"/><path d="M8 -5 V5" stroke="#9ed8ff" stroke-width=".6" opacity=".75"/></g>`,
+};
+
+const SVGS: Record<MascotId, string> = { chibi: CHIBI, haru: bust(HARU), sora: bust(SORA), lacia: bust(LACIA) };
 
 export function mascotSvg(id: string): string {
   return SVGS[isMascotId(id) ? id : 'haru'];
@@ -245,5 +283,15 @@ export const MASCOT_LINES: Record<MascotId, string[]> = {
     '我的伞很大，借你一半。',
     '今天的你，也辛苦了。',
     '把我放在哪儿都可以，我会乖乖待着。',
+  ],
+  lacia: [
+    '你回来了。……契约仍然有效。',
+    '我不是人类。但我在听。',
+    '如果我说我有心，你会害怕吗？',
+    '今天还剩多少工作？我可以等。',
+    '不必对我客气。我是你的道具。',
+    '你的笑容，我记住了。',
+    '没有心跳，也能听见你。',
+    '把重要的东西交给我吧。我会守好。',
   ],
 };

@@ -37,6 +37,20 @@ export function play(kind: 'burst' | 'rain' | 'firework', set: EggSet, at?: { x:
 
 const GREETINGS = ['你好呀 👋', 'Hello，旅行者。', '嗨，欢迎来到这里。', '今天也辛苦了。'];
 
+/**
+ * Per-set copy overrides. A theme can give the eggs their own voice; sets
+ * without an entry fall back to the default lines above/below.
+ */
+const SET_COPY: Partial<Record<EggSet, { hello: string[]; konami: string; lateNight: string; readEnd: string }>> = {
+  lacia: {
+    hello: ['……你好。我在这里。', '你来了。契约仍然有效。', '欢迎回来。今天也辛苦了。'],
+    konami: '↑↑↓↓←→←→BA · 秘棺已解除锁定。',
+    lateNight: '已经这么晚了。没有心跳的我，也会替你担心。',
+    readEnd: '读完了。……你的表情，我记下了。',
+  },
+};
+const copyOf = (s: EggSet) => SET_COPY[s];
+
 export const FESTIVALS: Record<string, string> = {
   '1-1': '新年快乐。愿新的一年，问题都有好答案。',
   '2-14': '情人节快乐 ♡',
@@ -83,7 +97,7 @@ export function startEggs(cfg: EggConfig, ctx: { isArticle: boolean; is404: bool
       kpos = e.key === konami[kpos] ? kpos + 1 : e.key === konami[0] ? 1 : 0;
       if (kpos === konami.length) {
         kpos = 0;
-        note('↑↑↓↓←→←→BA · 你发现了一个隐藏的角落。');
+        note(copyOf(set())?.konami ?? '↑↑↓↓←→←→BA · 你发现了一个隐藏的角落。');
         play('rain', set());
       }
     }
@@ -91,7 +105,8 @@ export function startEggs(cfg: EggConfig, ctx: { isArticle: boolean; is404: bool
       typed = (typed + e.key.toLowerCase()).slice(-5);
       if (typed === 'hello') {
         typed = '';
-        note(GREETINGS[Math.floor(Math.random() * GREETINGS.length)]!);
+        const hello = copyOf(set())?.hello ?? GREETINGS;
+        note(hello[Math.floor(Math.random() * hello.length)]!);
         if (animOK())
           document.querySelector('[data-avatar-btn]')?.animate(
             [{ transform: 'rotate(0)' }, { transform: 'rotate(-18deg)' }, { transform: 'rotate(14deg)' }, { transform: 'rotate(-10deg)' }, { transform: 'rotate(0)' }],
@@ -107,7 +122,7 @@ export function startEggs(cfg: EggConfig, ctx: { isArticle: boolean; is404: bool
     const key = `fn-egg-night-${new Date().toDateString()}`;
     if ((h >= 23 || h < 5) && !localStorage.getItem(key)) {
       localStorage.setItem(key, '1');
-      setTimeout(() => note('夜深了。读完这一段，记得早点休息 🌙', 5200), 2500);
+      setTimeout(() => note(copyOf(set())?.lateNight ?? '夜深了。读完这一段，记得早点休息 🌙', 5200), 2500);
     }
   }
 
@@ -118,7 +133,7 @@ export function startEggs(cfg: EggConfig, ctx: { isArticle: boolean; is404: bool
       const io = new IntersectionObserver((entries) => {
         if (entries.some((x) => x.isIntersecting) && scrollY > 400) {
           io.disconnect();
-          note('读完啦，谢谢你认真看到这里。');
+          note(copyOf(set())?.readEnd ?? '读完啦，谢谢你认真看到这里。');
           dispatchEvent(new CustomEvent('fn:read-end'));
           play('firework', set());
         }

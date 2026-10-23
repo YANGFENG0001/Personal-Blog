@@ -11,6 +11,7 @@ import { mergeCustom } from '../../lib/appearance';
 import { MascotPacks } from './MascotPacks';
 import '../../styles/scenes.css';
 import '../../styles/scenes-anime.css';
+import '../../styles/scenes-lacia.css';
 import '../../styles/mascot.css';
 
 /** Start either a scene effect or a generic particle effect on a preview canvas. */

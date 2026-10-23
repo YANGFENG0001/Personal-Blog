@@ -1,0 +1,61 @@
+/* 秘棺城市 — BEATLESS-inspired scene (markup: lacia() in src/lib/scenes.ts).
+   Same rules as the other scene sheets: light-dark() colours so one markup
+   serves day and night, and only transform/opacity ever animate. */
+
+[data-scene-id='lacia'] {
+  --sky-1: light-dark(#dfe3f2, #05060c); --sky-2: light-dark(#eef0f8, #0b0d16); --sky-3: light-dark(#f7f5fb, #14112a);
+  /* Lighter veil than the other scenes: the whole point of this one is the
+     black slab, and an 80% white wash turns it grey. Text still clears AA. */
+  --veil: light-dark(#f7f6fb73, #0b0c12d9);
+  background:
+    radial-gradient(56% 42% at 76% 22%, light-dark(#e8e6ff, #6f5bd028) 0%, transparent 72%),
+    linear-gradient(180deg, var(--sky-1) 0%, var(--sky-2) 50%, var(--sky-3) 100%);
+}
+
+/* A pale bloom in the upper right — light without a sun. */
+.l-bloom {
+  position: absolute; right: 6%; top: 4%; width: 46vw; height: 46vw; border-radius: 50%;
+  background: radial-gradient(circle, light-dark(#ffffff7a, #8f7fe040) 0%, transparent 62%);
+  filter: blur(28px); opacity: 0.9; pointer-events: none;
+}
+
+/* ---------- far ---------- */
+[data-scene-id='lacia'] .l-far rect { fill: light-dark(#9aa2ba, #12141f); }
+[data-scene-id='lacia'] .l-haze { fill: light-dark(#e6e9f4, #14121f); opacity: 0.6; filter: blur(9px); }
+
+/* The monolith: near-black slab, one ice-blue seam down its face. */
+[data-scene-id='lacia'] .l-mono-body { fill: light-dark(#0a0b12, #030409); }
+[data-scene-id='lacia'] .l-mono-edge { fill: none; stroke: light-dark(#3a3d55, #2b3350); stroke-width: 1.2; }
+[data-scene-id='lacia'] .l-mono-seam { fill: none; stroke: light-dark(#4aa8e0, #b6e4ff); stroke-width: 1.8; }
+[data-scene-id='lacia'] .l-mono-glow {
+  fill: none; stroke: light-dark(#6fc4f0, #9ed8ff); stroke-width: 7; opacity: 0.4; filter: blur(5px);
+}
+
+/* ---------- mid ---------- */
+[data-scene-id='lacia'] .l-mid rect { fill: light-dark(#6d7590, #0d0f18); }
+[data-scene-id='lacia'] .l-win rect { fill: light-dark(#aebdd8, #8fd0ff); opacity: light-dark(0.8, 0.7); }
+
+/* ---------- near ---------- */
+[data-scene-id='lacia'] .l-hex { fill: none; stroke: light-dark(#8fa8cc88, #8fd0ff55); stroke-width: 1.4; }
+[data-scene-id='lacia'] .l-rail { fill: none; stroke: light-dark(#9aa2ba, #222a3d); stroke-width: 1.6; }
+[data-scene-id='lacia'] .l-ground { fill: light-dark(#b4bacd, #08090f); }
+
+/* Night: the city goes quiet, the seam stays lit. */
+:root[data-theme='dark'] [data-scene-id='lacia'] .l-mono-glow { opacity: 0.55; }
+@media (prefers-color-scheme: dark) {
+  :root[data-theme='auto'] [data-scene-id='lacia'] .l-mono-glow { opacity: 0.55; }
+}
+
+/* ---------- motion ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion='off']) [data-scene-id='lacia'] .l-mono-seam,
+  :root:not([data-motion='off']) [data-scene-id='lacia'] .l-mono-glow { animation: l-seam 6.5s ease-in-out infinite; }
+  :root:not([data-motion='off']) [data-scene-id='lacia'] .l-hex { animation: l-float 14s ease-in-out infinite; }
+  :root:not([data-motion='off']) [data-scene-id='lacia'] .l-hex-2 { animation-duration: 18s; animation-delay: -4s; }
+  :root:not([data-motion='off']) [data-scene-id='lacia'] .l-hex-3 { animation-duration: 11s; animation-delay: -7s; }
+  :root:not([data-motion='off']) [data-scene-id='lacia'] .l-hex-4 { animation-duration: 16s; animation-delay: -2s; }
+  :root:not([data-motion='off']) [data-scene-id='lacia'] .l-bloom { animation: l-breathe 12s ease-in-out infinite; }
+}
+@keyframes l-seam { 50% { opacity: 0.45; } }
+@keyframes l-float { 50% { transform: translateY(-9px); } }
+@keyframes l-breathe { 50% { opacity: 0.62; } }
