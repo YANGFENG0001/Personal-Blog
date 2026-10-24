@@ -15,12 +15,14 @@ description: Use when the owner wants a 看板娘 (mascot) built from existing /
 |---|---|
 | 站主要**原创**角色、要贴合特定主题配色 | `fieldnotes-theme-pack`（生图或手绘 SVG） |
 | 站主接受**现成画风**、要快、要多状态 | 本技能（找素材） |
-| 站主点名要**某个动漫作品的角色** | ⚠️ 不能做。见第 1 节 |
+| 站主点名要**某个动漫作品的角色** | ⚠️ 默认不做。站主明确表示"授权我自己解决、你只管出图"时才做，且必须按**同人二创**如实记录来源（见第 1 节） |
+| 站主要**插画级**、不满足手绘 SVG 的观感 | 生图 + 抠图，见第 8 节 |
 | 只是要"能露全身、有脚"的角色 | 本技能最省事 |
 
 ## 1. 版权：这是硬约束，不是建议
 
 - **不复制受版权保护的角色。** 站主说"要《天气之子》的女主"时，正确做法是做**同一气质的原创角色**（雨、放晴、白裙、双马尾、云隙的光），并在交付时明确说明这是致敬而非复刻。
+- **例外：站主自己承担授权。** 若站主明确说"这个角色我允许你用原形象二创，许可我自己解决，不用你操心"，那就照做，但**不要因此宣称已获授权**：`mascot.json` 的 `license` 写"同人二创 · 本站自用"，来源说明里写清"版权归原权利方，站主已声明自行处理许可"。别反复拿版权劝阻——站主已经表态了，再劝就是没听懂。
 - 可用的素材只有三类：
   - **CC0 / Public Domain** —— 无需署名，最省心。
   - **CC-BY** —— 必须署名，允许修改。
@@ -193,7 +195,7 @@ curl -s -b /tmp/c.txt -X POST http://localhost:4321/api/owner/mascots \
 - 只在站主把看板娘设成「跟随主题」（`character: 'preset'`）时生效；手动选定的角色永远优先。
 - 解析发生在 `PublicLayout.astro`（`findPackIdByName` 只查一列，开销可忽略）。
 
-当前绑定：`sakura → 小铃`、`summer → 小穗`；`tenki` 仍用内置「小晴」，因为她撑着透明伞，正是这个主题的点。
+当前绑定：`sakura → 小春`、`tenki → 小晴`、`lacia → 蕾西亚`、`summer → 小穗`（全是插画包）；内置 SVG 角色只作兜底。
 
 ### 5.4 验证（不要只看 200）
 
@@ -238,3 +240,92 @@ const info = await page.evaluate(() => {
 - [ ] 来源与署名说明已写进仓库（来源 URL、作者、许可、做了哪些修改）
 - [ ] 若用了 CC-BY-SA：已提醒站主"衍生图需同协议共享"
 - [ ] 已告诉站主怎么换回别的角色（后台 → 外观与主题 → 角色）
+
+## 8. 从零生成立绘（找不到合适素材时）
+
+手绘 SVG 撞不到"动漫插画"的观感，开放素材站又常常没有全身同姿势的多表情立绘。剩下的路是**生图 + 抠图**。整条链是：洋红底出图 → 抠图 → 表情帧 → 对齐画布 → 打包。
+
+### 8.1 ⚠️ 模型给不了真透明通道
+
+`background: "transparent"` **不是透明**，它只是把一张**棋盘格图案画进画面**。实测 `sharp` 读出 `hasAlpha: false`、四角像素是 `234,231,229,255`（画上去的棋盘格）。所以：
+
+**必须让模型在纯色底上出图，再自己抠。**
+
+提示词里写死（英文比中文稳）：
+
+```
+Professional anime character illustration, full body, standing upright facing the viewer,
+complete figure from head to shoes. The entire background is one perfectly flat solid magenta
+chroma-key colour, absolutely uniform, no gradient, no shadow, no texture.
+Japanese visual novel character sprite style, ... no text, no watermark,
+isolated single character, generous margin around the figure.
+```
+
+用 `size: "1024x1536"`、`quality: "high"`。
+
+### 8.2 抠图：按背景色**距离**，不要按洋红指标
+
+第一版用 `min(R,B) − G`（洋红度）当指标，只在背景真是洋红时成立。模型经常漂到**酒红 `132,54,86`** 或**粉 `203,95,151`**，此时指标只有 32，阈值窗口被压到 `6..20`，**浅紫/浅粉的头发会被整片吃掉**。
+
+正确做法：
+
+```js
+// 1. 取四周 2px 边框环的 RGB 中位数当背景色 B（比取四角稳，能扛住边角的一笔杂色）
+// 2. d = 到 B 的欧氏距离
+// 3. d <= lo → 全透明；d >= hi → 全不透明；中间线性过渡
+//    lo = max(6, 边框环内的最大 d * 1.8)   ← 噪声地板
+//    hi = lo + 42
+// 4. 对 0 < a < 255 的像素做反预乘，把背景色真正减掉：
+//    F = (C - (1 - a) * B) / a
+```
+
+反预乘比"去饱和"干净得多：边缘像素不会再带一圈背景色调（酒红底会留红边，灰底会留灰边）。
+
+### 8.3 三个必须处理的脏东西
+
+| 脏东西 | 处理 |
+|---|---|
+| 右下角「AI 生成 WORKBUDDY」水印 | 水印是**不透明**的，抠不掉。直接把右下 `30% × 7.5%` 区域的 alpha 强制置 0（人物够不到那个角） |
+| 模型自作主张加的**漂浮道具**（蕾西亚右上多了一块悬空黑板） | **不能整块抹**——它和头发在同一列，抹矩形会在头发上打洞。按**连通域**算面积，只删面积 < 主体 10% 的碎片 |
+| `sharp().trim()` 静默失效 | 半透明像素贴边时 trim 直接放弃（透明伞一定触发）。自己算 alpha 包围盒再 `.extract()` |
+
+### 8.4 表情帧：只改脸
+
+用 `image1` + `input_fidelity: "high"`，提示词强调"其余一切不许动"：
+
+```
+Keep this exact character, pose, body, clothing, hair, umbrella, framing and flat magenta
+background completely unchanged. Only change the face: eyes open looking at the viewer,
+mouth slightly open as if speaking a short sentence.
+```
+
+**必须串行生成，每出一张立刻改名。** 并行调两次会共用同一时间戳文件名，后一张把前一张覆盖掉（实测丢过一整个 `src-sora`）。
+
+一套三帧就够：`idle`（闭口）/ `talk`（睁眼开口）/ `happy`（闭眼笑）。缺的状态会自动回退到 `idle`。
+
+### 8.5 对齐画布：按 alpha 包围盒**底边中心**
+
+逐帧抠图必然差 1–3px（一缕头发这帧出框、下帧没出），而 `build-pack.mjs` 遇到画布不一致是**硬失败**。不要手调，写个小脚本：
+
+- 取所有帧 alpha 包围盒的**最大宽高**当公共画布
+- 每帧按**底边贴齐 + 水平居中**合成进去
+
+底边对齐是关键：`anchors.baseline` 读的就是脚的位置，脚对齐了状态切换才不会跳。
+
+### 8.6 打包与验证
+
+配置里给 `"height": 900`（**按高度缩放，别按宽度**——全身立绘按宽度会被放大到 2000+ 高），`trim: false`（已经自己裁过了），`display.height: 300`、`crop: 1`。
+
+验证时注意两个坑（都会让你误判）：
+
+1. **`?theme-preview=` 不改角色包。** 它只翻一个预览属性；`mascotPack` 走的是 `appearance.preset`，必须在库里改 `preset`。
+2. **入场动画期间量尺寸是错的。** `.mascot` 有 0.6s 延迟 + 0.9s 的 `ms-enter`，量早了会读到"还在从下面往上滑"的位置，表现为底部莫名留 17px 缝。等 2s 再量。
+
+### 8.7 没有站主密码时怎么导入
+
+`POST /api/owner/mascots` 要站主会话。**不要为了导入去重置站主密码**——那会把站主所有设备踢下线。直接写库，复刻 `importPack()` 的行为即可：
+
+- `mascot_packs(id, name, manifest, created_at, updated_at)`，`id` 是 16 位 hex
+- `uploads(id, filename, original_name, mime, size, created_at, pack_id)`，`filename` 是 **24 位 hex + 扩展名**（`readUpload` 用 `^[a-f0-9]{24}\.(png|webp|…)$` 校验，长度不对就 404）
+- 图片落到 `data/uploads/`，`original_name` 用 `idle.webp` 这种，因为 `urlsFor()` 是靠它反推状态的
+

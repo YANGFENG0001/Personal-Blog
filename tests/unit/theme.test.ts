@@ -86,10 +86,12 @@ describe('resolveAppearance', () => {
 
   it('carries the theme\u2019s preferred mascot pack while following the theme', () => {
     // Follow-the-theme: the pack name rides along so the layout can resolve it.
-    expect(resolveAppearance({ ...base, preset: 'sakura' }, 'auto').mascot).toMatchObject({ character: 'haru', presetPack: '小铃' });
+    // Illustration packs are named after the character they depict, so the
+    // binding stays readable: 樱花坂 → 小春, 晴空之子 → 小晴, 蕾西亚 → 蕾西亚.
+    expect(resolveAppearance({ ...base, preset: 'sakura' }, 'auto').mascot).toMatchObject({ character: 'haru', presetPack: '小春' });
     expect(resolveAppearance({ ...base, preset: 'summer' }, 'auto').mascot?.presetPack).toBe('小穗');
-    // Themes without a preferred pack simply omit it.
-    expect(resolveAppearance({ ...base, preset: 'tenki' }, 'auto').mascot?.presetPack).toBeUndefined();
+    expect(resolveAppearance({ ...base, preset: 'tenki' }, 'auto').mascot?.presetPack).toBe('小晴');
+    expect(resolveAppearance({ ...base, preset: 'lacia' }, 'auto').mascot).toMatchObject({ character: 'lacia', presetPack: '蕾西亚' });
     // An explicit pick always wins — no pack override leaks through.
     expect(resolveAppearance({ ...base, preset: 'sakura', mascot: { ...base.mascot, character: 'pack:0123456789abcdef' } }, 'auto').mascot).toMatchObject({ character: 'pack:0123456789abcdef' });
     expect(resolveAppearance({ ...base, preset: 'sakura', mascot: { ...base.mascot, character: 'pack:0123456789abcdef' } }, 'auto').mascot?.presetPack).toBeUndefined();

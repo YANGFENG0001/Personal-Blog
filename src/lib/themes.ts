@@ -143,16 +143,16 @@ export const PRESETS: ThemePreset[] = [
     font: 'sans', radius: 'round', background: { type: 'scene', scene: 'sakura', effect: 'petals' },
     cursorGlyph: '<g transform="translate(12 12)">' + [0, 72, 144, 216, 288].map((a) => `<path transform="rotate(${a})" d="M0 0C-4 -3.6 -3.3 -9.4 -.9 -10.5L0 -9.1 .9 -10.5C3.3 -9.4 4 -3.6 0 0Z" fill="#ffc6da" stroke="#c2457a" stroke-width=".8"/>`).join('') + '<circle r="1.7" fill="#ffd877"/></g>',
     eggSet: 'sakura', fx: ['#ffc6da', '#ff9fc0', '#fff0f6', '#ffe08a'],
-    mascot: 'haru', mascotPack: '小铃',
+    mascot: 'haru', mascotPack: '小春',
   },
   {
-    id: 'tenki', name: '晴空之子', description: '致敬《天气之子》的氛围：雨中的东京天际线，厚重云层裂开一道阳光洒向城市，屋顶上的小鸟居与彩虹；看板娘「小晴」撑着透明伞。夜里霓虹映着雨。',
+    id: 'tenki', name: '晴空之子', description: '致敬《天气之子》的氛围：雨中的东京天际线，厚重云层裂开一道阳光洒向城市，屋顶上的小鸟居与彩虹；看板娘「小晴」撑着一把磨砂白伞。夜里霓虹映着雨。',
     light: { bg: '#f2f6fa', surface: '#ffffff', ink: '#1c2433', muted: '#4a5568', faint: '#5a6578', line: '#dde5ee', pane: '#e8eef5', accent: '#2f6fb8', tint: '#e1ecf8' },
     dark: { bg: '#0f1424', surface: '#161c30', ink: '#e8edf7', muted: '#aab4c8', faint: '#8f9ab0', line: '#263049', pane: '#1a2138', accent: '#ffc861', tint: '#2c2a36' },
     font: 'sans', radius: 'round', background: { type: 'scene', scene: 'tenki', effect: 'rain' },
     cursorGlyph: '<path d="M12 3C9 8 6.5 11 6.5 14.5a5.5 5.5 0 0 0 11 0C17.5 11 15 8 12 3Z" fill="#9fd4ff" stroke="#2f6fb8" stroke-width="1.1"/><path d="M9.6 14.6a2.6 2.6 0 0 0 2 2.4" stroke="#fff" stroke-width="1.1" fill="none" stroke-linecap="round"/>',
     eggSet: 'tenki', fx: ['#ffd36e', '#9fd4ff', '#ffffff', '#ffb38a'],
-    mascot: 'sora',
+    mascot: 'sora', mascotPack: '小晴',
   },
   {
     id: 'lacia', name: '蕾西亚', description: '致敬《BEATLESS》：淡紫与冰蓝，黑色秘棺立在城市尽头，数据的光点向上飘；看板娘「蕾西亚」在角落陪你。夜里只剩秘棺的一道冷光。',
@@ -161,7 +161,7 @@ export const PRESETS: ThemePreset[] = [
     font: 'sans', radius: 'soft', background: { type: 'scene', scene: 'lacia', effect: 'data' },
     cursorGlyph: '<path d="M12 4 L18 12 L12 20 L6 12Z" fill="none" stroke="#5b52c9" stroke-width="1.5"/><circle cx="12" cy="12" r="2.1" fill="#8fd0ff"/><path d="M12 1.6 V4 M12 20 V22.4" stroke="#5b52c9" stroke-width="1.1" stroke-linecap="round"/>',
     eggSet: 'lacia', fx: ['#a99bff', '#8fd0ff', '#ffffff', '#5b52c9'],
-    mascot: 'lacia',
+    mascot: 'lacia', mascotPack: '蕾西亚',
   },
 ];
 
