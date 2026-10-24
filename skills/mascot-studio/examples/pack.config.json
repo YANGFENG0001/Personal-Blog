@@ -1,0 +1,21 @@
+{
+  "name": "蕾西亚",
+  "author": "AI 生成 · 同人二创（原作 BEATLESS）",
+  "license": "同人二创 · 本站自用",
+  "height": 900,
+  "trim": false,
+  "quality": 92,
+  "out": "lacia.mascot.zip",
+  "source": {
+    "idle": "frames/idle.png",
+    "talk": "frames/talk.png",
+    "happy": "frames/happy.png",
+    "blink": "frames/blink.png"
+  },
+  "display": { "mode": "full", "height": 300, "crop": 1, "outline": "soft", "shadow": true },
+  "motion": { "breathe": true, "sway": true, "swing": true, "blinkEvery": 5 },
+  "lines": {
+    "click": ["你回来了。……契约仍然有效。", "我不是人类。但我在听。"],
+    "night": ["夜深了。剩下的明天再做。"]
+  }
+}

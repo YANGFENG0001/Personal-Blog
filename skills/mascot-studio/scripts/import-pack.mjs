@@ -7,7 +7,7 @@
  * (same table columns, same 24-hex upload filenames, same pack_id link) so the
  * result is indistinguishable from an upload through 后台.
  *
- * Usage: node skills/fieldnotes-mascot-sourcing/scripts/import-pack.mjs <pack.zip> [<pack.zip> ...]
+ * Usage: node skills/mascot-studio/scripts/import-pack.mjs <pack.zip> [<pack.zip> ...]
  */
 import Database from 'better-sqlite3';
 import { unzipSync, strFromU8 } from 'fflate';

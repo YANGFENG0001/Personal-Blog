@@ -1,0 +1,4 @@
+{
+  "light": { "bg": "#fbf7f9", "surface": "#ffffff", "ink": "#2a2433", "muted": "#5b5266", "faint": "#6a6175", "line": "#efe3ea", "pane": "#f6edf2", "accent": "#c2457a", "tint": "#fbe7f0", "onAccent": "#ffffff" },
+  "dark":  { "bg": "#171a2e", "surface": "#1e2238", "ink": "#eef0fa", "muted": "#b4b8d0", "faint": "#9a9fba", "line": "#2e3350", "pane": "#232842", "accent": "#ffa8c8", "tint": "#3a2a48", "onAccent": "#231a20" }
+}

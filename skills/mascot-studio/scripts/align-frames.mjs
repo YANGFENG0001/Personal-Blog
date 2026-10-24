@@ -8,7 +8,7 @@
  * poses are identical except for the face, so that anchor is exact, and the
  * feet stay on the same baseline (which is what `anchors.baseline` reads).
  *
- * Usage: node skills/fieldnotes-mascot-sourcing/scripts/align-frames.mjs <outDir> <name> <frame.png> ...
+ * Usage: node skills/mascot-studio/scripts/align-frames.mjs <outDir> <name> <frame.png> ...
  */
 import sharp from 'sharp';
 import fs from 'node:fs';
@@ -16,7 +16,7 @@ import path from 'node:path';
 
 const [, , outDir, name, ...files] = process.argv;
 if (!outDir || !name || files.length === 0) {
-  console.error('用法：node .tmp-align.mjs <outDir> <name> <frame.png> ...');
+  console.error('用法：node skills/mascot-studio/scripts/align-frames.mjs <outDir> <name> <frame.png> ...');
   process.exit(1);
 }
 fs.mkdirSync(outDir, { recursive: true });

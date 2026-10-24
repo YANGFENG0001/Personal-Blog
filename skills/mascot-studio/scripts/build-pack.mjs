@@ -2,7 +2,7 @@
 /**
  * Build a FIELDNOTES `.mascot.zip` from raw PNG/WebP frames.
  *
- *   node skills/fieldnotes-mascot-sourcing/scripts/build-pack.mjs pack.config.json
+ *   node skills/mascot-studio/scripts/build-pack.mjs pack.config.json
  *
  * Config (paths are relative to the config file):
  * {

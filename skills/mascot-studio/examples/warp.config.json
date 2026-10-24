@@ -1,0 +1,8 @@
+{
+  "width": 585, "height": 1504, "out": "warp",
+  "zones": [
+    { "id": "hair", "shape": "sides", "y": [0.02, 0.58], "edge": 2.4, "axis": "x", "amp": 1 },
+    { "id": "body", "shape": "band", "y": [0.34, 1.0], "axis": "y", "amp": 0.3 },
+    { "id": "head", "shape": "ellipse", "cx": 0.5, "cy": 0.09, "rx": 0.17, "ry": 0.09, "axis": "x", "amp": 0.8 }
+  ]
+}

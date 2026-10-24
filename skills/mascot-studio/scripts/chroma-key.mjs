@@ -11,14 +11,14 @@
  * magenta, pink, maroon or grey, then un-premultiply the fringe so the backdrop
  * colour is mathematically removed instead of merely desaturated.
  *
- * Usage: node skills/fieldnotes-mascot-sourcing/scripts/chroma-key.mjs <in.png> <out.png> [--check] [--drop-islands]
+ * Usage: node skills/mascot-studio/scripts/chroma-key.mjs <in.png> <out.png> [--check] [--drop-islands]
  *   --check  composite on mid-grey so fringing is obvious
  */
 import sharp from 'sharp';
 
 const [, , input, output, ...flags] = process.argv;
 if (!input || !output) {
-  console.error('用法：node skills/fieldnotes-mascot-sourcing/scripts/chroma-key.mjs <in.png> <out.png> [--check] [--drop-islands]');
+  console.error('用法：node skills/mascot-studio/scripts/chroma-key.mjs <in.png> <out.png> [--check] [--drop-islands]');
   process.exit(1);
 }
 

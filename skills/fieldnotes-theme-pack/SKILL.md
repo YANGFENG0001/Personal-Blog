@@ -5,33 +5,31 @@ description: Use when creating assets or theme files for a FIELDNOTES blog — m
 
 # FIELDNOTES 主题与看板娘素材制作规范
 
+> **本文件是适配层。** 主题怎么设计（配色体系、可读性、分层、验收）看 `skills/theme-studio/SKILL.md`；
+> 角色怎么制作（还原、生图、抠图、动态、状态）看 `skills/mascot-studio/SKILL.md`。
+> 这里只讲**本站的格式、字段取值和硬限制**。
+
 FIELDNOTES 是一个个人研究博客，支持**主题包**（全站外观）和**看板娘角色包**。本技能告诉你：要产出哪些文件、每个文件的规格、怎样写生图提示词、怎样打包和自检。
 
 产出物最终由站主导入网站，处理流程如下：
 
 ```
-生图模型 / 手绘  →  素材工作室（tools/asset-studio，本地）抠图·修补·压缩·打包  →  网站后台导入
+生图模型 / 手绘  →  抠图·对齐·压缩·打包（skills/mascot-studio/scripts）  →  网站后台导入
 ```
 
-> **想直接用网上现成的开放许可立绘（CC0 / CC-BY / 授权明确）做看板娘？**
-> 走 `skills/fieldnotes-mascot-sourcing/SKILL.md` —— 那份讲找素材、判许可、避坑（VN 立绘没有脚等）和打包导入；本技能负责"自己画/自己生图"这一路。产出物格式相同。
+## 0. 三条不能破的规矩
 
-## 0. 最重要的规则（必读）
+这三条是**本项目校验会直接打回**的，其余设计原则见 theme-studio / mascot-studio。
 
-1. **绝不要让生图模型输出“透明背景”。** 模型会把灰白棋盘格*画*进图片里（假透明），上传后会变成一个方块。
-   - 角色、贴纸、粒子、光标：用**纯色背景**。
-     - 首选：`纯绿色背景 #00FF00`。
-     - 角色身上有绿色时：用 `纯洋红 #FF00FF`。
-     - 以上都不行时：用 `纯白 #FFFFFF`。
-   - 不要阴影，不要地面，不要渐变，人物和背景之间要有清晰的边界。
-   - 抠图交给素材工作室完成（`node cli.mjs matte …`）。
+1. **绝不要让生图模型输出“透明背景”。** 模型会把灰白棋盘格*画*进图片里（假透明），上传后变成一个方块。一律用纯色底再抠图（洋红 `#FF00FF` 优先）。
 2. **不要文字、字母、数字、Logo、水印、签名、边框。**
-3. **原创形象。** 不要复刻任何现成作品里的角色；人物设定为成年人。如果站主明确要用某个作品的角色，需要提醒站主自己确认授权。
-4. **同一角色的多个状态图**必须满足：
-   - 同画布尺寸、同站位、同比例、同光源方向。
-   - 只改**表情和手势**，不改服装和发型。
-   - 最稳妥的做法：先生成 idle，再用“基于这张图修改表情”的方式生成其它状态。
-5. **背景图要给正文留出阅读空间**：左侧约 60% 保持低对比、少细节，视觉主体放在右侧或底部。日间和夜间各出一张。
+3. **多状态必须同画布、同站位、同比例、同光源**，只改表情和手势。最稳的做法：先生成 idle，再用“基于这张图修改表情”生成其它状态。
+
+配色对比度不是「建议」而是硬指标，用脚本过一遍再交付：
+
+```bash
+node skills/theme-studio/scripts/contrast-check.mjs palette.json
+```
 
 ## 1. 素材规格表
 
@@ -71,7 +69,15 @@ node cli.mjs mascot 角色目录/ 角色名.mascot.zip --name 角色名 --displa
 node cli.mjs check 角色名.mascot.zip
 ```
 
-台词放在同目录的 `lines.json`，格式见 2.2 节里的 `lines` 字段。
+或者用通用技能里那套脚本（没有 AI 抠图依赖，纯算法，结果可复现）：
+
+```bash
+node skills/mascot-studio/scripts/chroma-key.mjs   in.png out.png --check
+node skills/mascot-studio/scripts/align-frames.mjs 帧目录/ 角色名 idle.png talk.png ...
+node skills/mascot-studio/scripts/build-pack.mjs   pack.config.json
+```
+
+两套产出的 `.mascot.zip` 格式完全一致，选一套即可。台词放在同目录的 `lines.json`，格式见 2.2 节里的 `lines` 字段。
 
 ### 2.2 mascot.json
 
