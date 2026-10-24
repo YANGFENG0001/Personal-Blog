@@ -3,14 +3,31 @@
  * image request. All characters are original designs.
  *
  * - chibi: the first, simple chibi girl (kept for the 夏日物语 preset).
- * - haru:  an anime-style bust — long chestnut hair, sakura hairpin, sailor uniform.
- * - sora:  an anime-style bust — dark bob with a side braid, sun hairclip,
- *          sky-blue raincoat and a clear umbrella over her shoulder.
+ * - haru:  long chestnut hair, sakura hairpin, sailor uniform.
+ * - sora:  dark bob with a side braid, sun hairclip, clear umbrella.
+ * - lacia: lavender hair, ice-blue eyes, a homage to BEATLESS (not the
+ *          official design).
  *
- * The anime busts use layered gradients and line art (hair outline, lashes,
- * double-lid line, iris gradient with highlights, hatched blush) instead of
- * flat cartoon shapes. Class names (ms-*) drive the CSS animations: breathing,
- * hair sway, blinking, eye-follow and a happy face while talking.
+ * The three anime busts share one construction so the site stays consistent:
+ *
+ *   head   98 tall × 77 wide (≈1.27 ratio), crown at y=20, chin at y=118
+ *   eyes   line at y≈79, each 22 × 25, one eye-width apart, irises filling
+ *          the socket, thick upper lash + flick, double-lid crease, lower lash
+ *   nose   a single 2px shadow curve at y≈93 (anime noses are not outlined)
+ *   mouth  small, 8 wide, at y≈105, 13 above the chin
+ *   neck   20 wide, ~26 visible below the chin, with a jaw shadow
+ *   body   shoulders 104 wide (≈1.35 heads) at y=167, widening to 134 at the
+ *          bottom cut (y=250)
+ *   hair   one fringe mass whose lower edge is a chain of soft points (never a
+ *          row of separate locks — those read as fangs or bricks), over a dark
+ *          arc that fills the notches so they show hair instead of skin; side
+ *          locks taper narrow-wide-point; the back fall gets gloss + strands.
+ *          Never a broad translucent highlight: it erases the strand seams and
+ *          turns the whole fringe into a veil with a jagged edge.
+ *
+ * Class names (ms-*) drive the CSS animations: breathing, hair sway, blinking,
+ * eye-follow and a happy face while talking. Geometry is shared through the
+ * constants below; only colour and outfit differ per character.
  */
 
 export type MascotId = 'chibi' | 'haru' | 'sora' | 'lacia';
@@ -25,6 +42,8 @@ export const MASCOTS: { id: MascotId; name: string; desc: string }[] = [
 export function isMascotId(id: string): id is MascotId {
   return MASCOTS.some((m) => m.id === id);
 }
+
+/* ------------------------------------------------------------------ chibi */
 
 const CHIBI = `<svg class="mascot-svg ms-chibi" viewBox="0 0 160 200" aria-hidden="true" focusable="false">
   <defs>
@@ -67,6 +86,26 @@ const CHIBI = `<svg class="mascot-svg ms-chibi" viewBox="0 0 160 200" aria-hidde
   </g>
 </svg>`;
 
+/* ------------------------------------------------------- shared geometry */
+
+const SKIN = { base: '#ffeade', low: '#fbd7c7', shade: '#f0b6a4', line: '#dc9a88' };
+
+/** Face silhouette: wide cranium, straight jaw line, soft rounded chin. */
+const FACE =
+  'M100 20C82 20 66 34 63 55C61 66 61 75 64 84C67 93 72 99 78 104C83 109 91 114 96 116.5C98 117.6 102 117.6 104 116.5C109 114 117 109 122 104C128 99 133 93 136 84C139 75 139 66 137 55C134 34 118 20 100 20Z';
+
+/** Neck, drawn under the head; the head covers everything above the chin. */
+const NECK = 'M90 106V152C90 158 94 162 100 162C106 162 110 158 110 152V106Z';
+
+/** Shadow the jaw casts on the neck. */
+const NECK_SHADE = 'M89.5 118C89.5 130 94 137 100 138.5C106 137 110.5 130 110.5 118Z';
+
+/** Shoulders / chest, cut by the bottom mask fade. */
+const BODY =
+  'M100 147C80 147 60 155 48 167C40 175 35 185 33 250H167C165 185 160 175 152 167C140 155 120 147 100 147Z';
+
+type Tip = [x: number, depth: number];
+
 interface Look {
   id: MascotId;
   hair: [string, string, string];
@@ -74,8 +113,10 @@ interface Look {
   iris: [string, string, string];
   pupil: string;
   lash: string;
-  backHair: string;
-  locks: [string, string];
+  /** half-widths of the back-hair fall at crown / shoulder / bottom. */
+  backW: [number, number, number];
+  /** fringe tips, left to right: [x, depth]. */
+  bangs: Tip[];
   outfit: string;
   outfitBase: string;
   accessory: string;
@@ -83,76 +124,171 @@ interface Look {
   front?: string;
 }
 
-const SKIN = { base: '#ffeade', low: '#fcd9c9', shade: '#f2bfae', line: '#d99a88' };
+/* -------------------------------------------------------------------- eye */
 
-/** One eye, drawn on the left; the right eye is the same group mirrored. */
+/**
+ * One eye, drawn on the left half; the right eye is the same group mirrored.
+ * Socket 22 × 25 with the iris filling it, a thick upper lash with an outward
+ * flick, a double-lid crease on the skin and a thin lower lash.
+ */
 function eye(L: Look, side: 'l' | 'r'): string {
   const clip = `${L.id}-eye-${side}`;
-  const white = 'M72 118 Q80 108 96 114 Q97 128 87 134 Q76 133 72 118Z';
-  return `<clipPath id="${clip}"><path d="${white}"/></clipPath>
-    <path d="${white}" fill="#fff"/>
-    <g clip-path="url(#${clip})"><g class="ms-iris ms-iris-${side}">
-      <ellipse cx="85" cy="123" rx="8.6" ry="11.2" fill="url(#${L.id}-iris)"/>
-      <ellipse cx="85" cy="125" rx="4" ry="5.6" fill="${L.pupil}"/>
-      <path d="M78.5 129 Q85 134.5 91.5 129" fill="none" stroke="${L.iris[2]}" stroke-width="1.6" opacity=".85"/>
-      <ellipse cx="81.6" cy="117.6" rx="3.1" ry="3.7" fill="#fff"/>
-      <circle cx="89.2" cy="128" r="1.5" fill="#fff" opacity=".9"/>
-    </g><path d="M70 112 Q84 104 98 112 V119 Q84 112 70 120Z" fill="${L.iris[0]}" opacity=".28"/></g>
-    <path d="M69 117 Q80 103 98 112 L97.4 115.6 Q81 108 72.6 120.4Z" fill="${L.lash}"/>
-    <path d="M70.4 116 L63.6 111.6 L71.6 119.2Z" fill="${L.lash}"/>
-    <path d="M76 107.6 Q86 102.6 95 106.4" fill="none" stroke="${L.lash}" stroke-width=".9" opacity=".55"/>
-    <path d="M80 133.6 Q86 135.2 92 131.2" fill="none" stroke="${L.lash}" stroke-width="1" opacity=".6"/>`;
+  const socket =
+    'M91.5 81C88.5 69.5 79.5 65.5 72.2 71.5C69.2 74.2 68.6 77.8 69.6 80.8C72.6 88 81 92 88.2 89C90.8 87.8 91.7 84.4 91.5 81Z';
+  return `<clipPath id="${clip}"><path d="${socket}"/></clipPath>
+      <path d="${socket}" fill="#fdfbff"/>
+      <g clip-path="url(#${clip})">
+        <g class="ms-iris ms-iris-${side}">
+          <ellipse cx="80" cy="79.4" rx="8.4" ry="10.8" fill="url(#${L.id}-iris)"/>
+          <ellipse cx="80" cy="79.8" rx="3.5" ry="5.2" fill="${L.pupil}"/>
+          <path d="M71.8 88.6Q80 93.4 88.2 88.4" fill="none" stroke="${L.iris[2]}" stroke-width="2.2" opacity=".9"/>
+          <ellipse cx="75.6" cy="73.8" rx="2.9" ry="3.7" fill="#fff" transform="rotate(-16 75.6 73.8)"/>
+          <circle cx="84.4" cy="86" r="1.5" fill="#fff" opacity=".92"/>
+        </g>
+        <path d="M67.5 69.5Q80 63 93 70.5V78Q80 69.5 67.5 76Z" fill="${L.iris[0]}" opacity=".4"/>
+      </g>
+      <path d="M91.6 80.4C88.4 68.6 79.2 64 71.6 70.8C68.6 73.4 68.2 77 69.4 80.2" fill="none" stroke="${L.lash}" stroke-width="2.9" stroke-linecap="round"/>
+      <path d="M70.8 79.6C69 76 69.5 72.6 72 70.4L66.6 69.6C68.1 72.4 69 75.6 69.4 79.2Z" fill="${L.lash}"/>
+      <path d="M70.4 81.8C73.5 88.2 81 91.6 87.4 89" fill="none" stroke="${L.lash}" stroke-width="1.15" opacity=".55" stroke-linecap="round"/>`;
 }
+
+/** Double-lid crease + eyebrow: on the skin, so it must not blink with the eye. */
+function eyeSkin(L: Look, side: 'l' | 'r'): string {
+  const crease =
+    '<path d="M88 65.2C82.6 60.4 74.4 60.8 70 66.4" fill="none" stroke="' + L.lash + '" stroke-width="1.05" opacity=".45" stroke-linecap="round"/>' +
+    '<path d="M74 57.4C78.6 53.4 85.6 53.6 90 57" fill="none" stroke="' + L.hair[2] + '" stroke-width="2" opacity=".55" stroke-linecap="round"/>';
+  return side === 'l' ? crease : `<g transform="translate(200 0) scale(-1 1)">${crease}</g>`;
+}
+
+/* ------------------------------------------------------------------- hair */
+
+function backHair(L: Look): string {
+  const [a, b, c] = L.backW;
+  const l1 = 100 - a, l2 = 100 - b, l3 = 100 - c;
+  const r1 = 100 + a, r2 = 100 + b, r3 = 100 + c;
+  const d =
+    `M100 14C${100 - a * 0.74} 14 ${l1} 32 ${l1} 56` +
+    `C${l1} 84 ${l2} 116 ${l2} 154C${l2} 188 ${l3} 220 ${l3} 250` +
+    `H${r3}C${r3} 220 ${r2} 188 ${r2} 154C${r2} 116 ${r1} 84 ${r1} 56` +
+    `C${r1} 32 ${100 + a * 0.74} 14 100 14Z`;
+  const gloss =
+    `<path d="M60 62C52 104 47 152 43 208C49 208 53 158 57 116C61 84 63 72 66 62Z" fill="url(#${L.id}-gloss)"/>` +
+    `<path d="M140 62C148 104 153 152 157 208C151 208 147 158 143 116C139 84 137 72 134 62Z" fill="url(#${L.id}-gloss)"/>`;
+  // A few long strand lines keep the fall from reading as one flat slab.
+  const strands =
+    `<path d="M74 70C68 110 64 158 60 214M88 66C84 108 82 156 80 214M126 66C130 108 132 156 134 214M140 70C146 110 150 158 154 214" fill="none" stroke="${L.hair[2]}" stroke-width=".9" opacity=".28"/>`;
+  return `<path d="${d}" fill="url(#${L.id}-hair)" stroke="${L.hair[2]}" stroke-width="1"/>${gloss}${strands}`;
+}
+
+/**
+ * Fringe: a smooth scalp cap (crown silhouette + hairline), then a few wide
+ * overlapping locks, then thin highlight strokes. Keeping the highlights thin
+ * is what preserves the strand seams — a broad translucent shape turns the
+ * whole fringe into a flat veil with a jagged edge.
+ */
+/**
+ * Fringe silhouette: one dome over the skull whose lower edge is a chain of
+ * soft points. `tips` lists [x, depth] left to right; the edge leaves the left
+ * temple and returns to the right one, with a quadratic notch between tips.
+ * Drawing the fringe as one mass (instead of separate lock shapes) is what
+ * keeps it from reading as a row of fangs or a stack of bricks.
+ */
+function fringePath(tips: [number, number][], templeY = 56, notch = 8): string {
+  const pts: [number, number][] = [[50, templeY], ...tips, [150, templeY]];
+  let edge = '';
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [x0, y0] = pts[i];
+    const [x1, y1] = pts[i + 1];
+    edge += `Q${Math.round(x0 + (x1 - x0) * 0.36)} ${Math.round(Math.min(y0, y1) - notch)} ${x1} ${y1}`;
+  }
+  return `M100 12C71 12 51 28 50 ${templeY}${edge}C149 28 129 12 100 12Z`;
+}
+
+function frontHair(L: Look): string {
+  const s = L.hair[2];
+  const g = `url(#${L.id}-hair)`;
+  const fringe = fringePath(L.bangs);
+  // Under-layer: a smooth arc that sits *between* the notch line and the tip
+  // line, in the darkest hair tone. The notches reveal this instead of skin, so
+  // the tips read as strands; because it never drops below the tips it cannot
+  // show up as a second, darker fringe.
+  const under = 'M50 40C66 62 134 62 150 40L150 30C150 22 128 15 100 15C72 15 50 22 50 30Z';
+  // Strand seams: from each notch up into the hair mass, tapering off.
+  const seams = L.bangs
+    .slice(0, -1)
+    .map(([x], i) => {
+      const nx = Math.round((x + L.bangs[i + 1][0]) / 2);
+      const top = 28 + (i % 2) * 7;
+      return `<path d="M${nx} ${top}C${nx - 2} ${top + 12} ${nx - 1} 48 ${nx} 56" fill="none" stroke="${s}" stroke-width=".8" opacity=".3"/>`;
+    })
+    .join('');
+  const hi =
+    `<path d="M70 34C78 26 88 23 97 23" fill="none" stroke="${L.hairHi}" stroke-width="2.4" opacity=".55" stroke-linecap="round"/>` +
+    `<path d="M104 23C114 24 124 28 131 34" fill="none" stroke="${L.hairHi}" stroke-width="2" opacity=".45" stroke-linecap="round"/>` +
+    `<path d="M63 44C70 34 80 30 88 29" fill="none" stroke="${L.hairHi}" stroke-width="1.3" opacity=".3" stroke-linecap="round"/>`;
+  const side = (flip: boolean) => {
+    const p = 'M63 46C56 74 55 104 58 132C60 154 56 172 52 192C60 182 66 162 68 138C70 110 70 78 67 50Z';
+    const el =
+      `<path class="ms-lock${flip ? ' ms-lock-r' : ''}" d="${p}" fill="${g}" stroke="${s}" stroke-width=".7" stroke-opacity=".35"/>` +
+      `<path d="M62 62C59 88 59 114 60 138" fill="none" stroke="${L.hairHi}" stroke-width="1.2" opacity=".22" stroke-linecap="round"/>`;
+    return flip ? `<g transform="translate(200 0) scale(-1 1)">${el}</g>` : el;
+  };
+  return (
+    side(false) + side(true) +
+    `<path d="${under}" fill="${s}" opacity=".9"/>` +
+    `<path d="${fringe}" fill="${g}" stroke="${s}" stroke-width="1" stroke-linejoin="round"/>` +
+    seams + hi + L.accessory
+  );
+}
+
+/* ------------------------------------------------------------------- bust */
 
 function bust(L: Look): string {
   const id = L.id;
-  const mirror = 'matrix(-1 0 0 1 200 0)';
-  const bangs =
-    'M62 112 C56 56 144 56 138 112 Q130 90 126 114 Q122 92 116 108 Q112 88 104 120 Q100 92 94 110 Q90 88 82 116 Q78 92 72 108 Q68 94 62 112Z';
-  const happy = '<path d="M74 125 Q84 114 95 124" fill="none" stroke-width="2.6" stroke-linecap="round"/>';
+  const mirror = 'translate(200 0) scale(-1 1)';
+  const happy = `<path d="M71.5 83Q80 71 88.5 83" fill="none" stroke="${L.lash}" stroke-width="2.8" stroke-linecap="round"/>`;
   return `<svg class="mascot-svg ms-anime" viewBox="0 0 200 250" aria-hidden="true" focusable="false">
   <defs>
-    <linearGradient id="${id}-hair" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${L.hair[0]}"/><stop offset=".55" stop-color="${L.hair[1]}"/><stop offset="1" stop-color="${L.hair[2]}"/></linearGradient>
-    <linearGradient id="${id}-iris" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${L.iris[0]}"/><stop offset=".55" stop-color="${L.iris[1]}"/><stop offset="1" stop-color="${L.iris[2]}"/></linearGradient>
-    <linearGradient id="${id}-skin" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${SKIN.base}"/><stop offset="1" stop-color="${SKIN.low}"/></linearGradient>
-    <linearGradient id="${id}-fade" x1="0" y1="0" x2="0" y2="1"><stop offset=".84" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
-    <mask id="${id}-mask" maskUnits="userSpaceOnUse" x="-40" y="-40" width="280" height="290"><rect x="-40" y="-40" width="280" height="290" fill="url(#${id}-fade)"/></mask>
+    <linearGradient id="${id}-hair" gradientUnits="userSpaceOnUse" x1="0" y1="8" x2="0" y2="150"><stop offset="0" stop-color="${L.hair[0]}"/><stop offset=".45" stop-color="${L.hair[1]}"/><stop offset="1" stop-color="${L.hair[2]}"/></linearGradient>
+    <linearGradient id="${id}-gloss" gradientUnits="userSpaceOnUse" x1="0" y1="60" x2="0" y2="212"><stop offset="0" stop-color="${L.hairHi}" stop-opacity=".55"/><stop offset=".6" stop-color="${L.hairHi}" stop-opacity=".2"/><stop offset="1" stop-color="${L.hairHi}" stop-opacity="0"/></linearGradient>
+    <linearGradient id="${id}-iris" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${L.iris[0]}"/><stop offset=".58" stop-color="${L.iris[1]}"/><stop offset="1" stop-color="${L.iris[2]}"/></linearGradient>
+    <linearGradient id="${id}-skin" gradientUnits="userSpaceOnUse" x1="0" y1="24" x2="0" y2="170"><stop offset="0" stop-color="${SKIN.base}"/><stop offset="1" stop-color="${SKIN.low}"/></linearGradient>
+    <linearGradient id="${id}-fade" x1="0" y1="0" x2="0" y2="1"><stop offset=".82" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+    <mask id="${id}-mask" maskUnits="userSpaceOnUse" x="-40" y="-60" width="280" height="310"><rect x="-40" y="-60" width="280" height="310" fill="url(#${id}-fade)"/></mask>
   </defs>
   <g mask="url(#${id}-mask)">
     ${L.behind ?? ''}
     <g class="ms-breath">
-      <path d="${L.backHair}" fill="url(#${id}-hair)" stroke="${L.hair[2]}" stroke-width="1"/>
-      <path d="M91 148 L91 182 Q100 188 109 182 L109 148Z" fill="url(#${id}-skin)"/>
-      <path d="M91 156 Q100 170 109 156 L109 166 Q100 176 91 166Z" fill="${SKIN.shade}" opacity=".75"/>
-      <g transform="translate(0 -9)">${L.outfit}<rect x="40" y="244" width="120" height="20" fill="${L.outfitBase}"/></g>
+      ${backHair(L)}
+      <path d="${NECK}" fill="url(#${id}-skin)" stroke="${SKIN.line}" stroke-width=".9"/>
+      <path d="${NECK_SHADE}" fill="${SKIN.shade}" opacity=".5"/>
+      ${L.outfit}
       ${L.front ?? ''}
       <g class="ms-head">
-        <path d="M66 98 C66 130 78 152 100 166 C122 152 134 130 134 98 C134 62 66 62 66 98Z" fill="url(#${id}-skin)" stroke="${SKIN.line}" stroke-width=".9"/>
-        <path d="M68 104 Q84 120 99 112 Q114 122 132 104 L132 113 Q114 130 99 121 Q84 128 68 113Z" fill="${SKIN.shade}" opacity=".45"/>
+        <path d="${FACE}" fill="url(#${id}-skin)" stroke="${SKIN.line}" stroke-width=".9"/>
+        <path d="M136 84C133 93 128 99 122 104C127 97 131 91 133 81Z" fill="${SKIN.shade}" opacity=".3"/>
+        <path d="M66 60C76 55 88 53 100 53L100 62C89 62 77 64 68 69Z" fill="${SKIN.shade}" opacity=".12"/>
         <g class="ms-eyes">
           <g>${eye(L, 'l')}</g>
           <g transform="${mirror}">${eye(L, 'r')}</g>
         </g>
-        <g class="ms-happy" stroke="${L.lash}">${happy}<g transform="${mirror}">${happy}</g></g>
-        <path d="M101 137 Q102.6 140.6 100 141.8" fill="none" stroke="${SKIN.line}" stroke-width="1.1" stroke-linecap="round"/>
-        <path class="ms-mouth-idle" d="M95 150 Q100 153.4 105 150" fill="none" stroke="#c0646e" stroke-width="1.4" stroke-linecap="round"/>
-        <path class="ms-mouth-talk" d="M95 149 Q100 158 105 149 Q100 151.4 95 149Z" fill="#c25a6a"/>
+        <g class="ms-happy" stroke-linecap="round">${happy}<g transform="${mirror}">${happy}</g></g>
+        ${eyeSkin(L, 'l')}${eyeSkin(L, 'r')}
+        <path d="M99.4 89.6C101.4 92.4 101.6 94.2 99.8 95" fill="none" stroke="${SKIN.line}" stroke-width="1.15" stroke-linecap="round" opacity=".7"/>
+        <path class="ms-mouth-idle" d="M96.6 104.4Q100 107.6 103.4 104.4" fill="none" stroke="#c4687a" stroke-width="1.6" stroke-linecap="round"/>
+        <path class="ms-mouth-talk" d="M96 103.2Q100 111.6 104 103.2Q100 106 96 103.2Z" fill="#c25a6a"/>
         <g class="ms-cheeks">
-          <ellipse cx="78" cy="139" rx="7.5" ry="3.4" fill="#ff9fb3" opacity=".38"/><ellipse cx="122" cy="139" rx="7.5" ry="3.4" fill="#ff9fb3" opacity=".38"/>
-          <path d="M73.5 141 l2.6 -3.8 M77.5 141 l2.6 -3.8 M81.5 141 l2.6 -3.8 M117.5 141 l2.6 -3.8 M121.5 141 l2.6 -3.8 M125.5 141 l2.6 -3.8" stroke="#ee7890" stroke-width=".9" opacity=".7"/>
+          <ellipse cx="80" cy="97.4" rx="7.4" ry="3.2" fill="#ff9fb3" opacity=".3"/><ellipse cx="120" cy="97.4" rx="7.4" ry="3.2" fill="#ff9fb3" opacity=".3"/>
+          <path d="M75.6 99.2l2.2-3.2 M79.4 99.2l2.2-3.2 M83.2 99.2l2.2-3.2 M115.6 99.2l2.2-3.2 M119.4 99.2l2.2-3.2 M123.2 99.2l2.2-3.2" stroke="#ee7890" stroke-width=".85" opacity=".4" stroke-linecap="round"/>
         </g>
-        <path class="ms-lock" d="${L.locks[0]}" fill="url(#${id}-hair)" stroke="${L.hair[2]}" stroke-width="1"/>
-        <path class="ms-lock ms-lock-r" d="${L.locks[1]}" fill="url(#${id}-hair)" stroke="${L.hair[2]}" stroke-width="1"/>
-        <path d="${bangs}" fill="url(#${id}-hair)" stroke="${L.hair[2]}" stroke-width="1" stroke-linejoin="round"/>
-        <path d="M100 64 Q104 92 104 118 M86 68 Q84 94 82 114 M114 68 Q119 92 116 106 M74 76 Q71 92 72 106 M126 76 Q129 92 126 112" fill="none" stroke="${L.hair[2]}" stroke-width=".9" opacity=".55"/>
-        <path d="M76 80 Q88 72 98 71 M103 71 Q114 72 124 80" fill="none" stroke="${L.hairHi}" stroke-width="2.2" stroke-linecap="round" opacity=".7"/><path d="M80 83 Q86 79 92 78 M108 78 Q114 79 120 83" fill="none" stroke="${L.hairHi}" stroke-width="1.2" stroke-linecap="round" opacity=".5"/>
-        <path d="M74 100.6 Q84 96.6 94 100.6 M106 100.6 Q116 96.6 126 100.6" fill="none" stroke="${L.hair[2]}" stroke-width="1.5" stroke-linecap="round" opacity=".5"/>
-        ${L.accessory}
+        ${frontHair(L)}
       </g>
     </g>
   </g>
 </svg>`;
 }
+
+/* -------------------------------------------------------------- characters */
 
 const sakuraFlower = (x: number, y: number, s: number) =>
   `<g transform="translate(${x} ${y}) scale(${s})">${[0, 72, 144, 216, 288]
@@ -161,61 +297,64 @@ const sakuraFlower = (x: number, y: number, s: number) =>
 
 const HARU: Look = {
   id: 'haru',
-  hair: ['#7a4c3e', '#553429', '#35201b'],
-  hairHi: '#e3b39a',
-  iris: ['#4b2443', '#a5527c', '#f4abc6'],
+  hair: ['#7c4d3e', '#563429', '#33201a'],
+  hairHi: '#eec1a6',
+  iris: ['#4b2443', '#a5527c', '#f7b3cc'],
   pupil: '#2a1024',
   lash: '#2d1a1f',
-  backHair: 'M58 92 C40 150 46 206 32 250 H168 C154 206 160 150 142 92 C140 46 60 46 58 92Z',
-  locks: [
-    'M66 94 C57 130 63 168 54 232 C61 214 66 196 69 178 C71 150 72 122 75 104Z',
-    'M134 94 C143 130 137 168 146 232 C139 214 134 196 131 178 C129 150 128 122 125 104Z',
-  ],
+  backW: [40, 47, 54],
+  bangs: [[64, 62], [88, 57], [112, 57], [138, 63]],
   outfitBase: '#f6f7fc',
-  outfit: `<path d="M46 250 C48 214 60 199 84 191 L116 191 C140 199 152 214 154 250Z" fill="#f6f7fc" stroke="#c9cfe0" stroke-width="1"/>
-      <path d="M60 222 Q66 236 64 250 M140 222 Q134 236 136 250" fill="none" stroke="#d5dbea" stroke-width="1.4"/>
-      <path d="M83 190 L100 222 L117 190 L133 196 C146 202 152 211 154 220 L114 226 L100 240 L86 226 L46 220 C48 211 54 202 67 196Z" fill="#2b3a67" stroke="#1d2850" stroke-width="1"/>
-      <path d="M69 200 C58 205 53 211 51 216 M131 200 C142 205 147 211 149 216 M88 223 L100 235 L112 223" fill="none" stroke="#fff" stroke-width="1.5"/>
-      <path d="M100 222 L84 214 Q80 225 87 230Z M100 222 L116 214 Q120 225 113 230Z" fill="#e2577f" stroke="#b83a62" stroke-width=".8"/>
-      <path d="M100 222 L91 244 L97 244Z M100 222 L109 244 L103 244Z" fill="#d84a73"/>
-      <ellipse cx="100" cy="222" rx="4.2" ry="3.6" fill="#c93f68"/>`,
-  accessory: sakuraFlower(125, 84, 1) + sakuraFlower(133, 93, 0.62),
+  outfit: `<path d="${BODY}" fill="#f6f7fc" stroke="#ccd2e2" stroke-width="1"/>
+      <path d="M52 186C50 208 49 228 48 250M148 186C150 208 151 228 152 250" fill="none" stroke="#d7dcea" stroke-width="1.2"/>
+      <path d="M86 148L100 214L114 148L127 155L100 227L73 155Z" fill="#2b3a67" stroke="#1d2850" stroke-width="1" stroke-linejoin="round"/>
+      <path d="M50 170C62 159 76 152 87 149L90 160C79 163 66 170 56 179Z" fill="#2b3a67" stroke="#1d2850" stroke-width="1" stroke-linejoin="round"/>
+      <path d="M150 170C138 159 124 152 113 149L110 160C121 163 134 170 144 179Z" fill="#2b3a67" stroke="#1d2850" stroke-width="1" stroke-linejoin="round"/>
+      <path d="M79 155L100 220L121 155" fill="none" stroke="#fff" stroke-width="1.4" opacity=".9"/>
+      <path d="M75 157L100 224L125 157" fill="none" stroke="#fff" stroke-width=".9" opacity=".6"/>
+      <path d="M100 216L86 208L83 222Z" fill="#e2577f" stroke="#b83a62" stroke-width=".8" stroke-linejoin="round"/>
+      <path d="M100 216L114 208L117 222Z" fill="#e2577f" stroke="#b83a62" stroke-width=".8" stroke-linejoin="round"/>
+      <path d="M100 218L94 246L99 246Z" fill="#d84a73"/>
+      <path d="M100 218L106 246L101 246Z" fill="#d84a73"/>
+      <ellipse cx="100" cy="216" rx="4.4" ry="3.8" fill="#c93f68"/>`,
+  accessory: sakuraFlower(132, 60, 0.95) + sakuraFlower(140, 70, 0.6),
 };
 
 const SORA: Look = {
   id: 'sora',
-  hair: ['#3a4566', '#232a42', '#141828'],
-  hairHi: '#9cc2f2',
-  iris: ['#173563', '#3f8fd8', '#a6e6ff'],
+  hair: ['#3d4869', '#252c45', '#151929'],
+  hairHi: '#a6caf5',
+  iris: ['#173563', '#3f8fd8', '#b0e9ff'],
   pupil: '#0d1830',
   lash: '#161a2a',
-  backHair: 'M60 92 C50 140 54 168 50 196 C72 204 128 204 150 196 C146 168 150 140 140 92 C138 46 62 46 60 92Z',
-  locks: [
-    'M66 94 C58 124 62 150 58 182 C64 172 68 160 70 150 C71 132 72 116 75 104Z',
-    'M134 94 C142 124 138 150 142 182 C136 172 132 160 130 150 C129 132 128 116 125 104Z',
-  ],
-  behind: `<g class="ms-umb" transform="rotate(-20 100 130)">
-      <path d="M100 96 V236" stroke="#b9c3d2" stroke-width="2.6" stroke-linecap="round"/>
-      <path d="M6 98 Q100 -14 194 98 Q170 89 147 98 Q124 89 100 98 Q76 89 53 98 Q30 89 6 98Z" fill="#e6f3ff" fill-opacity=".3" stroke="#fff" stroke-opacity=".85" stroke-width="1.4"/>
-      <path d="M100 28 V98 M100 28 Q70 46 53 98 M100 28 Q130 46 147 98 M100 28 Q42 54 6 98 M100 28 Q158 54 194 98" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width=".8"/>
-      <g fill="#fff" opacity=".8"><circle cx="58" cy="60" r="1.6"/><circle cx="132" cy="50" r="1.3"/><circle cx="160" cy="76" r="1.8"/><circle cx="84" cy="44" r="1.1"/><circle cx="34" cy="84" r="1.2"/></g>
-      <path d="M100 26 V20" stroke="#b9c3d2" stroke-width="2" stroke-linecap="round"/>
+  backW: [39, 45, 51],
+  bangs: [[66, 58], [90, 53], [112, 53], [138, 59]],
+  behind: `<g class="ms-umb">
+      <path d="M54 44C58 130 62 190 68 244" fill="none" stroke="#b9c3d2" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M4 46Q54 -12 104 46Q91 38 79 46Q66 38 54 46Q41 38 29 46Q16 38 4 46Z" fill="#e8f4ff" fill-opacity=".5" stroke="#fff" stroke-opacity=".9" stroke-width="1.3"/>
+      <path d="M54 -6V46M54 -6Q38 12 29 46M54 -6Q70 12 79 46M54 -6Q24 18 4 46M54 -6Q84 18 104 46" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width=".7"/>
+      <g fill="#fff" opacity=".85"><circle cx="30" cy="16" r="1.4"/><circle cx="70" cy="10" r="1.2"/><circle cx="86" cy="30" r="1.5"/><circle cx="44" cy="4" r="1"/><circle cx="14" cy="34" r="1.1"/></g>
+      <path d="M54 -8V-14" stroke="#b9c3d2" stroke-width="1.8" stroke-linecap="round"/>
     </g>`,
   outfitBase: '#7cc0ec',
-  outfit: `<path d="M44 250 C46 214 60 197 86 189 L114 189 C140 197 154 214 156 250Z" fill="#7cc0ec" stroke="#4f97c9" stroke-width="1"/>
-      <path d="M62 184 C68 172 86 168 100 172 C114 168 132 172 138 184 C130 196 70 196 62 184Z" fill="#5fa9dc" stroke="#3f88bc" stroke-width="1"/>
-      <path d="M88 189 Q100 199 112 189 L109 196 Q100 204 91 196Z" fill="#fbfcff"/>
-      <path d="M100 200 V250" stroke="#3f88bc" stroke-width="1.6"/>
-      <path d="M92 196 v22 M108 196 v22" stroke="#f4f6fb" stroke-width="1.3"/><circle cx="92" cy="219" r="1.8" fill="#f4f6fb"/><circle cx="108" cy="219" r="1.8" fill="#f4f6fb"/>
-      <path d="M58 226 Q62 238 60 250 M142 226 Q138 238 140 250" fill="none" stroke="#5aa3d6" stroke-width="1.4"/>`,
-  front: `<g class="ms-braid" fill="url(#sora-hair)" stroke="#141828" stroke-width=".9">
-      <ellipse cx="139" cy="150" rx="6.2" ry="8"/><ellipse cx="140" cy="163" rx="6" ry="7.8"/><ellipse cx="141" cy="176" rx="5.6" ry="7.4"/><ellipse cx="142" cy="188" rx="5" ry="6.6"/>
-      <path d="M140 196 q-3 8 0 12 q3 -4 4 -12z"/>
-      <rect x="137.5" y="193" width="9" height="3.4" rx="1.6" fill="#ffcf5a" stroke="#d9a42e"/>
+  outfit: `<path d="${BODY}" fill="#7cc0ec" stroke="#4f97c9" stroke-width="1"/>
+      <path d="M100 138C80 138 64 150 58 168C72 160 86 156 100 156C114 156 128 160 142 168C136 150 120 138 100 138Z" fill="#5fa9dc" stroke="#3f88bc" stroke-width="1"/>
+      <path d="M86 148C92 143 108 143 114 148L112 162C104 158 96 158 88 162Z" fill="#5fa9dc" stroke="#3f88bc" stroke-width="1" stroke-linejoin="round"/>
+      <path d="M100 162V250" stroke="#3f88bc" stroke-width="1.6"/>
+      <path d="M92 162V250M108 162V250" stroke="#5aa3d6" stroke-width="1.1" opacity=".75"/>
+      <circle cx="100" cy="194" r="2.2" fill="#f4f8fc" stroke="#3f88bc" stroke-width=".7"/>
+      <circle cx="100" cy="220" r="2.2" fill="#f4f8fc" stroke="#3f88bc" stroke-width=".7"/>
+      <path d="M58 220L82 214L82 221L58 227Z" fill="#6fb6e6" stroke="#3f88bc" stroke-width="1" stroke-linejoin="round"/>
+      <path d="M142 220L118 214L118 221L142 227Z" fill="#6fb6e6" stroke="#3f88bc" stroke-width="1" stroke-linejoin="round"/>
+      <path d="M54 188C52 208 51 228 50 250M146 188C148 208 149 228 150 250" fill="none" stroke="#5aa3d6" stroke-width="1.2"/>`,
+  front: `<g class="ms-braid" fill="url(#sora-hair)" stroke="#151929" stroke-width=".9">
+      <ellipse cx="138" cy="144" rx="6" ry="7.8"/><ellipse cx="139" cy="157" rx="5.8" ry="7.6"/><ellipse cx="140" cy="169" rx="5.4" ry="7.2"/><ellipse cx="141" cy="181" rx="4.8" ry="6.4"/>
+      <path d="M139 189q-3 8 0 12q3-4 4-12z"/>
+      <rect x="136.5" y="186" width="9" height="3.4" rx="1.6" fill="#ffcf5a" stroke="#d9a42e"/>
     </g>`,
-  accessory: `<g transform="translate(76 86)"><g stroke="#f0a92a" stroke-width="1.2" stroke-linecap="round">${[0, 45, 90, 135, 180, 225, 270, 315]
-    .map((a) => `<path transform="rotate(${a})" d="M0 -6.4 V-8.8"/>`)
-    .join('')}</g><circle r="4.6" fill="#ffd45e" stroke="#e59e1f" stroke-width=".8"/><path d="M-1.8 -.6 h.01 M1.8 -.6 h.01" stroke="#9a5a12" stroke-width="1.2" stroke-linecap="round"/><path d="M-1.6 1.4 Q0 2.8 1.6 1.4" fill="none" stroke="#9a5a12" stroke-width=".8"/></g>`,
+  accessory: `<g transform="translate(72 58)"><g stroke="#f0a92a" stroke-width="1.2" stroke-linecap="round">${[0, 45, 90, 135, 180, 225, 270, 315]
+    .map((a) => `<path transform="rotate(${a})" d="M0 -6.4V-8.8"/>`)
+    .join('')}</g><circle r="4.6" fill="#ffd45e" stroke="#e59e1f" stroke-width=".8"/><path d="M-1.8 -.6h.01M1.8 -.6h.01" stroke="#9a5a12" stroke-width="1.2" stroke-linecap="round"/><path d="M-1.6 1.4Q0 2.8 1.6 1.4" fill="none" stroke="#9a5a12" stroke-width=".8"/></g>`,
 };
 
 /**
@@ -226,33 +365,30 @@ const SORA: Look = {
  */
 const LACIA: Look = {
   id: 'lacia',
-  hair: ['#d8cdf0', '#b3a2df', '#8a76c4'],
-  hairHi: '#f4efff',
-  iris: ['#1f4c86', '#4d9bd8', '#cdeeff'],
+  hair: ['#e2d9f6', '#b0a0dd', '#7d68bb'],
+  hairHi: '#fbf8ff',
+  iris: ['#1f4c86', '#4d9bd8', '#d3f1ff'],
   pupil: '#0b1a2e',
   lash: '#241d38',
-  backHair: 'M56 92 C42 152 46 202 40 250 H160 C154 202 158 152 144 92 C142 46 58 46 56 92Z',
-  locks: [
-    'M67 94 C61 142 63 192 59 238 C65 216 68 192 70 170 C71 142 72 118 76 104Z',
-    'M133 94 C139 142 137 192 141 238 C135 216 132 192 130 170 C129 142 128 118 124 104Z',
-  ],
+  backW: [41, 49, 57],
+  bangs: [[63, 66], [86, 60], [110, 60], [137, 67]],
   behind: `<g class="ms-monolith">
-      <path d="M148 30 L178 18 L184 212 L154 226Z" fill="#14151f" stroke="#2b2d42" stroke-width="1"/>
-      <path d="M156 42 L174 34 L179 202 L161 212Z" fill="#1b1c29"/>
-      <path d="M167 54 L169 196" stroke="#9ed8ff" stroke-width="1.4" opacity=".9"/>
-      <path d="M148 30 L154 226" stroke="#9ed8ff" stroke-width=".7" opacity=".3"/>
-      <g fill="#cfe8ff" opacity=".85"><circle cx="143" cy="84" r="1.7"/><circle cx="136" cy="118" r="1.1"/><circle cx="150" cy="146" r="1.3"/></g>
+      <path d="M158 22L188 10L194 200L164 214Z" fill="#14151f" stroke="#2b2d42" stroke-width="1"/>
+      <path d="M166 34L184 26L189 190L171 200Z" fill="#1b1c29"/>
+      <path d="M177 46L179 184" stroke="#9ed8ff" stroke-width="1.4" opacity=".9"/>
+      <path d="M158 22L164 214" stroke="#9ed8ff" stroke-width=".7" opacity=".3"/>
+      <g fill="#cfe8ff" opacity=".85"><circle cx="153" cy="74" r="1.7"/><circle cx="146" cy="108" r="1.1"/><circle cx="160" cy="136" r="1.3"/></g>
     </g>`,
   outfitBase: '#f8f8fc',
-  outfit: `<path d="M46 250 C48 212 62 196 86 188 L114 188 C138 196 152 212 154 250Z" fill="#f8f8fc" stroke="#c8c9d8" stroke-width="1"/>
-      <path d="M46 250 C47 220 55 203 70 195 L79 199 C66 211 59 228 58 250Z" fill="#171826" stroke="#0d0e18" stroke-width="1"/>
-      <path d="M154 250 C153 220 145 203 130 195 L121 199 C134 211 141 228 142 250Z" fill="#171826" stroke="#0d0e18" stroke-width="1"/>
-      <path d="M84 188 C88 176 112 176 116 188 L112 197 C106 191 94 191 88 197Z" fill="#171826" stroke="#0d0e18" stroke-width="1"/>
-      <path d="M100 197 V250" stroke="#9ed8ff" stroke-width="1.5" opacity=".9"/>
-      <path d="M100 208 L106 219 L100 230 L94 219Z" fill="none" stroke="#9ed8ff" stroke-width="1.2"/>
-      <path d="M64 226 Q68 238 66 250 M136 226 Q132 238 134 250" fill="none" stroke="#c8c9d8" stroke-width="1.2"/>
-      <path d="M84 197 Q92 205 100 197 Q108 205 116 197" fill="none" stroke="#9ed8ff" stroke-width=".9" opacity=".55"/>`,
-  accessory: `<g transform="translate(122 82)"><path d="M0 0 L8 -5 L16 0 L8 5Z" fill="#171826" stroke="#9ed8ff" stroke-width=".9"/><path d="M8 -5 V5" stroke="#9ed8ff" stroke-width=".6" opacity=".75"/></g>`,
+  outfit: `<path d="${BODY}" fill="#f8f8fc" stroke="#c8c9d8" stroke-width="1"/>
+      <path d="M47 168C41 180 37 198 34 250H50C51 214 55 186 63 165Z" fill="#171826" stroke="#0d0e18" stroke-width="1" stroke-linejoin="round"/>
+      <path d="M153 168C159 180 163 198 166 250H150C149 214 145 186 137 165Z" fill="#171826" stroke="#0d0e18" stroke-width="1" stroke-linejoin="round"/>
+      <path d="M89 148C93 143 107 143 111 148L109 165C103 161 97 161 91 165Z" fill="#171826" stroke="#0d0e18" stroke-width="1" stroke-linejoin="round"/>
+      <path d="M100 164V250" stroke="#9ed8ff" stroke-width="1.5" opacity=".9"/>
+      <path d="M100 190L107 201L100 212L93 201Z" fill="none" stroke="#9ed8ff" stroke-width="1.3"/>
+      <path d="M84 160Q92 168 100 162Q108 168 116 160" fill="none" stroke="#9ed8ff" stroke-width=".9" opacity=".5"/>
+      <path d="M64 238Q68 246 66 250M136 238Q132 246 134 250" fill="none" stroke="#c8c9d8" stroke-width="1.2"/>`,
+  accessory: `<g transform="translate(129 58)"><path d="M0 0L8-5L16 0L8 5Z" fill="#171826" stroke="#9ed8ff" stroke-width=".9"/><path d="M8-5V5" stroke="#9ed8ff" stroke-width=".6" opacity=".75"/></g>`,
 };
 
 const SVGS: Record<MascotId, string> = { chibi: CHIBI, haru: bust(HARU), sora: bust(SORA), lacia: bust(LACIA) };

@@ -141,6 +141,10 @@ body:has(.mascot[data-kind='anime'][data-pos='right'][data-size='lg']:not([hidde
 body:has(.mascot[data-pos='right']:not([hidden]):not(.is-free)) .metric { padding-right: 64px; }
 body:has(.mascot[data-pos='right'][data-size='sm']:not([hidden]):not(.is-free)) .metric { padding-right: 40px; }
 body:has(.mascot[data-pos='right'][data-size='lg']:not([hidden]):not(.is-free)) .metric { padding-right: 88px; }
+/* The built-in SVG busts are wider still (150 / 196 px at md / lg). */
+body:has(.mascot[data-kind='anime'][data-pos='right']:not([hidden]):not(.is-free)) .metric { padding-right: 96px; }
+body:has(.mascot[data-kind='anime'][data-pos='right'][data-size='sm']:not([hidden]):not(.is-free)) .metric { padding-right: 76px; }
+body:has(.mascot[data-kind='anime'][data-pos='right'][data-size='lg']:not([hidden]):not(.is-free)) .metric { padding-right: 138px; }
 
 /* ---------- Mascot packs (state images) ---------- */
 .mascot-body { display: block; position: relative; transform-origin: 50% 0; }
