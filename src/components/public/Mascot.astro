@@ -101,7 +101,7 @@ const payload = JSON.stringify({
 
 <script>
   import { pickLines, type LineGroup, type MascotPack } from '../../lib/mascot-pack';
-  import { attachWarp } from '../../lib/mascot-warp';
+  import { attachWarp, type WarpHandle } from '../../lib/mascot-warp';
 
   const root = document.querySelector<HTMLElement>('[data-mascot]');
   if (root) {
@@ -123,10 +123,17 @@ const payload = JSON.stringify({
     const used = new Map<string, number>();
 
     /* ---------------- state & lines ---------------- */
+    // How hard the per-part motion runs in each state: asleep she barely
+    // breathes, held she swings freely.
+    let warpHandle: WarpHandle | null = null;
+    const energyFor = (s: string) => (s === 'held' ? 1.7 : s === 'sleep' ? 0.4 : 1);
     const setState = (s: string, ms = 0) => {
       clearTimeout(stateTimer);
       root.dataset.state = s;
-      if (ms) stateTimer = window.setTimeout(() => (root.dataset.state = 'idle'), ms);
+      warpHandle?.setEnergy(energyFor(s));
+      // Fall back to held, not idle, if she is still being carried — otherwise
+      // a long drag drops the motion back to idle mid-air after the line ends.
+      if (ms) stateTimer = window.setTimeout(() => setState(root.classList.contains('is-dragging') ? 'held' : 'idle'), ms);
     };
     const line = (group: LineGroup): string | undefined => {
       const list = pickLines({ lines: data.lines }, group);
@@ -178,31 +185,32 @@ const payload = JSON.stringify({
     // Sleep late at night after a minute without interaction.
     let idleTimer = 0;
     const wake = () => {
-      if (root.dataset.state === 'sleep') root.dataset.state = 'idle';
+      if (root.dataset.state === 'sleep') setState('idle');
       clearTimeout(idleTimer);
-      idleTimer = window.setTimeout(() => { if (timeGroup() === 'night' && root.dataset.state === 'idle') root.dataset.state = 'sleep'; }, 60_000);
+      idleTimer = window.setTimeout(() => { if (timeGroup() === 'night' && root.dataset.state === 'idle') setState('sleep'); }, 60_000);
     };
     ['pointermove', 'keydown', 'scroll'].forEach((e) => addEventListener(e, wake, { passive: true }));
     wake();
 
     /* ---------------- per-part motion (displacement warp) ---------------- */
-    // A pack is one flat bitmap, so hair / head / torso / hem are warped by an
+    // A pack is one flat bitmap, so the head, hair and torso are warped by an
     // SVG displacement filter instead of being split into layers. See
     // lib/mascot-warp.ts for why layer splitting is not viable.
     const frames = root.querySelector<HTMLElement>('.mascot-frames');
     if (frames && data.warp && data.motion?.warp !== false && !still) {
-      const warp = attachWarp(frames, {
+      warpHandle = attachWarp(frames, {
         width: data.warp.width,
         height: data.warp.height,
         head: data.warp.head,
         baseline: data.warp.baseline,
         intensity: data.motion?.warpIntensity ?? 1,
       });
-      if (warp) {
-        warp.start();
+      if (warpHandle) {
+        warpHandle.start();
+        warpHandle.setEnergy(energyFor(root.dataset.state ?? 'idle'));
         // No point burning frames on a tab nobody is looking at.
-        document.addEventListener('visibilitychange', () => (document.hidden ? warp.stop() : warp.start()));
-        addEventListener('pagehide', () => warp.destroy(), { once: true });
+        document.addEventListener('visibilitychange', () => (document.hidden ? warpHandle?.stop() : warpHandle?.start()));
+        addEventListener('pagehide', () => warpHandle?.destroy(), { once: true });
       }
     }
 

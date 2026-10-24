@@ -80,40 +80,56 @@ function renderMap(w: number, h: number, field: Field): string {
 }
 
 /**
- * Build the four fields. Everything is derived from the head anchor and the
- * baseline, so an arbitrary pack needs no hand-tuned regions.
+ * Build the displacement fields. Everything is derived from the head anchor and
+ * the baseline, so an arbitrary pack needs no hand-tuned regions.
+ *
+ * Three zones, not four. A "hem" zone was tried and removed: it slides whatever
+ * is down there sideways, which reads as the legs skating across the floor on a
+ * character in a bodysuit. Anything below the hips is left alone.
+ *
+ * The hard constraint shaping all of this: a field is a function of (u, v)
+ * only, so it cannot tell hair from the arm behind it — they occupy the same
+ * columns. That is why the hair zone stops at the shoulders instead of running
+ * down the full length of the hair.
  */
 function buildFields(opts: WarpOptions): { name: string; field: Field }[] {
   const [hx, hy] = opts.head;
   const foot = Math.min(0.98, Math.max(0.6, opts.baseline));
 
-  // Hair: a pendulum hanging from the crown. The field has to reach zero at
-  // both ends of its span — roots are pinned by the scalp, and a hard edge at
-  // the tips would crease the artwork — so the peak sits at mid-length.
-  const hairTop = hy - 0.1;
-  const hairBottom = Math.min(foot - 0.08, hy + 0.52);
+  // Head: a turn about the neck, not a slide and not a spin about the head's
+  // own centre. Pivoting at the neck is what makes the crown travel while the
+  // jaw stays put; a centre pivot swings the chin as far as the crown, which
+  // reads as the head being sheared sideways.
+  const headRx = 0.115;
+  const headRy = 0.08;
+  const pivotY = hy + 0.045;
+  const head: Field = (u, v) => {
+    const nx = (u - hx) / headRx;
+    const ny = (v - pivotY) / headRy;
+    const w = 1 - smoothstep(0.92, 1.45, Math.hypot(nx, ny));
+    if (w <= 0) return [0, 0];
+    return [-Math.max(-1.3, Math.min(1.3, ny)) * w, 0];
+  };
+
+  // Hair: the mass beside the head lags the turn. Zero down the centre line —
+  // the face must not slide — and full strength from about a third of a head
+  // width outwards. The span ends at the shoulders because below that the arms
+  // sit in the same columns.
+  const hairTop = hy - 0.055;
+  const hairBottom = Math.min(foot - 0.5, hy + 0.2);
   const hair: Field = (u, v) => {
     if (v < hairTop || v > hairBottom) return [0, 0];
     const p = (v - hairTop) / (hairBottom - hairTop);
-    const along = Math.pow(Math.sin(Math.PI * p), 0.8);
-    return [along * span(u, hx, 0.1, 0.3), 0];
+    const along = Math.pow(Math.sin(Math.PI * p), 0.65);
+    const side = smoothstep(0.045, 0.145, Math.abs(u - hx));
+    return [along * side, 0];
   };
 
-  // Head: a rotation rather than a slide — offset is proportional to the
-  // distance from the head centre, so the crown and the chin move opposite ways.
-  const headRy = 0.085;
-  const headRx = 0.13;
-  const head: Field = (u, v) => {
-    const nx = (u - hx) / headRx;
-    const ny = (v - hy - 0.01) / headRy;
-    const w = 1 - smoothstep(0.55, 1, Math.hypot(nx, ny));
-    if (w <= 0) return [0, 0];
-    return [-ny * w, 0];
-  };
-
-  // Torso: breathing. Vertical, peaking at the chest, dead at the feet.
+  // Torso: breathing. Vertical, peaking at the chest, stopped at the waist —
+  // running it down to the hips lifts the pelvis off the legs, which reads as
+  // the waist stretching rather than as a breath.
   const chestTop = hy + 0.13;
-  const chestBottom = Math.min(foot, 0.94);
+  const chestBottom = Math.min(foot - 0.3, hy + 0.45);
   const torso: Field = (u, v) => {
     if (v < chestTop || v > chestBottom) return [0, 0];
     const p = (v - chestTop) / (chestBottom - chestTop);
@@ -121,37 +137,43 @@ function buildFields(opts: WarpOptions): { name: string; field: Field }[] {
     return [0, along * span(u, hx, 0.04, 0.2)];
   };
 
-  // Hem: skirt / legs, the slowest follower. It has to stop well above the
-  // shoes — a field that reaches the feet slides them across the floor, which
-  // reads as the whole figure being dragged rather than as cloth moving.
-  const hemTop = 0.58;
-  const hemBottom = Math.max(hemTop + 0.08, foot - 0.12);
-  const hem: Field = (u, v) => {
-    if (v < hemTop || v > hemBottom) return [0, 0];
-    const p = (v - hemTop) / (hemBottom - hemTop);
-    const along = Math.pow(p, 1.3) * (1 - smoothstep(0.7, 1, p));
-    return [along * span(u, hx, 0.05, 0.24), 0];
-  };
-
   return [
-    { name: 'hair', field: hair },
     { name: 'head', field: head },
+    { name: 'hair', field: hair },
     { name: 'torso', field: torso },
-    { name: 'hem', field: hem },
   ];
 }
 
-/** Amplitude (fraction of the rendered width), period (s) and phase (rad). */
+/**
+ * Amplitude (fraction of the rendered width), period (s) and phase (rad).
+ *
+ * Head and hair share a period so the hair is always *behind* the turn rather
+ * than drifting independently of it — independent periods read as two unrelated
+ * things wobbling, which is the opposite of the parts working together.
+ *
+ * That period is 7 s because the stylesheet's whole-body sway is 7 s. Matching
+ * it makes the body, the head and the hair one gesture with a little follow
+ * through, instead of the figure swaying while the head does its own thing.
+ * Breathing keeps 4.8 s, matching the stylesheet's breathing keyframes.
+ */
 const RHYTHM: Record<string, { amp: number; period: number; phase: number }> = {
-  hair: { amp: 0.026, period: 5.4, phase: 0 },
-  head: { amp: 0.019, period: 7.2, phase: 0.9 },
-  torso: { amp: 0.014, period: 4.8, phase: 1.9 },
-  hem: { amp: 0.017, period: 5.9, phase: 2.6 },
+  // Deliberately small: a real head stays fairly stable while the body sways,
+  // so the visible life comes from the hair, and the head only hints at a turn.
+  // At the default 240 px size this is about 4° of crown travel.
+  head: { amp: 0.012, period: 7, phase: 0 },
+  hair: { amp: 0.026, period: 7, phase: 0.6 },
+  torso: { amp: 0.013, period: 4.8, phase: 1.9 },
 };
 
 export interface WarpHandle {
   start(): void;
   stop(): void;
+  /**
+   * Amplitude multiplier, eased in: 1 is idle, ~0.4 reads as sleepy, ~1.7 as
+   * being carried. Used to make the parts react to what is happening rather
+   * than oscillating at one fixed rate forever.
+   */
+  setEnergy(k: number): void;
   destroy(): void;
 }
 
@@ -234,6 +256,10 @@ export function attachWarp(target: HTMLElement, opts: WarpOptions, mode: WarpMod
   let raf = 0;
   let t0 = 0;
   let last = 0;
+  // Amplitude multiplier, eased towards its target so a state change swells the
+  // motion instead of snapping it.
+  let energy = 1;
+  let wanted = 1;
   const FRAME = 1000 / 30; // 30 fps is plenty for a smooth drift
   const tick = (now: number) => {
     raf = requestAnimationFrame(tick);
@@ -241,12 +267,17 @@ export function attachWarp(target: HTMLElement, opts: WarpOptions, mode: WarpMod
     last = now;
     if (!t0) t0 = now;
     const t = (now - t0) / 1000;
+    // ~0.3 s to settle: slow enough not to snap, fast enough that being picked
+    // up reads as a reaction rather than as a fade.
+    energy += (wanted - energy) * 0.1;
     for (let i = 0; i < maps.length; i++) {
-      const r = RHYTHM[fields[i]?.name ?? ''] ?? RHYTHM.hair!;
+      const r = RHYTHM[fields[i]?.name ?? ''] ?? RHYTHM.torso!;
       const theta = (t / r.period) * Math.PI * 2 + r.phase;
-      // Fundamental plus a little second harmonic: a pure sine reads mechanical.
-      const wave = Math.sin(theta) * 0.8 + Math.sin(theta * 2 + 1.1) * 0.2;
-      maps[i]!.setAttribute('scale', (r.amp * intensity * width * wave).toFixed(2));
+      // Fundamental, a second harmonic for asymmetry, and a very slow term so
+      // the loop never lands on the same pose twice — a pure sine reads
+      // mechanical after ten seconds.
+      const wave = Math.sin(theta) * 0.74 + Math.sin(theta * 2 + 1.1) * 0.16 + Math.sin(theta * 0.37 + 2.3) * 0.1;
+      maps[i]!.setAttribute('scale', (r.amp * intensity * width * wave * energy).toFixed(2));
     }
   };
 
@@ -268,6 +299,9 @@ export function attachWarp(target: HTMLElement, opts: WarpOptions, mode: WarpMod
       cancelAnimationFrame(raf);
       raf = 0;
       maps.forEach((m) => m.setAttribute('scale', '0'));
+    },
+    setEnergy(k: number) {
+      wanted = Math.max(0, Math.min(3, k));
     },
     destroy() {
       cancelAnimationFrame(raf);
