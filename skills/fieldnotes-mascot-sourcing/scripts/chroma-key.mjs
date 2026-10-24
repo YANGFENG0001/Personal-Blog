@@ -30,10 +30,11 @@ const { width: W, height: H } = info;
 // Median of a 2px border ring — more stable than four corner pixels when the
 // generator puts a vignette or a stray stroke in one corner.
 const ring = [];
-const push = (x, y) => {
+const at = (x, y) => {
   const o = (y * W + x) * 4;
-  ring.push([data[o], data[o + 1], data[o + 2]]);
+  return [data[o], data[o + 1], data[o + 2]];
 };
+const push = (x, y) => ring.push(at(x, y));
 for (let x = 0; x < W; x += 3) {
   push(x, 0); push(x, 1); push(x, H - 1); push(x, H - 2);
 }
@@ -46,10 +47,31 @@ const B = [0, 1, 2].map((c) => median(ring.map((p) => p[c])));
 const dist = (r, g, b) => Math.sqrt((r - B[0]) ** 2 + (g - B[1]) ** 2 + (b - B[2]) ** 2);
 
 // How far the backdrop itself wanders from its own median → the noise floor.
-let noise = 0;
-for (const p of ring) noise = Math.max(noise, dist(...p));
-const lo = Math.max(6, noise * 1.8);
-const hi = lo + 42;
+// Sample only TL / TR / BL corner patches, for two reasons:
+//  - the figure can touch the middle of an edge (long hair, a raised arm), and a
+//    single contaminated edge pixel used to push the floor to 130, which dragged
+//    the whole figure into the soft ramp and turned lavender hair mint green;
+//  - the bottom-right corner is where the generator stamps its watermark, and
+//    that white text pushed the floor to the 45 ceiling on its own.
+// Use the p95 rather than the max so one stray speck cannot set the threshold.
+const P = Math.min(28, W >> 4, H >> 4);
+const cornerD = [];
+for (const [cx, cy] of [[0, 0], [W - P, 0], [0, H - P]]) {
+  for (let y = cy; y < cy + P; y += 2) {
+    for (let x = cx; x < cx + P; x += 2) cornerD.push(dist(...at(x, y)));
+  }
+}
+cornerD.sort((a, b) => a - b);
+// The backdrop is never perfectly flat (this generator drifts ~±15 per channel
+// across the canvas), so the transparent floor has to clear the WHOLE drift,
+// not its p95 — otherwise the far side of the gradient stays faintly opaque and
+// the figure never trims. Max over the three watermark-free corners, plus margin.
+const noise = cornerD[cornerD.length - 1] ?? 0;
+// Cel-shaded art has crisp edges, so the ramp is deliberately NARROW (16 levels).
+// A wide ramp left a magenta halo: every edge pixel sat mid-ramp, the
+// un-premultiply only partially recovered it, and the residue showed as pink.
+const lo = Math.min(110, Math.max(6, noise * 1.2 + 4));
+const hi = lo + 16;
 
 /* -------------------------------------------------------------- soft matte */
 
@@ -72,9 +94,18 @@ for (let y = 0; y < H; y++) {
     if (a > 0 && a < 255) {
       // Un-premultiply: observed = a*F + (1-a)*B  ⇒  F = (C - (1-a)B) / a
       const k = 1 - a / 255;
-      nr = Math.round(Math.min(255, Math.max(0, (r - B[0] * k) / (a / 255))));
-      ng = Math.round(Math.min(255, Math.max(0, (g - B[1] * k) / (a / 255))));
-      nb = Math.round(Math.min(255, Math.max(0, (b - B[2] * k) / (a / 255))));
+      nr = Math.min(255, Math.max(0, (r - B[0] * k) / (a / 255)));
+      ng = Math.min(255, Math.max(0, (g - B[1] * k) / (a / 255)));
+      nb = Math.min(255, Math.max(0, (b - B[2] * k) / (a / 255)));
+      // Belt and braces: if the recovered pixel still leans magenta (R and B
+      // both above G), pull them back toward G. Un-premultiply alone leaves a
+      // visible pink rim on pale hair when alpha is slightly underestimated.
+      const m = Math.min(nr, nb) - ng;
+      if (m > 10) {
+        const pull = Math.min(0.85, m / 120);
+        nr -= (nr - ng) * pull;
+        nb -= (nb - ng) * pull;
+      }
     }
 
     out[o] = nr; out[o + 1] = ng; out[o + 2] = nb; out[o + 3] = a;
@@ -139,12 +170,14 @@ if (x1 < x0) {
   process.exit(1);
 }
 const pad = 4;
-const box = {
-  left: Math.max(0, x0 - pad),
-  top: Math.max(0, y0 - pad),
-  width: Math.min(W, x1 + pad + 1) - Math.max(0, x0 - pad),
-  height: Math.min(H, y1 + pad + 1) - Math.max(0, y0 - pad),
-};
+const box = flags.includes('--no-trim')
+  ? { left: 0, top: 0, width: W, height: H }
+  : {
+      left: Math.max(0, x0 - pad),
+      top: Math.max(0, y0 - pad),
+      width: Math.min(W, x1 + pad + 1) - Math.max(0, x0 - pad),
+      height: Math.min(H, y1 + pad + 1) - Math.max(0, y0 - pad),
+    };
 
 const trimmed = await sharp(out, { raw: { width: W, height: H, channels: 4 } })
   .extract(box)

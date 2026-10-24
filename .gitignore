@@ -38,3 +38,6 @@ tools/asset-studio/out/
 # scratch / one-off debugging artifacts
 .tmp-*
 .merkle-snapshot.json
+
+# 生图底稿与参考图暂存区
+.ref/
