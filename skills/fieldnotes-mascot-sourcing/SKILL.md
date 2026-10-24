@@ -267,7 +267,16 @@ isolated single character, generous margin around the figure.
 
 第一版用 `min(R,B) − G`（洋红度）当指标，只在背景真是洋红时成立。模型经常漂到**酒红 `132,54,86`** 或**粉 `203,95,151`**，此时指标只有 32，阈值窗口被压到 `6..20`，**浅紫/浅粉的头发会被整片吃掉**。
 
-正确做法：
+正确做法见 `scripts/chroma-key.mjs`：
+
+```bash
+node skills/fieldnotes-mascot-sourcing/scripts/chroma-key.mjs in.png out.png [--check] [--drop-islands]
+```
+
+- `--check` 合成到中灰上，边缘毛边一眼可见（**每次都要看一眼**，别只看 exit code）
+- `--drop-islands` 剔除漂浮道具，见 8.3
+
+核心逻辑：
 
 ```js
 // 1. 取四周 2px 边框环的 RGB 中位数当背景色 B（比取四角稳，能扛住边角的一笔杂色）
@@ -305,7 +314,11 @@ mouth slightly open as if speaking a short sentence.
 
 ### 8.5 对齐画布：按 alpha 包围盒**底边中心**
 
-逐帧抠图必然差 1–3px（一缕头发这帧出框、下帧没出），而 `build-pack.mjs` 遇到画布不一致是**硬失败**。不要手调，写个小脚本：
+逐帧抠图必然差 1–3px（一缕头发这帧出框、下帧没出），而 `build-pack.mjs` 遇到画布不一致是**硬失败**。不要手调，用脚本：
+
+```bash
+node skills/fieldnotes-mascot-sourcing/scripts/align-frames.mjs <输出目录> <角色名> <帧.png> <帧.png> ...
+```
 
 - 取所有帧 alpha 包围盒的**最大宽高**当公共画布
 - 每帧按**底边贴齐 + 水平居中**合成进去
@@ -323,7 +336,13 @@ mouth slightly open as if speaking a short sentence.
 
 ### 8.7 没有站主密码时怎么导入
 
-`POST /api/owner/mascots` 要站主会话。**不要为了导入去重置站主密码**——那会把站主所有设备踢下线。直接写库，复刻 `importPack()` 的行为即可：
+`POST /api/owner/mascots` 要站主会话。**不要为了导入去重置站主密码**——那会把站主所有设备踢下线。用脚本直接写库，它复刻了 `importPack()` 的全部行为：
+
+```bash
+node skills/fieldnotes-mascot-sourcing/scripts/import-pack.mjs a.mascot.zip b.mascot.zip
+```
+
+细节（手写脚本要照抄）：
 
 - `mascot_packs(id, name, manifest, created_at, updated_at)`，`id` 是 16 位 hex
 - `uploads(id, filename, original_name, mime, size, created_at, pack_id)`，`filename` 是 **24 位 hex + 扩展名**（`readUpload` 用 `^[a-f0-9]{24}\.(png|webp|…)$` 校验，长度不对就 404）
