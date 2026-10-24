@@ -176,6 +176,15 @@ body:has(.mascot[data-kind='anime'][data-pos='right'][data-size='lg']:not([hidde
 .mascot[data-outline='soft'] .mascot-frames { filter: drop-shadow(0 0 1px color-mix(in srgb, var(--bg) 85%, transparent)) drop-shadow(0 4px 10px color-mix(in srgb, var(--ink) 16%, transparent)); }
 .mascot[data-outline='white'] .mascot-frames { filter: drop-shadow(1.5px 0 0 #fff) drop-shadow(-1.5px 0 0 #fff) drop-shadow(0 1.5px 0 #fff) drop-shadow(0 -1.5px 0 #fff) drop-shadow(0 4px 10px color-mix(in srgb, var(--ink) 18%, transparent)); }
 
+/* Per-part warping (lib/mascot-warp.ts). The filter goes *first* in the chain
+   so the outline and shadow are computed from the already-displaced pixels —
+   the other way round the shadow would lag behind the silhouette by a frame.
+   `data-warp` is only set once the filter is in the document: an unresolvable
+   filter reference hides the element instead of falling back. */
+.mascot[data-outline='none'] .mascot-frames[data-warp='1'] { filter: url(#ms-warp); }
+.mascot[data-outline='soft'] .mascot-frames[data-warp='1'] { filter: url(#ms-warp) drop-shadow(0 0 1px color-mix(in srgb, var(--bg) 85%, transparent)) drop-shadow(0 4px 10px color-mix(in srgb, var(--ink) 16%, transparent)); }
+.mascot[data-outline='white'] .mascot-frames[data-warp='1'] { filter: url(#ms-warp) drop-shadow(1.5px 0 0 #fff) drop-shadow(-1.5px 0 0 #fff) drop-shadow(0 1.5px 0 #fff) drop-shadow(0 -1.5px 0 #fff) drop-shadow(0 4px 10px color-mix(in srgb, var(--ink) 18%, transparent)); }
+
 /* Bust: the lower part fades out instead of ending in a hard edge. */
 .mascot[data-display='bust'] .mascot-frames { -webkit-mask: linear-gradient(180deg, #000 72%, transparent 98%); mask: linear-gradient(180deg, #000 72%, transparent 98%); }
 

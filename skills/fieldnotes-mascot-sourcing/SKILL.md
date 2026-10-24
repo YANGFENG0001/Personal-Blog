@@ -59,6 +59,7 @@ CC-BY-SA 要额外提醒站主「衍生图需同协议共享」。
 | `states.idle` | **必需** |
 | `states.*` 文件名 | 必须匹配 `^[a-z]+\.(webp\|png)$`（**不能有连字符**） |
 | `motion.blinkEvery` | **≥ 2**（写 0 会报 `too_small`） |
+| `motion.warpIntensity` | 0–2（0 = 关掉局部动效，1 = 默认幅度） |
 | `display.height` | 80–520 |
 | `display.crop` | 0.2–1（1 = 全身；越小越往上裁，**不缩放**） |
 | 各状态图 | 画布尺寸必须完全一致，否则 `build-pack` 硬失败 |

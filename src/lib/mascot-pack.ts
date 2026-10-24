@@ -90,8 +90,16 @@ export const mascotPackSchema = z.object({
       swing: z.boolean().default(true),
       /** Blink interval in seconds (needs a blink image). */
       blinkEvery: z.number().min(2).max(20).default(5),
+      /**
+       * Per-part warping (hair / head / torso / hem) so a flat illustration
+       * moves like a figure rather than a sticker. Costs nothing extra — the
+       * displacement maps are drawn from the anchors at runtime.
+       */
+      warp: z.boolean().default(true),
+      /** Warp amplitude multiplier: 0 is still, 1 is the tuned default. */
+      warpIntensity: z.number().min(0).max(2).default(1),
     })
-    .default({ breathe: true, sway: true, swing: true, blinkEvery: 5 }),
+    .default({ breathe: true, sway: true, swing: true, blinkEvery: 5, warp: true, warpIntensity: 1 }),
   lines: z.object(Object.fromEntries(LINE_GROUPS.map((g) => [g, z.array(line).max(40).optional()])) as Record<LineGroup, z.ZodOptional<z.ZodArray<typeof line>>>).default({}),
 });
 

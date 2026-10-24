@@ -1,7 +1,8 @@
-import { useRef, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { api, errMsg, toast } from '../../lib/client';
 import { confirmDialog } from '../../lib/dialogs';
 import { LINE_GROUPS, LINE_GROUP_LABELS, MASCOT_STATES, STATE_LABELS, type StoredMascotPack } from '../../lib/mascot-pack';
+import { attachWarp } from '../../lib/mascot-warp';
 import { Icon, IconButton, Segmented, Switch } from './ui';
 
 /**
@@ -102,6 +103,19 @@ function PackEditor({ pack, onSaved }: { pack: StoredMascotPack; onSaved: (p: St
   const setD = (patch: Partial<StoredMascotPack['display']>) => setP({ ...p, display: { ...d, ...patch } });
   const setM = (patch: Partial<StoredMascotPack['motion']>) => setP({ ...p, motion: { ...p.motion, ...patch } });
 
+  // Live per-part motion in the preview, so the switch below means something.
+  const figImg = useRef<HTMLImageElement>(null);
+  const { warp, warpIntensity } = p.motion;
+  const [hx, hy] = p.anchors.head;
+  const baseline = p.anchors.baseline;
+  useEffect(() => {
+    const el = figImg.current;
+    if (!el || !warp) return;
+    const handle = attachWarp(el, { width: p.width, height: p.height, head: [hx, hy], baseline, intensity: warpIntensity }, 'inline');
+    handle?.start();
+    return () => handle?.destroy();
+  }, [warp, warpIntensity, hx, hy, baseline, p.width, p.height]);
+
   async function save() {
     setSaving(true);
     try {
@@ -133,7 +147,7 @@ function PackEditor({ pack, onSaved }: { pack: StoredMascotPack; onSaved: (p: St
         </div>
         <div class={`mp-stage mode-${d.mode} ${d.flip ? 'flip' : ''}`}>
           <span class="mp-fig" onClick={setBubble} title="点击设置对话气泡的位置" style={`aspect-ratio:${p.width}/${p.height * d.crop};height:${d.crop * 100}%`}>
-            <img src={p.urls[state] ?? p.urls.idle} alt="" />
+            <img ref={figImg} src={p.urls[state] ?? p.urls.idle} alt="" />
             <span class="mp-bubble-dot" style={`left:${p.anchors.bubble[0] * 100}%;top:${(p.anchors.bubble[1] / d.crop) * 100}%`}>💬</span>
           </span>
         </div>
@@ -156,10 +170,16 @@ function PackEditor({ pack, onSaved }: { pack: StoredMascotPack; onSaved: (p: St
         <div class="grid-2">
           <Switch checked={d.flip} onChange={(v) => setD({ flip: v })} label="水平翻转" />
           <Switch checked={d.shadow} onChange={(v) => setD({ shadow: v })} label="脚下阴影" />
+          <Switch checked={p.motion.warp} onChange={(v) => setM({ warp: v })} label="局部动效" />
           <Switch checked={p.motion.breathe} onChange={(v) => setM({ breathe: v })} label="呼吸" />
           <Switch checked={p.motion.sway} onChange={(v) => setM({ sway: v })} label="轻微摇摆" />
           <Switch checked={p.motion.swing} onChange={(v) => setM({ swing: v })} label="拖动时摆动" />
         </div>
+        {p.motion.warp && (
+          <label class="field"><span class="label">局部动效强度 {Math.round(p.motion.warpIntensity * 100)}%（头发、头、上身、裙摆各自摆动，0% 即静止）</span>
+            <input type="range" min={0} max={200} step={5} value={Math.round(p.motion.warpIntensity * 100)} onInput={(e) => setM({ warpIntensity: Number(e.currentTarget.value) / 100 })} />
+          </label>
+        )}
         <details class="mp-lines">
           <summary>台词（每行一句，最多 60 字）</summary>
           {LINE_GROUPS.map((g) => (

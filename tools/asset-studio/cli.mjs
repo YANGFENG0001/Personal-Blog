@@ -82,7 +82,7 @@ async function main() {
       states,
       anchors: { baseline: 1, head: done.idle.anchors?.head ?? [0.5, 0.12], bubble: done.idle.anchors?.bubble ?? [0.5, 0.05] },
       display: { mode: flags.display || 'full', height: Number(flags.height || 240), flip: false, shadow: true, outline: 'soft' },
-      motion: { breathe: true, sway: true, swing: true, blinkEvery: 5 },
+      motion: { breathe: true, sway: true, swing: true, blinkEvery: 5, warp: true, warpIntensity: 1 },
       lines: fs.existsSync(linesFile) ? JSON.parse(fs.readFileSync(linesFile, 'utf8')) : {},
     };
     files['mascot.json'] = strToU8(JSON.stringify(manifest, null, 2));

@@ -42,7 +42,15 @@ const style = pack
       `--ms-hy:${anchors!.head[1]}`,
     ].join(';')
   : undefined;
-const payload = JSON.stringify({ lines, page, motion: pack?.motion ?? null, hasBlink: !!pack?.urls.blink }).replace(/</g, '\\u003c');
+const payload = JSON.stringify({
+  lines,
+  page,
+  motion: pack?.motion ?? null,
+  hasBlink: !!pack?.urls.blink,
+  // Anchors for the per-part warp: regions are derived from the head point and
+  // the feet line, so an imported pack needs no extra assets.
+  warp: pack ? { head: anchors!.head, baseline: anchors!.baseline, width: pack.width, height: pack.height } : null,
+}).replace(/</g, '\\u003c');
 ---
 
 <div
@@ -93,6 +101,7 @@ const payload = JSON.stringify({ lines, page, motion: pack?.motion ?? null, hasB
 
 <script>
   import { pickLines, type LineGroup, type MascotPack } from '../../lib/mascot-pack';
+  import { attachWarp } from '../../lib/mascot-warp';
 
   const root = document.querySelector<HTMLElement>('[data-mascot]');
   if (root) {
@@ -102,6 +111,7 @@ const payload = JSON.stringify({ lines, page, motion: pack?.motion ?? null, hasB
       page: 'home' | 'article' | 'notFound' | 'other';
       motion: MascotPack['motion'] | null;
       hasBlink: boolean;
+      warp: { head: [number, number]; baseline: number; width: number; height: number } | null;
     };
     const btn = root.querySelector<HTMLElement>('[data-mascot-btn]')!;
     const body = root.querySelector<HTMLElement>('[data-mascot-body]')!;
@@ -174,6 +184,27 @@ const payload = JSON.stringify({ lines, page, motion: pack?.motion ?? null, hasB
     };
     ['pointermove', 'keydown', 'scroll'].forEach((e) => addEventListener(e, wake, { passive: true }));
     wake();
+
+    /* ---------------- per-part motion (displacement warp) ---------------- */
+    // A pack is one flat bitmap, so hair / head / torso / hem are warped by an
+    // SVG displacement filter instead of being split into layers. See
+    // lib/mascot-warp.ts for why layer splitting is not viable.
+    const frames = root.querySelector<HTMLElement>('.mascot-frames');
+    if (frames && data.warp && data.motion?.warp !== false && !still) {
+      const warp = attachWarp(frames, {
+        width: data.warp.width,
+        height: data.warp.height,
+        head: data.warp.head,
+        baseline: data.warp.baseline,
+        intensity: data.motion?.warpIntensity ?? 1,
+      });
+      if (warp) {
+        warp.start();
+        // No point burning frames on a tab nobody is looking at.
+        document.addEventListener('visibilitychange', () => (document.hidden ? warp.stop() : warp.start()));
+        addEventListener('pagehide', () => warp.destroy(), { once: true });
+      }
+    }
 
     /* ---------------- position ---------------- */
     const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
