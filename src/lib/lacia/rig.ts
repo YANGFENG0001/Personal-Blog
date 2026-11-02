@@ -24,7 +24,7 @@
  * head's *world* angle through its own spring and the pose is the difference,
  * so the offset is zero at rest and can never oppose the head.
  */
-import { LACIA_CANVAS, LACIA_PARTS } from './parts';
+import { LACIA_CANVAS, LACIA_KNEE, LACIA_PARTS } from './parts';
 import { FACE_IDS, FACE_PAD, FORM_FACE, STATE_FACE, BLUSH_STATES, browParts, mouthParts, type BrowVariant, type MouthVariant } from './face';
 import { buildScript, type SayLine, type VisemeCue } from '../viseme';
 import { LACIA_FORM_ORDER, type LaciaForm } from './lines';
@@ -45,7 +45,9 @@ export type LaciaBone =
   | 'armR'
   | 'armL'
   | 'legR'
-  | 'legL';
+  | 'legL'
+  | 'kneeR'
+  | 'kneeL';
 
 export type LaciaState = 'idle' | 'talk' | 'happy' | 'held' | 'sleep';
 
@@ -55,10 +57,12 @@ const BONE_OF: Record<string, LaciaBone> = {
   'front hair': 'hairFront',
   'handwear-l': 'armL',
   'handwear-r': 'armR',
-  'legwear-l': 'legL',
-  'legwear-r': 'legR',
-  'footwear-l': 'legL',
-  'footwear-r': 'legR',
+  'legwear-r-up': 'legR',
+  'legwear-l-up': 'legL',
+  'legwear-r-lo': 'kneeR',
+  'legwear-l-lo': 'kneeL',
+  'footwear-l': 'kneeL',
+  'footwear-r': 'kneeR',
   neck: 'neck',
   topwear: 'torso',
 };
@@ -78,6 +82,10 @@ const PIVOT: Record<LaciaBone, readonly [number, number]> = {
   armL: [318, 250],
   legR: [200, 500],
   legL: [300, 500],
+  /* Measured by `export_assets.py` as the narrowest row of each leg's
+     silhouette, so it stays correct if the layers are ever re-split. */
+  kneeR: LACIA_KNEE.r,
+  kneeL: LACIA_KNEE.l,
 };
 
 const EYE = new Set(['eyewhite-r', 'eyewhite-l', 'irides-r', 'irides-l', 'eyelash-r', 'eyelash-l']);
@@ -161,8 +169,12 @@ export function laciaMarkup(opts: { base?: string; uid?: string } = {}): string 
         <div class="lr-bone lr-root" data-bone="root">
           <div class="lr-bone lr-hips" data-bone="hips">
             ${deviceLock}
-            <div class="lr-bone lr-leg" data-bone="legR">${p.legR ?? ''}</div>
-            <div class="lr-bone lr-leg" data-bone="legL">${p.legL ?? ''}</div>
+            <div class="lr-bone lr-leg" data-bone="legR">
+              <div class="lr-bone lr-knee" data-bone="kneeR">${p.kneeR ?? ''}</div>${p.legR ?? ''}
+            </div>
+            <div class="lr-bone lr-leg" data-bone="legL">
+              <div class="lr-bone lr-knee" data-bone="kneeL">${p.kneeL ?? ''}</div>${p.legL ?? ''}
+            </div>
             <div class="lr-bone lr-spine" data-bone="spine">
               <div class="lr-bone lr-chest" data-bone="chest">
                 <div class="lr-bone lr-arm" data-bone="armR">${p.armR ?? ''}</div>
@@ -411,6 +423,10 @@ export class LaciaRig {
     armLR: new Spring(0.9, 0.75),
     legRR: new Spring(1.2, 1.0),
     legLR: new Spring(1.2, 1.0),
+    /* Softer and slower than the thigh: a knee that snaps back at the same rate
+       as the hip reads as a hinge, not as a joint under load. */
+    kneeRR: new Spring(0.95, 0.72),
+    kneeLR: new Spring(0.95, 0.72),
     monY: new Spring(0.42, 0.55),
     monR: new Spring(0.3, 0.6),
     /* The device's own swing on its mount, separate from her body.
@@ -582,6 +598,12 @@ export class LaciaRig {
   poke() {
     this.S.headR.kick(-11);
     this.S.headY.kick(4);
+    /* A poke used to move only her head, which is the whole reason she read as
+       a bobblehead on a stick. Weight drops into one knee, the hips take a
+       small shove, and the knees take it unevenly — she catches herself. */
+    this.S.kneeRR.impulse(2.8);
+    this.S.kneeLR.impulse(-1.5);
+    this.S.hipsX.kick(1.6);
     // The device is socketed to her, so a jolt through her body reaches it too.
     // Without this she flinches and the hardware does not, which is the fastest
     // way to make an attachment look fake. 2.6° is ~50 units at the muzzle,
@@ -614,6 +636,11 @@ export class LaciaRig {
       this.S.chestR.kick(-3.4);
       this.S.armRR.kick(5);
       this.S.armLR.kick(-7);
+      /* She drops her weight to take the recoil. Without this the upper body
+         braces while the legs stay in the neutral standing pose, and the pose
+         reads as pasted-on above the waist. */
+      this.S.kneeRR.impulse(3.4);
+      this.S.kneeLR.impulse(2.6);
       /* The device's own swing, in degrees: the rails throw and the whole
          housing rocks back on its mount before the cradle catches it. */
       this.S.monHit.impulse(-3.2);
@@ -734,8 +761,38 @@ export class LaciaRig {
       S.hairBWorld.step(phi, FIXED);
       S.armRR.step((micro * 0.85 - sway * 0.55) * e + P.armR, FIXED);
       S.armLR.step((-micro * 0.85 - sway * 0.55) * e + P.armL, FIXED);
-      S.legRR.step(-sway * 0.12 * e, FIXED);
-      S.legLR.step(-sway * 0.12 * e, FIXED);
+      S.legRR.step(-sway * 1.3 * e, FIXED);
+      S.legLR.step(-sway * 1.3 * e, FIXED);
+      /* Knees do two jobs, and neither one is a sagittal bend.
+       *
+       *  This art is a **front view**, so a real knee bend (heel toward the hip)
+       *  is almost invisible — the leg only foreshortens. What reads from the
+       *  front is the shin angling against the thigh, so the knee term is a
+       *  counter-rotation: the thigh swings on the hip and the shin stays
+       *  roughly vertical, which is also what stops the foot skating sideways.
+       *
+       *  The second job is de-synchronising the legs. Before this both legs were
+       *  driven by the same `sway` expression, so they moved as one rigid piece
+       *  — which is the actual source of "the knee is stiff", not the amplitude.
+       *  A standing person never loads both legs identically; the two knees here
+       *  breathe on different periods.
+       *
+       *  Range: ~0.5–5° at rest, 9° dangling. Measured that the thigh/shin crops
+       *  stay seamless to 26°, so there is plenty of headroom above this.
+       *
+       *  Two incommensurate sines per leg, with *different frequencies on each
+       *  side*. A phase offset on one shared sine is not enough: the two legs
+       *  then beat against each other and one of them sits almost still for
+       *  seconds at a time, which is its own kind of stiff. */
+      const kneeSoft = this.state === 'held' ? 9 : this.state === 'sleep' ? 3 : 2.4;
+      S.kneeRR.step(
+        -S.legRR.x * 0.85 + (kneeSoft + 1.5 * Math.sin(t * TAU * 0.107) + 0.8 * Math.sin(t * TAU * 0.043 + 1.3)) * e,
+        FIXED,
+      );
+      S.kneeLR.step(
+        -S.legLR.x * 0.85 + (kneeSoft + 1.5 * Math.sin(t * TAU * 0.089 + 2.1) + 0.8 * Math.sin(t * TAU * 0.051 + 0.4)) * e,
+        FIXED,
+      );
       S.monY.step(Math.sin((t * TAU) / 6.4) * 3.4 - S.rootY.x * 0.12, FIXED);
       S.monR.step(Math.sin((t * TAU) / 8.4 + 0.7) * 0.8 * Math.min(1, e), FIXED);
       /* The device trails her hips — not her chest. Coupling it to `chestR` was
@@ -875,6 +932,8 @@ export class LaciaRig {
     put('armL', `rotate(${f(S.armLR.x)}deg)`);
     put('legR', `rotate(${f(S.legRR.x)}deg)`);
     put('legL', `rotate(${f(S.legLR.x)}deg)`);
+    put('kneeR', `rotate(${f(S.kneeRR.x)}deg)`);
+    put('kneeL', `rotate(${f(S.kneeLR.x)}deg)`);
 
     /* Brows and mouth are images inside the head bone, so they need no world
        matrix — the head carries them. Only their own offset is written, and it

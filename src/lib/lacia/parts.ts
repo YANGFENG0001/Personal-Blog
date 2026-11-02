@@ -20,13 +20,23 @@ export interface LaciaPart {
 
 export const LACIA_CANVAS = { w: 493, h: 1276 } as const;
 
+/** Knee pivots, measured as the narrowest row of each leg's silhouette.
+ *  The shin bone rotates here, so this number decides whether a bend reads
+ *  as a knee or as a leg snapping in half. */
+export const LACIA_KNEE = {
+  r: [182.0, 843.0],
+  l: [303.5, 824.0],
+} as const;
+
 export const LACIA_PARTS: readonly LaciaPart[] = [
   { id: "back hair", file: "back-hair.webp", x: 114, y: 0, w: 237, h: 361, z: 1 },
   { id: "handwear-l", file: "handwear-l.webp", x: 298, y: 233, w: 195, h: 423, z: 2 },
   { id: "footwear-r", file: "footwear-r.webp", x: 160, y: 1129, w: 99, h: 145, z: 3 },
   { id: "footwear-l", file: "footwear-l.webp", x: 259, y: 1118, w: 75, h: 146, z: 3 },
-  { id: "legwear-r", file: "legwear-r.webp", x: 143, y: 482, w: 111, h: 698, z: 4 },
-  { id: "legwear-l", file: "legwear-l.webp", x: 267, y: 484, w: 98, h: 659, z: 4 },
+  { id: "legwear-r-up", file: "legwear-r-up.webp", x: 151, y: 482, w: 103, h: 377, z: 4 },
+  { id: "legwear-r-lo", file: "legwear-r-lo.webp", x: 143, y: 827, w: 76, h: 353, z: 4 },
+  { id: "legwear-l-up", file: "legwear-l-up.webp", x: 267, y: 484, w: 98, h: 356, z: 4 },
+  { id: "legwear-l-lo", file: "legwear-l-lo.webp", x: 267, y: 808, w: 71, h: 335, z: 4 },
   { id: "handwear-r", file: "handwear-r.webp", x: 0, y: 236, w: 179, h: 426, z: 5 },
   { id: "neck", file: "neck.webp", x: 211, y: 150, w: 48, h: 66, z: 6 },
   { id: "topwear", file: "topwear.webp", x: 121, y: 190, w: 301, h: 508, z: 7 },

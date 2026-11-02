@@ -72,7 +72,48 @@ def add(name, img, ox, oy, z):
     print(f"  {name:16s} {px1-px0:4d}x{py1-py0:<4d} at ({px0+ox-x0},{py0+oy-y0})")
 
 
-def split_lr(name, img, ox, oy, z):
+# How much the two knee crops overlap, in canvas px. The shin rotates a few
+# degrees about the knee; without an overlap that rotation opens a wedge-shaped
+# gap straight through the leg. 16 is enough for ~8° at this leg's thickness and
+# small enough that the doubled band never reads as a seam — the surface there is
+# a single dark tone, so the overlap has nothing to disagree about.
+KNEE_OVERLAP = 16
+
+# side -> (pivot x, pivot y) in canvas coords, filled in by split_knee()
+KNEES = {}
+
+
+def split_knee(nm, out, ox, oy, z):
+    """Cut one leg into thigh + shin at the knee.
+
+    The knee row is the **narrowest row between 40% and 60% of the layer's
+    height**. On a standing figure that is where the thigh's silhouette pinches
+    just above the joint; picking it by measurement rather than by a hardcoded
+    fraction is what makes this survive a re-split with different crops. (The
+    first guess — 45% — landed 80px low on this art, on the calf, which reads as
+    a broken doll because the shin then swings from mid-calf.)
+    """
+    a = out[:, :, 3] > 40
+    ys = np.where(a.any(axis=1))[0]
+    top, bot = int(ys[0]), int(ys[-1])
+    lo, hi = top + int((bot - top) * 0.40), top + int((bot - top) * 0.60)
+    knee = min((int(a[y].sum()), y) for y in range(lo, hi))[1]
+    xs = np.where(a[knee])[0]
+    # `out` is sized to the *layer's own crop*, so its coordinates are local to
+    # (ox, oy); parts.ts stores everything relative to the character bbox. Both
+    # offsets have to be undone or the pivot lands outside the figure.
+    KNEES[nm[-1]] = (round(float(xs.mean()) + ox - x0, 1), float(knee + oy - y0))
+
+    up = out.copy()
+    up[knee + KNEE_OVERLAP:] = 0
+    dn = out.copy()
+    dn[:knee - KNEE_OVERLAP] = 0
+    add(f"{nm}-up", Image.fromarray(up), ox, oy, z)
+    add(f"{nm}-lo", Image.fromarray(dn), ox, oy, z)
+    print(f"    knee pivot ({KNEES[nm[-1]][0]}, {KNEES[nm[-1]][1]}) in canvas coords")
+
+
+def split_lr(name, img, ox, oy, z, knee=False):
     """Split a merged two-leg layer into left / right halves by connected components."""
     a = np.array(img)[:, :, 3]
     mask = a > 24
@@ -98,7 +139,10 @@ def split_lr(name, img, ox, oy, z):
         m = ndimage.binary_dilation(lab == k, iterations=2)
         out = arr.copy()
         out[~m] = 0
-        add(nm, Image.fromarray(out), ox, oy, z)
+        if knee:
+            split_knee(nm, out, ox, oy, z)
+        else:
+            add(nm, Image.fromarray(out), ox, oy, z)
 
 
 Z = 0
@@ -108,7 +152,7 @@ for layer in meta["layers"]:
     ox, oy = layer["left"], layer["top"]
     Z += 1
     if name in ("legwear", "footwear"):
-        split_lr(name, img, ox, oy, Z)
+        split_lr(name, img, ox, oy, Z, knee=(name == "legwear"))
     else:
         add(name, img, ox, oy, Z)
 
@@ -137,6 +181,14 @@ lines = [
     "}",
     "",
     f"export const LACIA_CANVAS = {{ w: {CW}, h: {CH} }} as const;",
+    "",
+    "/** Knee pivots, measured as the narrowest row of each leg's silhouette.",
+    " *  The shin bone rotates here, so this number decides whether a bend reads",
+    " *  as a knee or as a leg snapping in half. */",
+    "export const LACIA_KNEE = {",
+    f"  r: [{KNEES['r'][0]}, {KNEES['r'][1]}],",
+    f"  l: [{KNEES['l'][0]}, {KNEES['l'][1]}],",
+    "} as const;",
     "",
     "export const LACIA_PARTS: readonly LaciaPart[] = [",
 ]
