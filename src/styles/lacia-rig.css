@@ -275,9 +275,16 @@
 .lr-half-r { --half-sx: calc(2 * var(--split, 0px)); }
 .lr-monolith[data-form='railgun'] { --split: 76px; }
 
+/* No outline. The character is a painted illustration — she has no line art
+   anywhere, and every edge is a value break. The device used to be drawn the
+   opposite way (bright 2.6px stroke on a flat fill), which is why the two read
+   as different media: hers was painted, hers looked like a blueprint.
+   What replaces the outline is a ramp in the fill plus a rim at low alpha. At
+   0.14 the rim still separates the silhouette from the dark page without ever
+   reading as a drawn line. */
 .lr-half-plate {
-  stroke: rgba(143, 227, 255, 0.44);
-  stroke-width: 2.6;
+  stroke: rgba(170, 205, 232, 0.14);
+  stroke-width: 1.8;
 }
 /* The outer side face. Deliberately the darkest plane on the device: value
    separation, not an outline, is what tells the eye "box" instead of "cutout".
@@ -307,52 +314,57 @@
    has been worked rather than printed. */
 .lr-half-knurl {
   fill: none;
-  stroke: rgba(143, 227, 255, 0.15);
+  stroke: rgba(143, 227, 255, 0.1);
   stroke-width: 2;
   transition: stroke 0.4s;
 }
 .lr-monolith[data-form='railgun'] .lr-half-knurl {
   stroke: rgba(180, 236, 255, 0.34);
 }
+/* The inset panel is defined by its *value*, not by its border. A stroke here
+   put a drawn rectangle on top of a painted one. Its fill is a gradient set in
+   the markup (`face` in monolith.ts) — a flat fill at any alpha covered the
+   plate's ramp, because this panel is 85% of the front face's area. */
 .lr-half-face {
-  fill: rgba(5, 8, 13, 0.66);
-  stroke: rgba(143, 227, 255, 0.14);
-  stroke-width: 1.4;
+  stroke: none;
 }
 /* The lip along the facing edge. Closed it is the spine of the casket; open it
    is the cheek of the rail. A stroke alone could not do this — it needs area. */
 .lr-half-lip {
-  fill: rgba(22, 33, 46, 0.95);
-  stroke: rgba(143, 227, 255, 0.18);
+  fill: rgba(30, 43, 58, 0.95);
+  stroke: rgba(143, 227, 255, 0.09);
   stroke-width: 1;
 }
 /* A highlight that is not parallel to any edge. Without one, a flat plate reads
    as vector art however good its gradient is. */
+/* The one specular. It has to carry the "polished metal" reading on its own
+   now that the outline is gone, so it is wider and brighter than the version
+   that used to sit under a stroke. */
 .lr-half-sheen {
-  stroke: rgba(198, 232, 255, 0.07);
-  stroke-width: 12;
+  stroke: rgba(198, 232, 255, 0.17);
+  stroke-width: 30;
   fill: none;
   stroke-linecap: round;
   filter: blur(6px);
 }
 .lr-half-groove {
-  stroke: rgba(143, 227, 255, 0.16);
+  stroke: rgba(143, 227, 255, 0.09);
   stroke-width: 2.2;
   fill: none;
 }
 .lr-half-vents {
-  stroke: rgba(143, 227, 255, 0.24);
-  stroke-width: 3.4;
+  stroke: rgba(143, 227, 255, 0.12);
+  stroke-width: 4.4;
   fill: none;
   stroke-linecap: round;
 }
 .lr-half-cuts {
-  stroke: rgba(143, 227, 255, 0.13);
+  stroke: rgba(143, 227, 255, 0.07);
   stroke-width: 1.4;
   fill: none;
 }
 .lr-half-track {
-  stroke: rgba(143, 227, 255, 0.09);
+  stroke: rgba(143, 227, 255, 0.06);
   stroke-width: 6;
   fill: none;
 }
@@ -411,21 +423,22 @@
   50% { transform: rotate(0.55deg) translateY(-3px); }
 }
 
-.lr-slab-body,
-.lr-slab-tip {
-  stroke: rgba(143, 227, 255, 0.36);
-  stroke-width: 2.4;
+/* Same rule as the shell: value, not outline. The eight plates are the biggest
+   area of the device in the deployed form, and drawn with a 2.4px cyan stroke
+   they read as a wireframe fan. */
+.lr-slab-body {
+  stroke: rgba(170, 205, 232, 0.12);
+  stroke-width: 1.6;
 }
 .lr-slab-side {
-  fill: #05080d;
-  stroke: rgba(143, 227, 255, 0.14);
-  stroke-width: 1.5;
+  fill: #03050a;
+  stroke: none;
 }
 .lr-slab-facet {
   stroke: none;
 }
 .lr-slab-cut {
-  stroke: rgba(143, 227, 255, 0.19);
+  stroke: rgba(143, 227, 255, 0.1);
   stroke-width: 1.6;
   fill: none;
 }
@@ -434,13 +447,20 @@
   stroke-width: 1.8;
   fill: none;
 }
+/* The tip is the one edge that keeps a real line: it is the lit end of a
+   polished plate, and a specular edge *is* a line on a painted object. */
 .lr-slab-tip {
-  stroke: rgba(143, 227, 255, 0.85);
+  stroke: rgba(206, 236, 255, 0.55);
+  stroke-width: 2;
 }
 /* A highlight along one edge. It is what makes the plate read as a polished
    curved face rather than as a flat wedge. */
+/* A specular, not an edge. At 0.62/4.2 this line ran the full length of every
+   plate and became the brightest thing in the picture, so the fan read as eight
+   radiating lines instead of eight plates — the wireframe came back through the
+   highlight instead of through the outline. */
 .lr-slab-glint {
-  stroke: rgba(226, 246, 255, 0.45);
+  stroke: rgba(226, 246, 255, 0.3);
   stroke-width: 3;
   fill: none;
   stroke-linecap: round;

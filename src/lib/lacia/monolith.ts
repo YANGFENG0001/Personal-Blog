@@ -205,7 +205,7 @@ export function monolithSvg(uid: string): string {
   const halfPaths = `<path class="lr-half-side" d="${HALF.side}" fill="url(#${id('side')})"/>
         <path class="lr-half-plate" d="${HALF.plate}" fill="url(#${id('slab')})"/>
         <path class="lr-half-inner" d="${HALF.inner}"/>
-        <path class="lr-half-face" d="${HALF.face}"/>
+        <path class="lr-half-face" d="${HALF.face}" fill="url(#${id('face')})"/>
         <path class="lr-half-lip" d="${HALF.lip}"/>
         <path class="lr-half-knurl" d="${HALF.knurl}"/>
         <path class="lr-half-groove" d="${HALF.groove}"/>
@@ -302,11 +302,24 @@ export function monolithSvg(uid: string): string {
 
   return `<svg class="lr-monolith" data-form="coffin" viewBox="0 0 3000 3000" aria-hidden="true" focusable="false">
       <defs>
-        <linearGradient id="${id('slab')}" x1="0" y1="1" x2="0.6" y2="0">
-          <stop offset="0" stop-color="#05080d"/>
-          <stop offset="0.34" stop-color="#101823"/>
-          <stop offset="0.66" stop-color="#1e2b3b"/>
-          <stop offset="1" stop-color="#35485e"/>
+        /* The form ramp. It used to be gentle because a bright outline was
+           doing the silhouette work; now that the outline is a 0.14-alpha rim,
+           this gradient is the only thing saying "this is a solid". */
+        <linearGradient id="${id('slab')}" x1="0" y1="1" x2="0.55" y2="0">
+          <stop offset="0" stop-color="#02040a"/>
+          <stop offset="0.3" stop-color="#0a1119"/>
+          <stop offset="0.62" stop-color="#1c2937"/>
+          <stop offset="0.86" stop-color="#33465c"/>
+          <stop offset="1" stop-color="#4a627e"/>
+        </linearGradient>
+        /* The inset panel is 126 of the 148 units of the front face, so when it
+           was a flat 72%-opaque black it covered the plate's ramp and the whole
+           casket came out as one value. It gets its own ramp instead. */
+        <linearGradient id="${id('face')}" x1="0" y1="1" x2="0.3" y2="0">
+          <stop offset="0" stop-color="#04070c"/>
+          <stop offset="0.42" stop-color="#0b131c"/>
+          <stop offset="0.76" stop-color="#182532"/>
+          <stop offset="1" stop-color="#2b3d50"/>
         </linearGradient>
         <linearGradient id="${id('bore')}" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stop-color="#0b1520"/>
