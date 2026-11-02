@@ -242,6 +242,7 @@ function MascotPanel({ a, setA, uploads, packs, setPacks, studioUrl }: { a: AS; 
   const shown = m.mode === 'on' || (m.mode === 'preset' && !!preset.mascot);
   const character = m.character === 'preset' ? (preset.mascot ?? 'haru') : m.character;
   const pack = character.startsWith('pack:') ? packs.find((p) => `pack:${p.id}` === character) : undefined;
+  const thumb = MASCOTS.find((c) => c.id === character)?.thumb;
   const withMascot = PRESETS.filter((p) => p.mascot).map((p) => `“${p.name}”`).join('、');
   const images = uploads.filter((u) => /\.(png|webp|gif|svg)$/i.test(u.filename));
   return (
@@ -254,8 +255,8 @@ function MascotPanel({ a, setA, uploads, packs, setPacks, studioUrl }: { a: AS; 
       </div>
       <div class="mascot-cfg">
         <div class={`mascot-stage ${shown ? '' : 'is-off'}`} data-pos={m.position}>
-          <div class="mascot-demo" data-size={m.size} data-kind={pack || m.imageUrl ? 'image' : character === 'chibi' ? 'chibi' : 'anime'}>
-            {pack?.urls.idle ? <img src={pack.urls.idle} alt="" /> : m.imageUrl ? <img src={m.imageUrl} alt="" /> : <span dangerouslySetInnerHTML={{ __html: mascotSvg(isMascotId(character) ? character : 'haru') }} />}
+          <div class="mascot-demo" data-size={m.size} data-kind={pack || m.imageUrl || thumb ? 'image' : character === 'chibi' ? 'chibi' : 'anime'}>
+            {pack?.urls.idle ? <img src={pack.urls.idle} alt="" /> : m.imageUrl ? <img src={m.imageUrl} alt="" /> : thumb ? <img src={thumb} alt="" /> : <span dangerouslySetInnerHTML={{ __html: mascotSvg(isMascotId(character) ? character : 'haru') }} />}
           </div>
           {!shown && <span class="mascot-off">当前主题下不显示</span>}
         </div>
@@ -274,7 +275,9 @@ function MascotPanel({ a, setA, uploads, packs, setPacks, studioUrl }: { a: AS; 
               </button>
               {MASCOTS.map((c) => (
                 <button type="button" role="radio" aria-checked={m.character === c.id} class={`mascot-pick ${m.character === c.id ? 'on' : ''}`} onClick={() => set({ character: c.id })}>
-                  <span class="mascot-pick-art" dangerouslySetInnerHTML={{ __html: mascotSvg(c.id) }} />
+                  <span class="mascot-pick-art">
+                    {c.thumb ? <img src={c.thumb} alt="" loading="lazy" /> : <span dangerouslySetInnerHTML={{ __html: mascotSvg(c.id) }} />}
+                  </span>
                   <strong>{c.name}</strong><small>{c.desc}</small>
                 </button>
               ))}

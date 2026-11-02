@@ -32,10 +32,15 @@
 
 export type MascotId = 'chibi' | 'haru' | 'sora' | 'lacia';
 
-export const MASCOTS: { id: MascotId; name: string; desc: string }[] = [
+export const MASCOTS: { id: MascotId; name: string; desc: string; thumb?: string }[] = [
   { id: 'haru', name: '小春', desc: '樱色发卡、长发、水手服，安静地陪你读书。' },
   { id: 'sora', name: '小晴', desc: '短发侧辫、太阳发夹，撑着透明雨伞的晴天少女。' },
-  { id: 'lacia', name: '蕾西亚', desc: '淡紫长发、冰蓝眼眸，身后浮着黑色秘棺的 hIE。（致敬《BEATLESS》的原创形象，非官方立绘）' },
+  {
+    id: 'lacia',
+    name: '蕾西亚',
+    desc: '分层骨架立绘：24 个语义图层挂在关节上，会转头、眨眼、摆臂、呼吸；装置 BLACK MONOLITH 有四种形态。（致敬《BEATLESS》，非官方立绘）',
+    thumb: '/lacia-rig/thumb.webp',
+  },
   { id: 'chibi', name: 'Q 版', desc: '最初的 Q 版夏日制服少女。' },
 ];
 
@@ -79,8 +84,19 @@ const CHIBI = `<svg class="mascot-svg ms-chibi" viewBox="0 0 160 200" aria-hidde
         <ellipse class="ms-eye" cx="64" cy="82" rx="6.5" ry="8"/><ellipse class="ms-eye" cx="96" cy="82" rx="6.5" ry="8"/>
         <circle class="ms-shine" cx="66" cy="79" r="2.3"/><circle class="ms-shine" cx="98" cy="79" r="2.3"/>
       </g>
-      <ellipse class="ms-blush" cx="56" cy="96" rx="6" ry="3"/><ellipse class="ms-blush" cx="104" cy="96" rx="6" ry="3"/>
-      <path class="ms-mouth" d="M75 98 q5 5 10 0"/>
+      <g class="ms-eyes-shut"><path d="M57.5 82.6q6.5 4.2 13 0"/><path d="M89.5 82.6q6.5 4.2 13 0"/></g>
+      <g class="ms-happy"><path d="M57.5 82.4q6.5-4.6 13 0"/><path d="M89.5 82.4q6.5-4.6 13 0"/></g>
+      <g class="ms-cheeks">
+        <ellipse class="ms-blush" cx="56" cy="96" rx="6" ry="3"/><ellipse class="ms-blush" cx="104" cy="96" rx="6" ry="3"/>
+      </g>
+      <path class="ms-mouth ms-mouth-idle" style="fill:none;stroke:#b5546f;stroke-width:2" d="M75 98q5 5 10 0"/>
+      <path class="ms-mouth ms-mouth-talk" style="fill:#c25a6a;stroke:none" d="M76.6 97.4q3.4 6.4 6.8 0q-3.4 2.6-6.8 0z"/>
+      <g class="ms-mouth ms-mouth-grin">
+        <path style="fill:#c25a6a;stroke:none" d="M75.4 97.2q4.6 7.6 9.2 0q-4.6 3-9.2 0z"/>
+        <path style="fill:#f8eef1;stroke:none" d="M76.6 97.8q3.4 1.2 6.8 0l-.3 1.4q-3.1 1-6.2 0z"/>
+      </g>
+      <ellipse class="ms-mouth ms-mouth-pout" style="fill:#c25a6a;stroke:none" cx="80" cy="98.6" rx="1.7" ry="2.1"/>
+      <path class="ms-mouth ms-mouth-sleep" style="fill:none;stroke:#b5546f;stroke-width:1.8" d="M76.2 98.8q3.8 2.4 7.6 0"/>
       <path class="ms-clip" d="M106 50 l8 -4 l2 6z"/>
     </g>
   </g>
@@ -152,12 +168,76 @@ function eye(L: Look, side: 'l' | 'r'): string {
       <path d="M70.4 81.8C73.5 88.2 81 91.6 87.4 89" fill="none" stroke="${L.lash}" stroke-width="1.15" opacity=".55" stroke-linecap="round"/>`;
 }
 
-/** Double-lid crease + eyebrow: on the skin, so it must not blink with the eye. */
+/** Double-lid crease. On the skin, so it must not blink with the eye. */
 function eyeSkin(L: Look, side: 'l' | 'r'): string {
   const crease =
-    '<path d="M88 65.2C82.6 60.4 74.4 60.8 70 66.4" fill="none" stroke="' + L.lash + '" stroke-width="1.05" opacity=".45" stroke-linecap="round"/>' +
-    '<path d="M74 57.4C78.6 53.4 85.6 53.6 90 57" fill="none" stroke="' + L.hair[2] + '" stroke-width="2" opacity=".55" stroke-linecap="round"/>';
+    '<path d="M88 65.2C82.6 60.4 74.4 60.8 70 66.4" fill="none" stroke="' + L.lash + '" stroke-width="1.05" opacity=".45" stroke-linecap="round"/>';
   return side === 'l' ? crease : `<g transform="translate(200 0) scale(-1 1)">${crease}</g>`;
+}
+
+/* ------------------------------------------------------------------ brows */
+
+/**
+ * Four brows, one shape each — the same four the rigged character uses, and for
+ * the same reason: a brow that is only *offset* cannot say "focused" or
+ * "asleep", it can only say "a bit higher". `raise` and `drop` move the whole
+ * strip, `furrow` rotates it about the outer end.
+ *
+ * Drawn on the left half and mirrored, like every other paired feature here.
+ * `[outer, inner]` are the y of the two ends; the control points bulge up by
+ * ~3.4 so the strip keeps the source's slight arch.
+ */
+const BROW_SHAPES: Record<string, [number, number]> = {
+  neutral: [57.4, 57],
+  raise: [55.0, 54.4],
+  furrow: [56.6, 60.4],
+  drop: [60.6, 58.6],
+};
+
+function brows(L: Look): string {
+  const mirror = 'translate(200 0) scale(-1 1)';
+  return Object.entries(BROW_SHAPES)
+    .map(([v, [o, i]]) => {
+      const mid = (o + i) / 2;
+      const d = `M74 ${o}C78.6 ${mid - 3.4} 85.6 ${mid - 3.2} 90 ${i}`;
+      const path = `<path d="${d}" fill="none" stroke="${L.hair[2]}" stroke-width="2" stroke-linecap="round" opacity=".55"/>`;
+      return `<g class="ms-brow ms-brow-${v}">${path}<g transform="${mirror}">${path}</g></g>`;
+    })
+    .join('');
+}
+
+/* ------------------------------------------------------------------ mouth */
+
+/**
+ * Five mouths, drawn rather than derived. An SVG mouth is a path, so unlike the
+ * rigged character there is no bitmap to squash — the shape can simply *be*
+ * different, which is what "露齿" and "睡着" actually need.
+ *
+ * The five correspond one-to-one with the five states, plus `grin` for `happy`.
+ * `talk` is the only one that gets scaled at runtime (see `--ms-open`).
+ */
+function mouths(): string {
+  return `<path class="ms-mouth ms-mouth-idle" d="M96.6 104.4Q100 107.6 103.4 104.4" fill="none" stroke="#c4687a" stroke-width="1.6" stroke-linecap="round"/>
+        <path class="ms-mouth ms-mouth-talk" d="M96 103.2Q100 111.6 104 103.2Q100 106 96 103.2Z" fill="#c25a6a"/>
+        <g class="ms-mouth ms-mouth-grin">
+          <path d="M94.6 102.8Q100 113 105.4 102.8Q100 105.6 94.6 102.8Z" fill="#c25a6a"/>
+          <path d="M96.2 103.4Q100 104.8 103.8 103.4L103.4 105.2Q100 106.4 96.6 105.2Z" fill="#f8eef1"/>
+        </g>
+        <ellipse class="ms-mouth ms-mouth-pout" cx="100" cy="105" rx="1.9" ry="2.4" fill="#c25a6a"/>
+        <path class="ms-mouth ms-mouth-sleep" d="M96.8 105.4Q100 108.4 103.2 105.4" fill="none" stroke="#c4687a" stroke-width="1.5" stroke-linecap="round"/>`;
+}
+
+/**
+ * Shut eyes for `sleep`. Drawn, not squashed: a closed eye is a curve, and
+ * `scaleY(.07)` on the open eye leaves the lash and the iris smeared into a
+ * band. The happy arcs are the opposite curvature (∩) so the two never read as
+ * the same face.
+ */
+function eyesShut(L: Look): string {
+  const d = 'M71.6 79.4Q80 85.2 88.4 79.4';
+  const one = `<path d="${d}" fill="none" stroke="${L.lash}" stroke-width="2.4" stroke-linecap="round"/>
+    <path d="M70.4 78.2l-2.6-1.4" fill="none" stroke="${L.lash}" stroke-width="1.8" stroke-linecap="round"/>`;
+  return `<g class="ms-eyes-shut">${one}<g transform="translate(200 0) scale(-1 1)">${one}</g></g>`;
 }
 
 /* ------------------------------------------------------------------- hair */
@@ -272,11 +352,12 @@ function bust(L: Look): string {
           <g>${eye(L, 'l')}</g>
           <g transform="${mirror}">${eye(L, 'r')}</g>
         </g>
+        ${eyesShut(L)}
         <g class="ms-happy" stroke-linecap="round">${happy}<g transform="${mirror}">${happy}</g></g>
         ${eyeSkin(L, 'l')}${eyeSkin(L, 'r')}
+        ${brows(L)}
         <path d="M99.4 89.6C101.4 92.4 101.6 94.2 99.8 95" fill="none" stroke="${SKIN.line}" stroke-width="1.15" stroke-linecap="round" opacity=".7"/>
-        <path class="ms-mouth-idle" d="M96.6 104.4Q100 107.6 103.4 104.4" fill="none" stroke="#c4687a" stroke-width="1.6" stroke-linecap="round"/>
-        <path class="ms-mouth-talk" d="M96 103.2Q100 111.6 104 103.2Q100 106 96 103.2Z" fill="#c25a6a"/>
+        ${mouths()}
         <g class="ms-cheeks">
           <ellipse cx="80" cy="97.4" rx="7.4" ry="3.2" fill="#ff9fb3" opacity=".3"/><ellipse cx="120" cy="97.4" rx="7.4" ry="3.2" fill="#ff9fb3" opacity=".3"/>
           <path d="M75.6 99.2l2.2-3.2 M79.4 99.2l2.2-3.2 M83.2 99.2l2.2-3.2 M115.6 99.2l2.2-3.2 M119.4 99.2l2.2-3.2 M123.2 99.2l2.2-3.2" stroke="#ee7890" stroke-width=".85" opacity=".4" stroke-linecap="round"/>

@@ -1,0 +1,33 @@
+---
+/**
+ * Fixture page for `docs/mascot/verify/lipsync.mjs`. Dev only.
+ *
+ * Why a page exists at all: the corner mascot on this site is the rigged
+ * character, so no live route renders an inline-SVG look — and lip sync lives
+ * inside the component's client script, so it cannot be exercised by importing
+ * a module the way the face matrix can. This page renders the real component
+ * with a real SVG look, which is the only honest way to measure it.
+ *
+ * The props match what a site configured with `character: 'haru'` produces, so
+ * the fixture cannot drift from production without the props drifting too.
+ * In a production build the route answers 404 and paints nothing.
+ */
+import Mascot from '../components/public/Mascot.astro';
+
+const dev = import.meta.env.DEV;
+if (!dev) Astro.response.status = 404;
+---
+{
+  dev && (
+    <html lang="zh-CN">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="robots" content="noindex" />
+        <title>mascot fixture</title>
+      </head>
+      <body style="margin:0;height:100vh">
+        <Mascot character="haru" draggable={false} imageUrl="" position="right" size="md" page="home" />
+      </body>
+    </html>
+  )
+}

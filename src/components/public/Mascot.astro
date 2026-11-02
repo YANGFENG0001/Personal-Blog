@@ -1,7 +1,8 @@
 ---
 /**
  * Corner mascot. Three sources:
- *  - built-in SVG characters (haru / sora / chibi),
+ *  - built-in characters: haru / sora / chibi as inline SVG, lacia as the
+ *    layered rig (a real skeleton over 24 split layers, see lib/lacia/rig.ts),
  *  - a mascot pack (state images + anchors + lines, see lib/mascot-pack.ts),
  *  - a legacy single image URL.
  *
@@ -12,6 +13,8 @@
  */
 import { mascotSvg, MASCOT_LINES, isMascotId } from '../../lib/mascot';
 import { MASCOT_STATES, type StoredMascotPack } from '../../lib/mascot-pack';
+import { LACIA_LINES } from '../../lib/lacia/lines';
+import LaciaRigIsland from './LaciaRigIsland';
 import '../../styles/mascot.css';
 
 interface Props {
@@ -25,9 +28,16 @@ interface Props {
 }
 const { character, pack = null, draggable, imageUrl, position, size, page } = Astro.props;
 const builtin = isMascotId(character) ? character : 'haru';
-const kind = pack ? 'pack' : imageUrl ? 'image' : builtin === 'chibi' ? 'chibi' : 'anime';
+// 蕾西亚 is the only built-in with a rigged skeleton; everything else is a
+// flat image, so the renderer forks here and nowhere else.
+const rigged = !pack && !imageUrl && builtin === 'lacia';
+const kind = pack ? 'pack' : imageUrl ? 'image' : rigged ? 'rig' : builtin === 'chibi' ? 'chibi' : 'anime';
 // Packs without their own generic lines still get something to say.
-const lines = pack ? { ...pack.lines, click: pack.lines.click?.length ? pack.lines.click : MASCOT_LINES.haru } : { click: MASCOT_LINES[builtin] };
+const lines = pack
+  ? { ...pack.lines, click: pack.lines.click?.length ? pack.lines.click : MASCOT_LINES.haru }
+  : rigged
+    ? LACIA_LINES
+    : { click: MASCOT_LINES[builtin] };
 const display = pack?.display;
 const anchors = pack?.anchors;
 const style = pack
@@ -89,6 +99,10 @@ const payload = JSON.stringify({
           </span>
         ) : imageUrl ? (
           <img src={imageUrl} alt="" loading="lazy" decoding="async" draggable="false" />
+        ) : rigged ? (
+          // The island server-renders the whole skeleton, so the figure is
+          // painted before hydration and stays readable with JS off.
+          <LaciaRigIsland client:visible variant="mascot" autoForms />
         ) : (
           <Fragment set:html={mascotSvg(builtin)} />
         )
@@ -102,6 +116,7 @@ const payload = JSON.stringify({
 <script>
   import { pickLines, type LineGroup, type MascotPack } from '../../lib/mascot-pack';
   import { attachWarp, type WarpHandle } from '../../lib/mascot-warp';
+  import { scheduleForText } from '../../lib/viseme';
 
   const root = document.querySelector<HTMLElement>('[data-mascot]');
   if (root) {
@@ -131,6 +146,9 @@ const payload = JSON.stringify({
       clearTimeout(stateTimer);
       root.dataset.state = s;
       warpHandle?.setEnergy(energyFor(s));
+      // A rigged character renders itself, so it gets the state as an event
+      // instead of a data attribute (the rig owns its own springs).
+      root.dispatchEvent(new CustomEvent('lacia:state', { detail: s }));
       // Fall back to held, not idle, if she is still being carried — otherwise
       // a long drag drops the motion back to idle mid-air after the line ends.
       if (ms) stateTimer = window.setTimeout(() => setState(root.classList.contains('is-dragging') ? 'held' : 'idle'), ms);
@@ -159,6 +177,65 @@ const payload = JSON.stringify({
       setState(state, 3400);
       clearTimeout(talkTimer);
       talkTimer = window.setTimeout(() => root.classList.remove('is-talking'), 3400);
+      driveMouth(text);
+    };
+
+    /* ---------------- lip sync (inline SVG looks only) ----------------
+       A pack is a flat bitmap and the rigged character owns its own mouth, so
+       only the two SVG looks are driven here. Their bubble text appears all at
+       once, so there is no per-glyph reveal to follow — the schedule is derived
+       from the text at a speaking rate (lib/viseme.ts) instead. Two CSS variables
+       carry the result and `mascot.css` turns them into a scale on the speaking
+       mouth, so nothing here touches the DOM tree.
+
+       The guard asks for the mouth itself rather than for `data-kind`. The kind
+       is a *label* for which renderer ran, and a label can disagree with the DOM
+       it describes: the corner mascot is a rig on this site, so a look swapped in
+       later would still carry `kind="rig"` and the mouth would sit there mute
+       while every check passed. Asking "is there a mouth element" cannot drift
+       from the truth, because it is the truth.
+
+       Scale is `REST + open * SPAN`, not `offset + open * span`. The drawn mouth
+       is the mouth *at rest*, so a viseme has to push it past 1 — the first cut
+       here mapped the range to 0.55–1.17, which meant she spoke by shrinking her
+       mouth, and at 2.5 rendered px the whole thing moved less than a pixel.
+       `REST 0.8 / SPAN 1.16` gives 0.8–1.9: shut on a closed vowel, jaw dropped
+       on "a". The ceiling is set by the chin, not by taste — the talk mouth hangs
+       6.3 units below its top edge and the chin is 14.4 units down, so 1.9 is the
+       largest scale that keeps it inside the face at every look. */
+    const mouthFor = (s: string) => root.querySelector<SVGGElement>(s);
+    const REST = 0.8;
+    const SPAN = 1.16;
+    let mouthRaf = 0;
+    const driveMouth = (text: string) => {
+      // Every SVG look ships all six mouths, so one probe answers for both of
+      // the speaking states (`talk` shows `ms-mouth-talk`, `happy` the grin).
+      if (!mouthFor('.ms-mouth-talk') || still) return;
+      cancelAnimationFrame(mouthRaf);
+      const cues = scheduleForText(text);
+      if (!cues.length) return;
+      const t0 = performance.now();
+      const end = cues[cues.length - 1].at;
+      let i = 0;
+      // Both start at rest and ease out, so the first frame is not a jump.
+      let open = 1;
+      let wide = 1;
+      const frame = (now: number) => {
+        const el = now - t0;
+        if (el > end + 240) {
+          root.style.setProperty('--ms-open', '1');
+          root.style.setProperty('--ms-wide', '1');
+          return;
+        }
+        while (i + 1 < cues.length && cues[i + 1].at <= el) i++;
+        const cue = cues[i];
+        open += (REST + cue.open * SPAN - open) * 0.42;
+        wide += (cue.wide - wide) * 0.34;
+        root.style.setProperty('--ms-open', open.toFixed(3));
+        root.style.setProperty('--ms-wide', wide.toFixed(3));
+        mouthRaf = requestAnimationFrame(frame);
+      };
+      mouthRaf = requestAnimationFrame(frame);
     };
     const clickLine = () => {
       // Mix in context: time of day first, then the page, then generic lines.
@@ -335,7 +412,17 @@ const payload = JSON.stringify({
         root.classList.add('is-out');
         setTimeout(() => root.classList.remove('is-out'), 4000);
       }
+      root.dispatchEvent(new CustomEvent('lacia:poke'));
       say(clickLine(), Math.random() < 0.3 ? 'happy' : 'talk');
+    });
+    // A rigged character reports device-form changes; each form has its own
+    // line group, so the four modes speak for themselves.
+    const FORM_GROUP: Record<string, LineGroup> = { coffin: 'formCoffin', railgun: 'formRailgun', shield: 'formShield', unfold: 'formUnfold' };
+    root.addEventListener('lacia:form', (e) => {
+      const d = (e as CustomEvent<{ form: string; manual: boolean }>).detail;
+      // Passive cycles stay silent — the device lighting up is the message.
+      if (!d?.manual) return;
+      say(line(FORM_GROUP[d.form] ?? 'click'));
     });
     addEventListener('fn:read-end', () => say(line('readEnd') ?? '读完啦！', 'happy'));
     // A greeting on arrival on the 404 page.

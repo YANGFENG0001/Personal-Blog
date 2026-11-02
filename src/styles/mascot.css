@@ -52,16 +52,68 @@
 .mascot[data-pos='left']:not([data-bubble]) .mascot-bubble, .mascot[data-bubble='right'] .mascot-bubble { right: auto; left: 30%; border-radius: 14px 14px 14px 4px; transform-origin: bottom left; }
 .mascot.is-talking .mascot-bubble { opacity: 1; transform: none; }
 
-/* ---------- Anime busts (haru / sora) ---------- */
+/* ---------- faces: state → shape (both SVG looks) ----------
+   Every look carries the same five faces, and the state picks one — the same
+   rule the rigged character follows, for the same reason: at this size an
+   *offset* is invisible while a different *silhouette* is not. The bust is 250
+   units tall with a ~70-unit face, so a brow that merely sits 2 units higher
+   reads as nothing at all.
+
+   Opacity rather than display: the shapes cross-fade in 0.18s, which is what
+   makes a state change feel like a change of expression instead of a swap.
+
+   `idle` is the fallback, not the base rule, so an unknown state (a pack's
+   `blink`, or a state set before hydration) still shows a face rather than a
+   blank one. */
+.ms-mouth, .ms-brow, .ms-eyes-shut, .ms-cheeks, .ms-happy { opacity: 0; transition: opacity 0.18s linear; }
+
+.mascot:is([data-state='idle'], [data-state='blink'], [data-state='talk']) .ms-mouth-idle,
+.mascot:is([data-state='idle'], [data-state='blink'], [data-state='talk']) .ms-brow-neutral { opacity: 1; }
+.mascot[data-state='talk'] .ms-mouth-idle { opacity: 0; }
+.mascot[data-state='talk'] .ms-mouth-talk { opacity: 1; }
+
+.mascot[data-state='happy'] .ms-mouth-grin,
+.mascot[data-state='happy'] .ms-brow-raise,
+.mascot[data-state='happy'] .ms-cheeks,
+.mascot[data-state='happy'] .ms-happy { opacity: 1; }
+
+.mascot[data-state='held'] .ms-mouth-pout,
+.mascot[data-state='held'] .ms-brow-raise,
+.mascot[data-state='held'] .ms-cheeks { opacity: 1; }
+
+.mascot[data-state='sleep'] .ms-mouth-sleep,
+.mascot[data-state='sleep'] .ms-brow-drop,
+.mascot[data-state='sleep'] .ms-eyes-shut { opacity: 1; }
+
+/* Sleep and happy both replace the open eyes, but with opposite arcs (∪ vs ∩) —
+   that is the whole difference between "asleep" and "delighted", and it is why
+   neither uses `scaleY` on the open eye. */
+.mascot:is([data-state='sleep'], [data-state='happy']) .ms-eyes { opacity: 0; }
+.mascot[data-state='sleep'] .ms-eyes { animation: none; }
+
+/* The speaking mouths are the one thing driven at runtime: `--ms-open` and
+   `--ms-wide` are written per frame from the viseme schedule (lib/viseme.ts).
+   Scaling from the top edge makes the lower lip drop, which is what an opening
+   mouth does; the X term is what separates a spread "i" from a pursed "u".
+
+   The grin is driven too, but damped, not just along for the ride: a click lands
+   in `happy` about a third of the time, and a line spoken through a mouth that
+   never moves is the exact thing this pass was meant to fix. It takes 70% of the
+   travel — enough to read at this size, while a full 1.9 would turn a grin into
+   a gape. (It would still be inside the face even at 1.9: the grin is drawn 5.1
+   units tall from y=102.8, so the chin at 117.6 is never reached.) */
+.mascot { --ms-grin: calc(1 + (var(--ms-open, 1) - 1) * 0.7); }
+.ms-mouth-talk, .ms-mouth-grin { transform-box: fill-box; transform-origin: 50% 0; }
+.ms-mouth-talk { transform: scale(var(--ms-wide, 1), var(--ms-open, 1)); }
+.ms-mouth-grin { transform: scale(var(--ms-wide, 1), var(--ms-grin)); }
+
+/* ---------- Anime busts (haru / sora / lacia) ---------- */
 .mascot-svg { display: block; width: 100%; height: auto; overflow: visible; }
 .ms-anime { filter: drop-shadow(0 4px 10px color-mix(in srgb, var(--ink) 16%, transparent)); }
 .ms-anime .ms-head { filter: drop-shadow(0 1px 0 rgba(255,255,255,.24)); }
 .ms-anime .ms-breath, .ms-anime .ms-head, .ms-anime .ms-eyes, .ms-anime .ms-lock, .ms-anime .ms-umb, .ms-anime .ms-braid { transform-box: fill-box; }
 .ms-anime .ms-iris { transition: transform 0.25s ease-out; }
-.ms-anime .ms-happy, .ms-anime .ms-mouth-talk { opacity: 0; }
-.mascot.is-talking .ms-anime .ms-eyes { opacity: 0; }
-.mascot.is-talking .ms-anime .ms-happy, .mascot.is-talking .ms-anime .ms-mouth-talk { opacity: 1; }
-.mascot.is-talking .ms-anime .ms-mouth-idle { opacity: 0; }
+.ms-anime .ms-eyes { transition: opacity 0.12s linear; }
 
 /* ---------- Chibi (original) ---------- */
 .mascot-svg .ms-shadow { fill: color-mix(in srgb, var(--ink) 14%, transparent); }
@@ -73,7 +125,9 @@
 .ms-chibi .ms-eye { fill: light-dark(#3a2f5a, #2a2448); }
 .ms-chibi .ms-shine { fill: #fff; }
 .ms-chibi .ms-blush { fill: #ff9fb8; opacity: 0.55; }
-.ms-chibi .ms-mouth { fill: none; stroke: #b5546f; stroke-width: 2; stroke-linecap: round; }
+.ms-chibi .ms-mouth { stroke-linecap: round; }
+.ms-chibi .ms-eyes-shut path { fill: none; stroke: light-dark(#3a2f5a, #2a2448); stroke-width: 2; stroke-linecap: round; }
+.ms-chibi .ms-happy path { fill: none; stroke: light-dark(#3a2f5a, #2a2448); stroke-width: 2.2; stroke-linecap: round; }
 .ms-chibi .ms-shirt { fill: url(#chibi-shirt); stroke: #bfc6e6; stroke-width: .8; }
 .ms-chibi .ms-collar { fill: #fff; stroke: #aeb7de; stroke-width: .7; }
 .ms-chibi .ms-scarf { fill: #f3a7bd; stroke: #b86486; stroke-width: .55; }
