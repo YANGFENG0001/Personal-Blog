@@ -693,6 +693,24 @@
 .lr[data-form='shield'] .lr-monolith {
   z-index: 2;
 }
+/* The cluster is sized to **her**, not to the device.
+ *
+ *  At the corner the device is drawn at `--lr-mon-k: 0.5`, and everything inside
+ *  `.lr-bm-scale` shrinks toward the hub — which is her waist. The seven plates
+ *  came out covering her hips instead of her torso, and a barrier over the hips
+ *  reads as a skirt, not as a shield. Undoing the device scale here keeps the
+ *  field the same size relative to the figure at any `--lr-mon-k`; the casket and
+ *  the rails still shrink, because those *are* the hardware and a cropped
+ *  presentation should show a smaller device. A projected field has no such
+ *  reason to shrink. */
+.lr-shield {
+  /* `0 0` is the hub, not the corner: this group already sits inside the
+     `translate(1500 1500)` wrapper, so its local origin *is* the hub. Using
+     `1500px 1500px` here (as `.lr-bm-scale` does) resolves to local (1500,1500)
+     and throws the whole cluster 1500 units off-screen. */
+  transform-origin: 0 0;
+  transform: scale(calc(1 / var(--lr-mon-k, 1)));
+}
 .lr-field {
   stroke: rgba(143, 227, 255, 0.4);
   stroke-width: 2;
