@@ -24,7 +24,7 @@
  * head's *world* angle through its own spring and the pose is the difference,
  * so the offset is zero at rest and can never oppose the head.
  */
-import { LACIA_CANVAS, LACIA_KNEE, LACIA_PARTS } from './parts';
+import { LACIA_CANVAS, LACIA_ELBOW, LACIA_KNEE, LACIA_PARTS } from './parts';
 import { FACE_IDS, FACE_PAD, FORM_FACE, STATE_FACE, BLUSH_STATES, browParts, mouthParts, type BrowVariant, type MouthVariant } from './face';
 import { buildScript, type SayLine, type VisemeCue } from '../viseme';
 import { LACIA_FORM_ORDER, type LaciaForm } from './lines';
@@ -47,7 +47,9 @@ export type LaciaBone =
   | 'legR'
   | 'legL'
   | 'kneeR'
-  | 'kneeL';
+  | 'kneeL'
+  | 'elbowR'
+  | 'elbowL';
 
 export type LaciaState = 'idle' | 'talk' | 'happy' | 'held' | 'sleep';
 
@@ -55,8 +57,10 @@ export type LaciaState = 'idle' | 'talk' | 'happy' | 'held' | 'sleep';
 const BONE_OF: Record<string, LaciaBone> = {
   'back hair': 'hairBack',
   'front hair': 'hairFront',
-  'handwear-l': 'armL',
-  'handwear-r': 'armR',
+  'handwear-r-up': 'armR',
+  'handwear-l-up': 'armL',
+  'handwear-r-lo': 'elbowR',
+  'handwear-l-lo': 'elbowL',
   'legwear-r-up': 'legR',
   'legwear-l-up': 'legL',
   'legwear-r-lo': 'kneeR',
@@ -86,6 +90,8 @@ const PIVOT: Record<LaciaBone, readonly [number, number]> = {
      silhouette, so it stays correct if the layers are ever re-split. */
   kneeR: LACIA_KNEE.r,
   kneeL: LACIA_KNEE.l,
+  elbowR: LACIA_ELBOW.r,
+  elbowL: LACIA_ELBOW.l,
 };
 
 const EYE = new Set(['eyewhite-r', 'eyewhite-l', 'irides-r', 'irides-l', 'eyelash-r', 'eyelash-l']);
@@ -177,8 +183,12 @@ export function laciaMarkup(opts: { base?: string; uid?: string } = {}): string 
             </div>
             <div class="lr-bone lr-spine" data-bone="spine">
               <div class="lr-bone lr-chest" data-bone="chest">
-                <div class="lr-bone lr-arm" data-bone="armR">${p.armR ?? ''}</div>
-                <div class="lr-bone lr-arm" data-bone="armL">${p.armL ?? ''}</div>
+                <div class="lr-bone lr-arm" data-bone="armR">
+                  <div class="lr-bone lr-elbow" data-bone="elbowR">${p.elbowR ?? ''}</div>${p.armR ?? ''}
+                </div>
+                <div class="lr-bone lr-arm" data-bone="armL">
+                  <div class="lr-bone lr-elbow" data-bone="elbowL">${p.elbowL ?? ''}</div>${p.armL ?? ''}
+                </div>
                 <div class="lr-bone lr-torso" data-bone="torso">${p.torso ?? ''}</div>
                 <div class="lr-bone lr-neck" data-bone="neck">${p.neck ?? ''}
                   <div class="lr-bone lr-head" data-bone="head">${p.head ?? ''}${blush}${faceStack(base)}
@@ -292,11 +302,18 @@ const ENERGY: Record<LaciaState, number> = { idle: 1, talk: 1.15, happy: 1.3, he
  * The head values are *rolls*, not nods — a 2D rig has no pitch axis, so "head
  * lowered along the barrel" can only be a tilt.
  */
-const FORM_POSE: Record<LaciaForm, { rootY: number; hipsX: number; spine: number; chest: number; head: number; armR: number; armL: number }> = {
-  coffin: { rootY: 0, hipsX: 0, spine: 0, chest: 0, head: 0, armR: 0, armL: 0 },
-  railgun: { rootY: 9, hipsX: 6, spine: 3, chest: 8, head: -4, armR: 8, armL: -26 },
-  shield: { rootY: 3, hipsX: -5, spine: -2, chest: -7, head: 6, armR: -6, armL: 24 },
-  unfold: { rootY: -5, hipsX: 0, spine: 1, chest: 3, head: -3, armR: 17, armL: -17 },
+const FORM_POSE: Record<
+  LaciaForm,
+  { rootY: number; hipsX: number; spine: number; chest: number; head: number; armR: number; armL: number; elbowR: number; elbowL: number }
+> = {
+  coffin: { rootY: 0, hipsX: 0, spine: 0, chest: 0, head: 0, armR: 0, armL: 0, elbowR: 0, elbowL: 0 },
+  /* `elbowL` is what finally makes "扶导轨" possible: the upper arm swings out
+     to the device and the forearm comes back to meet the rail. With one rigid
+     arm the hand stopped ~15px short of it and the pose read as reaching. */
+  railgun: { rootY: 9, hipsX: 6, spine: 3, chest: 8, head: -4, armR: 8, armL: -22, elbowR: 4, elbowL: -9 },
+  /* Forearm across the body — the one pose that is impossible without an elbow. */
+  shield: { rootY: 3, hipsX: -5, spine: -2, chest: -7, head: 6, armR: -6, armL: 8, elbowR: -4, elbowL: 30 },
+  unfold: { rootY: -5, hipsX: 0, spine: 1, chest: 3, head: -3, armR: 17, armL: -17, elbowR: 8, elbowL: -8 },
 };
 
 /** Gaze bias per form. */
@@ -427,6 +444,8 @@ export class LaciaRig {
        as the hip reads as a hinge, not as a joint under load. */
     kneeRR: new Spring(0.95, 0.72),
     kneeLR: new Spring(0.95, 0.72),
+    elbowRR: new Spring(1.1, 0.68),
+    elbowLR: new Spring(1.1, 0.68),
     monY: new Spring(0.42, 0.55),
     monR: new Spring(0.3, 0.6),
     /* The device's own swing on its mount, separate from her body.
@@ -761,6 +780,13 @@ export class LaciaRig {
       S.hairBWorld.step(phi, FIXED);
       S.armRR.step((micro * 0.85 - sway * 0.55) * e + P.armR, FIXED);
       S.armLR.step((-micro * 0.85 - sway * 0.55) * e + P.armL, FIXED);
+      /* Elbows carry the arm's swing a little late and a little less, so the
+         forearm trails the upper arm instead of moving as one rod. The slow
+         independent term is what keeps the arms from looking pinned — an arm
+         held at exactly one angle reads as a mannequin even when the shoulder
+         is moving. */
+      S.elbowRR.step(-S.armRR.x * 0.35 + (1.1 + 0.8 * Math.sin(t * TAU * 0.071 + 0.6)) * e + P.elbowR, FIXED);
+      S.elbowLR.step(-S.armLR.x * 0.35 + (1.1 + 0.8 * Math.sin(t * TAU * 0.059 + 2.4)) * e + P.elbowL, FIXED);
       S.legRR.step(-sway * 1.3 * e, FIXED);
       S.legLR.step(-sway * 1.3 * e, FIXED);
       /* Knees do two jobs, and neither one is a sagittal bend.
@@ -934,6 +960,8 @@ export class LaciaRig {
     put('legL', `rotate(${f(S.legLR.x)}deg)`);
     put('kneeR', `rotate(${f(S.kneeRR.x)}deg)`);
     put('kneeL', `rotate(${f(S.kneeLR.x)}deg)`);
+    put('elbowR', `rotate(${f(S.elbowRR.x)}deg)`);
+    put('elbowL', `rotate(${f(S.elbowLR.x)}deg)`);
 
     /* Brows and mouth are images inside the head bone, so they need no world
        matrix — the head carries them. Only their own offset is written, and it

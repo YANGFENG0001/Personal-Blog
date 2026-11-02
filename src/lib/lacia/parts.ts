@@ -28,16 +28,25 @@ export const LACIA_KNEE = {
   l: [303.5, 824.0],
 } as const;
 
+/** Elbow pivots, same measurement on a narrower band — an arm's narrowest
+ *  point overall is the wrist, so the elbow needs its own search window. */
+export const LACIA_ELBOW = {
+  r: [134.5, 363.0],
+  l: [355.5, 348.0],
+} as const;
+
 export const LACIA_PARTS: readonly LaciaPart[] = [
   { id: "back hair", file: "back-hair.webp", x: 114, y: 0, w: 237, h: 361, z: 1 },
-  { id: "handwear-l", file: "handwear-l.webp", x: 298, y: 233, w: 195, h: 423, z: 2 },
+  { id: "handwear-l-up", file: "handwear-l-up.webp", x: 298, y: 233, w: 84, h: 131, z: 2 },
+  { id: "handwear-l-lo", file: "handwear-l-lo.webp", x: 328, y: 332, w: 165, h: 324, z: 2 },
   { id: "footwear-r", file: "footwear-r.webp", x: 160, y: 1129, w: 99, h: 145, z: 3 },
   { id: "footwear-l", file: "footwear-l.webp", x: 259, y: 1118, w: 75, h: 146, z: 3 },
   { id: "legwear-r-up", file: "legwear-r-up.webp", x: 151, y: 482, w: 103, h: 377, z: 4 },
   { id: "legwear-r-lo", file: "legwear-r-lo.webp", x: 143, y: 827, w: 76, h: 353, z: 4 },
   { id: "legwear-l-up", file: "legwear-l-up.webp", x: 267, y: 484, w: 98, h: 356, z: 4 },
   { id: "legwear-l-lo", file: "legwear-l-lo.webp", x: 267, y: 808, w: 71, h: 335, z: 4 },
-  { id: "handwear-r", file: "handwear-r.webp", x: 0, y: 236, w: 179, h: 426, z: 5 },
+  { id: "handwear-r-up", file: "handwear-r-up.webp", x: 112, y: 236, w: 67, h: 143, z: 5 },
+  { id: "handwear-r-lo", file: "handwear-r-lo.webp", x: 0, y: 347, w: 159, h: 315, z: 5 },
   { id: "neck", file: "neck.webp", x: 211, y: 150, w: 48, h: 66, z: 6 },
   { id: "topwear", file: "topwear.webp", x: 121, y: 190, w: 301, h: 508, z: 7 },
   { id: "ears-r", file: "ears-r.webp", x: 164, y: 109, w: 29, h: 42, z: 8 },

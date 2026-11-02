@@ -70,6 +70,11 @@
 .lr-torso { z-index: 5; }
 .lr-neck { z-index: 7; }
 .lr-head { z-index: 9; }
+/* The barrier pose crosses the left forearm over her body, so that arm has to
+   paint in front of the torso. Only this form: at rest the arms hang at her
+   sides and belong behind the hip armour, and raising them globally puts the
+   near arm on top of the hip plate in every other pose. */
+.lr[data-form='shield'] .lr-arm { z-index: 6; }
 /* the fringe rides the head but must cover the eyes, so it sits above
    every part inside the head's stacking context */
 .lr-hairfront { z-index: 30; }

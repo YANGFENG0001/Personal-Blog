@@ -79,38 +79,50 @@ def add(name, img, ox, oy, z):
 # a single dark tone, so the overlap has nothing to disagree about.
 KNEE_OVERLAP = 16
 
-# side -> (pivot x, pivot y) in canvas coords, filled in by split_knee()
+# side -> (pivot x, pivot y) in canvas coords, filled in by split_joint()
 KNEES = {}
+ELBOWS = {}
+
+# Which band of a limb's height the joint is searched in, as (low, high).
+#
+# These are not interchangeable and that is the whole point. The knee sits at
+# 40–60% of a leg; an arm's narrowest point at 40–60% is the **wrist**, not the
+# elbow (measured: 28px fill at 64% of the arm, versus 36px at 33%). Cutting at
+# the wrist gives a hand that swivels — which looks like a broken toy, not like
+# an elbow.
+JOINT_BANDS = {"knee": (0.40, 0.60), "elbow": (0.25, 0.50)}
 
 
-def split_knee(nm, out, ox, oy, z):
-    """Cut one leg into thigh + shin at the knee.
+def split_joint(nm, out, ox, oy, z, joint):
+    """Cut a limb into two segments at `joint`.
 
-    The knee row is the **narrowest row between 40% and 60% of the layer's
-    height**. On a standing figure that is where the thigh's silhouette pinches
-    just above the joint; picking it by measurement rather than by a hardcoded
-    fraction is what makes this survive a re-split with different crops. (The
-    first guess — 45% — landed 80px low on this art, on the calf, which reads as
-    a broken doll because the shin then swings from mid-calf.)
+    The joint row is the **narrowest row inside that joint's band**. On a
+    standing figure the silhouette pinches just above the joint; picking it by
+    measurement rather than by a hardcoded fraction is what makes this survive a
+    re-split with different crops. (The first knee guess — 45% — landed 80px low
+    on this art, on the calf, which reads as a broken doll because the shin then
+    swings from mid-calf.)
     """
+    lo_f, hi_f = JOINT_BANDS[joint]
     a = out[:, :, 3] > 40
     ys = np.where(a.any(axis=1))[0]
     top, bot = int(ys[0]), int(ys[-1])
-    lo, hi = top + int((bot - top) * 0.40), top + int((bot - top) * 0.60)
-    knee = min((int(a[y].sum()), y) for y in range(lo, hi))[1]
-    xs = np.where(a[knee])[0]
+    lo, hi = top + int((bot - top) * lo_f), top + int((bot - top) * hi_f)
+    row = min((int(a[y].sum()), y) for y in range(lo, hi))[1]
+    xs = np.where(a[row])[0]
     # `out` is sized to the *layer's own crop*, so its coordinates are local to
     # (ox, oy); parts.ts stores everything relative to the character bbox. Both
     # offsets have to be undone or the pivot lands outside the figure.
-    KNEES[nm[-1]] = (round(float(xs.mean()) + ox - x0, 1), float(knee + oy - y0))
+    pivot = (round(float(xs.mean()) + ox - x0, 1), float(row + oy - y0))
+    (KNEES if joint == "knee" else ELBOWS)[nm[-1]] = pivot
 
     up = out.copy()
-    up[knee + KNEE_OVERLAP:] = 0
+    up[row + KNEE_OVERLAP:] = 0
     dn = out.copy()
-    dn[:knee - KNEE_OVERLAP] = 0
+    dn[:row - KNEE_OVERLAP] = 0
     add(f"{nm}-up", Image.fromarray(up), ox, oy, z)
     add(f"{nm}-lo", Image.fromarray(dn), ox, oy, z)
-    print(f"    knee pivot ({KNEES[nm[-1]][0]}, {KNEES[nm[-1]][1]}) in canvas coords")
+    print(f"    {joint} pivot {pivot} in canvas coords")
 
 
 def split_lr(name, img, ox, oy, z, knee=False):
@@ -140,7 +152,7 @@ def split_lr(name, img, ox, oy, z, knee=False):
         out = arr.copy()
         out[~m] = 0
         if knee:
-            split_knee(nm, out, ox, oy, z)
+            split_joint(nm, out, ox, oy, z, "knee")
         else:
             add(nm, Image.fromarray(out), ox, oy, z)
 
@@ -153,6 +165,9 @@ for layer in meta["layers"]:
     Z += 1
     if name in ("legwear", "footwear"):
         split_lr(name, img, ox, oy, Z, knee=(name == "legwear"))
+    elif name in ("handwear-l", "handwear-r"):
+        # Already one layer per arm, so no L/R split — just the elbow cut.
+        split_joint(name, np.array(img), ox, oy, Z, "elbow")
     else:
         add(name, img, ox, oy, Z)
 
@@ -188,6 +203,13 @@ lines = [
     "export const LACIA_KNEE = {",
     f"  r: [{KNEES['r'][0]}, {KNEES['r'][1]}],",
     f"  l: [{KNEES['l'][0]}, {KNEES['l'][1]}],",
+    "} as const;",
+    "",
+    "/** Elbow pivots, same measurement on a narrower band — an arm's narrowest",
+    " *  point overall is the wrist, so the elbow needs its own search window. */",
+    "export const LACIA_ELBOW = {",
+    f"  r: [{ELBOWS['r'][0]}, {ELBOWS['r'][1]}],",
+    f"  l: [{ELBOWS['l'][0]}, {ELBOWS['l'][1]}],",
     "} as const;",
     "",
     "export const LACIA_PARTS: readonly LaciaPart[] = [",
