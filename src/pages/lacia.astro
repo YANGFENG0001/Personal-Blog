@@ -1,0 +1,85 @@
+---
+import PublicLayout from '../layouts/PublicLayout.astro';
+import LaciaRigIsland from '../components/public/LaciaRigIsland';
+import '../styles/lacia-stage.css';
+---
+
+<PublicLayout
+  title="蕾西亚 · BLACK MONOLITH"
+  description="把一张静态立绘拆成 24 个语义图层，再用真骨架驱动：头部转动、头发拖尾、手臂摆动、眨眼与呼吸，都是关节旋转而不是形变。装置 BLACK MONOLITH 四种形态。"
+  noindex
+  noMascot
+>
+  <section class="lp">
+    <header class="lp-head">
+      <p class="lp-kicker">hIE Type-005</p>
+      <h1>蕾西亚 <em>Lacia</em></h1>
+      <p class="lp-lead">
+        一张静态立绘，拆成 24 个语义图层（See-through 扩散拆层），每个图层挂在一根骨头上的关节位置。
+        她不是在“变形”，是在转关节——所以头发会拖尾、重心会晃、眼睛会跳。
+      </p>
+    </header>
+
+    <LaciaRigIsland client:load variant="stage" autoForms />
+
+    <footer class="lp-foot">
+      <p>
+        这是《BEATLESS》的致敬性还原，非官方立绘。台词日文为据英译回译，出处写在每条后面的说明里——
+        宁可标注置信度，也不编造原句。
+      </p>
+    </footer>
+  </section>
+</PublicLayout>
+
+<style>
+  .lp {
+    padding: 26px 0 12px;
+  }
+  .lp-head {
+    max-width: 640px;
+    margin: 0 auto 26px;
+    text-align: center;
+  }
+  .lp-kicker {
+    margin: 0 0 10px;
+    font: 600 9.5px/1 var(--mono);
+    letter-spacing: 0.26em;
+    color: var(--accent);
+  }
+  .lp h1 {
+    margin: 0;
+    font-family: var(--display);
+    font-size: clamp(28px, 4vw, 40px);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: var(--ink);
+  }
+  .lp h1 em {
+    font-style: normal;
+    font-size: 0.46em;
+    letter-spacing: 0.22em;
+    color: var(--faint);
+    margin-left: 8px;
+    vertical-align: 0.22em;
+  }
+  .lp-lead {
+    margin: 14px 0 0;
+    font-size: 13px;
+    line-height: 1.9;
+    color: var(--muted);
+    text-wrap: pretty;
+  }
+  .lp-foot {
+    max-width: 620px;
+    margin: 40px auto 0;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+  }
+  .lp-foot p {
+    margin: 0;
+    font-size: 11.5px;
+    line-height: 1.85;
+    color: var(--faint);
+    text-align: center;
+  }
+</style>

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { api, errMsg, toast } from '../../lib/client';
 import { confirmDialog } from '../../lib/dialogs';
-import { LINE_GROUPS, LINE_GROUP_LABELS, MASCOT_STATES, STATE_LABELS, type StoredMascotPack } from '../../lib/mascot-pack';
+import { DEVICE_LINE_GROUPS, LINE_GROUPS, LINE_GROUP_LABELS, MASCOT_STATES, STATE_LABELS, type LineGroup, type StoredMascotPack } from '../../lib/mascot-pack';
 import { attachWarp } from '../../lib/mascot-warp';
 import { Icon, IconButton, Segmented, Switch } from './ui';
 
@@ -102,6 +102,10 @@ function PackEditor({ pack, onSaved }: { pack: StoredMascotPack; onSaved: (p: St
   const d = p.display;
   const setD = (patch: Partial<StoredMascotPack['display']>) => setP({ ...p, display: { ...d, ...patch } });
   const setM = (patch: Partial<StoredMascotPack['motion']>) => setP({ ...p, motion: { ...p.motion, ...patch } });
+  const setLine = (g: LineGroup, value: string) => {
+    const arr = value.split('\n').map((s) => s.trim()).filter(Boolean).map((s) => s.slice(0, 60)).slice(0, 40);
+    setP({ ...p, lines: { ...p.lines, [g]: arr.length ? arr : undefined } });
+  };
 
   // Live per-part motion in the preview, so the switch below means something.
   const figImg = useRef<HTMLImageElement>(null);
@@ -182,13 +186,17 @@ function PackEditor({ pack, onSaved }: { pack: StoredMascotPack; onSaved: (p: St
         )}
         <details class="mp-lines">
           <summary>台词（每行一句，最多 60 字）</summary>
-          {LINE_GROUPS.map((g) => (
+          {LINE_GROUPS.filter((g) => !DEVICE_LINE_GROUPS.includes(g)).map((g) => (
             <label class="field" key={g}>
               <span class="label">{LINE_GROUP_LABELS[g]}</span>
-              <textarea rows={2} value={(p.lines[g] ?? []).join('\n')} onInput={(e) => {
-                const arr = e.currentTarget.value.split('\n').map((s) => s.trim()).filter(Boolean).map((s) => s.slice(0, 60)).slice(0, 40);
-                setP({ ...p, lines: { ...p.lines, [g]: arr.length ? arr : undefined } });
-              }} />
+              <textarea rows={2} value={(p.lines[g] ?? []).join('\n')} onInput={(e) => setLine(g, e.currentTarget.value)} />
+            </label>
+          ))}
+          <p class="hint">以下四组只在「装置形态」角色（如内置的蕾西亚骨架）切换形态时触发；普通状态图角色填了也不会用到。</p>
+          {LINE_GROUPS.filter((g) => DEVICE_LINE_GROUPS.includes(g)).map((g) => (
+            <label class="field" key={g}>
+              <span class="label">{LINE_GROUP_LABELS[g]}</span>
+              <textarea rows={2} value={(p.lines[g] ?? []).join('\n')} onInput={(e) => setLine(g, e.currentTarget.value)} />
             </label>
           ))}
         </details>

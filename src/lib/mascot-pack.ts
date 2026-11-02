@@ -23,7 +23,24 @@ export const STATE_LABELS: Record<MascotState, string> = {
   blink: '闭眼（用于眨眼）',
 };
 
-export const LINE_GROUPS = ['click', 'morning', 'noon', 'evening', 'night', 'home', 'article', 'notFound', 'readEnd', 'drag', 'drop', 'reset'] as const;
+export const LINE_GROUPS = [
+  'click',
+  'morning',
+  'noon',
+  'evening',
+  'night',
+  'home',
+  'article',
+  'notFound',
+  'readEnd',
+  'drag',
+  'drop',
+  'reset',
+  'formCoffin',
+  'formRailgun',
+  'formShield',
+  'formUnfold',
+] as const;
 export type LineGroup = (typeof LINE_GROUPS)[number];
 
 export const LINE_GROUP_LABELS: Record<LineGroup, string> = {
@@ -39,7 +56,18 @@ export const LINE_GROUP_LABELS: Record<LineGroup, string> = {
   drag: '被拖起来时',
   drop: '被放下时',
   reset: '双击回到角落',
+  formCoffin: '装置 · 收束',
+  formRailgun: '装置 · 轨道炮',
+  formShield: '装置 · 护盾',
+  formUnfold: '装置 · 展开',
 };
+
+/**
+ * Groups that only a rigged character with a device can trigger. The pack
+ * editor shows them apart so ordinary state-image packs are not asked to fill
+ * in four boxes that will never fire.
+ */
+export const DEVICE_LINE_GROUPS: readonly LineGroup[] = ['formCoffin', 'formRailgun', 'formShield', 'formUnfold'];
 
 const frac = z.number().min(0).max(1);
 const line = z.string().trim().min(1).max(60);

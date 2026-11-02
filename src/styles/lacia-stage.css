@@ -1,0 +1,364 @@
+/* ============================================================
+   /lacia — the display page around the rig.
+   Only the stage island uses these; the corner mascot uses
+   mascot.css + lacia-rig.css alone.
+   ============================================================ */
+
+/* Single column, on purpose.
+   The deployed fan is 1.65× the figure's height across (the ratio measured off
+   the GSC product photos), so at 1:1 a 580px figure needs a ~955px plate. With
+   a 400px text column beside it that does not fit in the 1060–1200px wrap, and
+   the previous layout paid for it by shrinking the device to 0.66× height. The
+   panel now sits under the plate instead of beside it, and the device is drawn
+   at its real size. */
+.ls {
+  --lr-u: 280;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 26px;
+  justify-items: center;
+  padding: 8px 0 56px;
+}
+/* 1:1 needs room, and the wrap is the thing that was stealing it.
+ *
+ * The fan is 1.95× the figure's height across (0.85 slab at 76°, plus the
+ * detached lens slab and the tip caps). Inside the 1060–1200px wrap that
+ * capped the figure at ~560px and still forced the device to 0.93× on a
+ * 1024 screen. The plate now escapes the wrap up to 1440px, which buys enough
+ * width to keep the device at 1:1 down to 760px.
+ *
+ * `100vw` includes the scrollbar, hence the 48px inset: the plate always ends
+ * up narrower than the visible area, so it can never create a horizontal
+ * scrollbar of its own. Verified at seven widths — `scrollWidth === innerWidth`.
+ */
+/* Below 760px the plate is narrower than the fan even at full bleed, so the
+   device is scaled instead — a 1:1 device would leave a 250px figure. The k
+   values are measured, not guessed; see the table in README §3.1. */
+.ls .lr { --lr-mon-k: 0.66; }
+@media (min-width: 600px) {
+  .ls { --lr-u: 320; }
+  .ls .lr { --lr-mon-k: 0.82; }
+}
+@media (min-width: 760px) {
+  .ls { --lr-u: 340; }
+  .ls .lr { --lr-mon-k: 1; }
+}
+@media (min-width: 900px) {
+  .ls { --lr-u: 410; }
+}
+@media (min-width: 1024px) {
+  .ls { --lr-u: 470; }
+}
+@media (min-width: 1200px) {
+  .ls { --lr-u: 560; }
+}
+@media (min-width: 1400px) {
+  .ls { --lr-u: 640; }
+}
+
+.ls-figure {
+  order: 1;
+  width: 100%;
+}
+
+.ls-panel {
+  order: 2;
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  grid-template-areas:
+    'say voices'
+    'con spec';
+  gap: 16px;
+  align-items: start;
+  min-width: 0;
+}
+.ls-say { grid-area: say; }
+.ls-voices { grid-area: voices; }
+.ls-console { grid-area: con; }
+.ls-spec { grid-area: spec; }
+
+/* ── speech / telemetry panel ─────────────────────────────────────── */
+.ls-say {
+  border-left: 2px solid var(--accent);
+  border-radius: 0 10px 10px 0;
+  padding: 16px 20px 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  min-height: 118px;
+}
+.ls-say[data-kind='device'] {
+  border-left-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+}
+.ls-say.is-idle {
+  border-left-style: dashed;
+  opacity: 0.75;
+}
+.ls-say-tag {
+  font: 600 9px/1 var(--mono);
+  letter-spacing: 0.24em;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+.ls-jp {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 16.5px;
+  line-height: 1.95;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  min-height: 1.95em;
+}
+.ls-cn {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--muted);
+}
+.ls-src {
+  margin: 12px 0 0;
+  padding-top: 9px;
+  border-top: 1px dashed var(--line);
+  font-size: 11px;
+  line-height: 1.65;
+  color: var(--faint);
+}
+
+/* The card no longer needs a fixed height: in the single-column layout the
+   figure sits above the panel, so a longer line cannot push her around. Only
+   the provenance line stays clamped, to keep the two card rows even. */
+@media (min-width: 941px) {
+  .ls-src {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+}
+
+/* per-glyph reveal — the typewriter is CSS, so it needs no timer */
+.ls-ch {
+  opacity: 0;
+  animation: ls-ch-in 0.01s linear forwards;
+}
+@keyframes ls-ch-in {
+  to { opacity: 1; }
+}
+
+/* ── quote archive ────────────────────────────────────────────────────
+   Her lines belong on the page, not only one-at-a-time in the voice card.
+   It also gives the left column the height the plate has, so the two
+   columns end on the same line instead of leaving a hole under the header. */
+.ls-voices {
+  padding: 12px 14px 13px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+.ls-voices-tag {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 0 0 9px;
+  font: 600 8.5px/1 var(--mono);
+  letter-spacing: 0.18em;
+  color: var(--faint);
+}
+.ls-voices-tag span {
+  color: var(--accent);
+  opacity: 0.7;
+}
+.ls-voices-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 9px;
+}
+.ls-voices-list li {
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  gap: 8px;
+  align-items: start;
+}
+.ls-voices-n {
+  font: 600 8.5px/2.1 var(--mono);
+  color: var(--accent);
+  opacity: 0.5;
+}
+.ls-voices-jp {
+  display: block;
+  font-family: var(--serif);
+  font-size: 12.5px;
+  line-height: 1.7;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+}
+.ls-voices-cn {
+  display: block;
+  margin-top: 1px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+/* ── device console ───────────────────────────────────────────────── */
+.ls-console {
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+.ls-console-label {
+  font: 600 8.5px/1.35 var(--mono);
+  letter-spacing: 0.18em;
+  color: var(--faint);
+  padding: 5px 10px 5px 5px;
+  border-right: 1px solid var(--line);
+  margin-right: 4px;
+  display: grid;
+  align-content: center;
+}
+.ls-console button {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  padding: 7px 6px 6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.ls-console button b {
+  font-weight: 600;
+  font-size: 12.5px;
+  letter-spacing: 0.06em;
+}
+.ls-console button i {
+  font: 400 8.5px/1 var(--mono);
+  font-style: normal;
+  letter-spacing: 0.14em;
+  opacity: 0.6;
+}
+.ls-console button:hover {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--ink);
+}
+.ls-console button.is-on {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  color: var(--accent);
+}
+
+/* ── spec ─────────────────────────────────────────────────────────── */
+.ls-spec {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 6px 12px;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.ls-spec dt { color: var(--faint); }
+.ls-spec dd { margin: 0; color: var(--muted); }
+
+/* ── figure ───────────────────────────────────────────────────────── */
+/* A dark plate so the black device and the ice-blue core read on a light
+   theme — the figure itself is transparent PNG layers.
+ *
+ * The plate is full width and noticeably taller than the figure, because the
+ * deployed fan is not contained by the figure's box. Measured in canvas units
+ * from the hub (which sits 700 below the canvas top):
+ *   up    38° slab + tip cap → 936
+ *   down  152° slab + tip cap → 892
+ *   side  76° slab + tip cap → 1094, and 1174 for the detached lens slab
+ * A 580px figure is 0.4541 px/unit, so 0.25× height of padding each way clears
+ * the vertical overrun with ~35px to spare. Without it `overflow: hidden` saws
+ * the four diagonal slabs off at the top and bottom edges. */
+.ls-plate {
+  display: grid;
+  justify-items: center;
+  /* Full bleed, capped: see the note next to .ls. The plate has to be wider
+     than the wrap or the fan gets clipped long before 1200px.
+     The negative margin is required, not decorative: a grid item wider than its
+     area does NOT overflow symmetrically under `justify-items: center` — it
+     hangs off the right edge and creates a horizontal scrollbar. Pulling half
+     the excess back on each side is what actually centres it. */
+  --plate-w: min(100vw - 48px, 1440px);
+  width: var(--plate-w);
+  margin-inline: calc((100% - var(--plate-w)) / 2);
+  padding: calc(var(--lr-u, 500) * 0.22 * 1px) 0;
+  border-radius: 18px;
+  background:
+    radial-gradient(62% 46% at 50% 34%, rgba(120, 200, 255, 0.14), transparent 72%),
+    radial-gradient(48% 40% at 34% 74%, rgba(160, 130, 255, 0.1), transparent 74%),
+    linear-gradient(180deg, #0c1119, #05070c 70%);
+  box-shadow: 0 26px 60px color-mix(in srgb, var(--ink) 20%, transparent);
+  overflow: hidden;
+  transition: padding-block 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+/* Only the deployed fan needs the tall plate. Casket, rails and barrier all sit
+   inside the figure's own canvas (y 56–1212, 64–1200, 200–970), so leaving the
+   full fan allowance on them is ~240px of dead space in the common case.
+   `:has()` is a progressive enhancement — without it the plate just stays tall. */
+.ls-plate:not(:has(.lr[data-form='unfold'])) {
+  padding-block: calc(var(--lr-u, 500) * 0.07 * 1px);
+}
+.ls-hint {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 16px;
+  margin: 16px 0 0;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--faint);
+}
+.ls-hint span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ls-hint span + span::before {
+  content: '';
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.5;
+}
+
+@media (max-width: 780px) {
+  .ls-panel {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'say'
+      'con'
+      'spec'
+      'voices';
+  }
+  .ls-say {
+    height: auto;
+    overflow: visible;
+  }
+}
+@media (max-width: 560px) {
+  .ls-console-label { display: none; }
+  .ls-plate { padding: 16px 6px 0; border-radius: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ls-ch { opacity: 1; animation: none; }
+}

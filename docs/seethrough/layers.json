@@ -1,0 +1,228 @@
+{
+  "prefix": "lacia",
+  "timestamp": "20261025_033705_9d946a04",
+  "layers": [
+    {
+      "name": "back hair",
+      "filename": "lacia_20261025_033705_9d946a04_back hair.png",
+      "left": 507,
+      "top": 3,
+      "right": 744,
+      "bottom": 364,
+      "depth_median": 0.9375,
+      "depth_filename": "lacia_20261025_033705_9d946a04_back hair_depth.png"
+    },
+    {
+      "name": "handwear-l",
+      "filename": "lacia_20261025_033705_9d946a04_handwear-l.png",
+      "left": 691,
+      "top": 236,
+      "right": 886,
+      "bottom": 659,
+      "depth_median": 0.80078125,
+      "depth_filename": "lacia_20261025_033705_9d946a04_handwear-l_depth.png"
+    },
+    {
+      "name": "footwear",
+      "filename": "lacia_20261025_033705_9d946a04_footwear.png",
+      "left": 553,
+      "top": 1120,
+      "right": 727,
+      "bottom": 1279,
+      "depth_median": 0.75,
+      "depth_filename": "lacia_20261025_033705_9d946a04_footwear_depth.png"
+    },
+    {
+      "name": "legwear",
+      "filename": "lacia_20261025_033705_9d946a04_legwear.png",
+      "left": 536,
+      "top": 485,
+      "right": 758,
+      "bottom": 1183,
+      "depth_median": 0.74609375,
+      "depth_filename": "lacia_20261025_033705_9d946a04_legwear_depth.png"
+    },
+    {
+      "name": "handwear-r",
+      "filename": "lacia_20261025_033705_9d946a04_handwear-r.png",
+      "left": 393,
+      "top": 239,
+      "right": 572,
+      "bottom": 665,
+      "depth_median": 0.734375,
+      "depth_filename": "lacia_20261025_033705_9d946a04_handwear-r_depth.png"
+    },
+    {
+      "name": "neck",
+      "filename": "lacia_20261025_033705_9d946a04_neck.png",
+      "left": 604,
+      "top": 153,
+      "right": 652,
+      "bottom": 219,
+      "depth_median": 0.71875,
+      "depth_filename": "lacia_20261025_033705_9d946a04_neck_depth.png"
+    },
+    {
+      "name": "topwear",
+      "filename": "lacia_20261025_033705_9d946a04_topwear.png",
+      "left": 514,
+      "top": 193,
+      "right": 815,
+      "bottom": 701,
+      "depth_median": 0.6953125,
+      "depth_filename": "lacia_20261025_033705_9d946a04_topwear_depth.png"
+    },
+    {
+      "name": "ears-r",
+      "filename": "lacia_20261025_033705_9d946a04_ears-r.png",
+      "left": 557,
+      "top": 112,
+      "right": 586,
+      "bottom": 154,
+      "depth_median": 0.4853515625,
+      "depth_filename": "lacia_20261025_033705_9d946a04_ears-r_depth.png"
+    },
+    {
+      "name": "ears-l",
+      "filename": "lacia_20261025_033705_9d946a04_ears-l.png",
+      "left": 670,
+      "top": 118,
+      "right": 692,
+      "bottom": 154,
+      "depth_median": 0.470703125,
+      "depth_filename": "lacia_20261025_033705_9d946a04_ears-l_depth.png"
+    },
+    {
+      "name": "face",
+      "filename": "lacia_20261025_033705_9d946a04_face.png",
+      "left": 564,
+      "top": 8,
+      "right": 698,
+      "bottom": 193,
+      "depth_median": 0.466796875,
+      "depth_filename": "lacia_20261025_033705_9d946a04_face_depth.png"
+    },
+    {
+      "name": "nose",
+      "filename": "lacia_20261025_033705_9d946a04_nose.png",
+      "left": 631,
+      "top": 148,
+      "right": 638,
+      "bottom": 156,
+      "depth_median": 0.465796875,
+      "depth_filename": "lacia_20261025_033705_9d946a04_nose_depth.png"
+    },
+    {
+      "name": "mouth",
+      "filename": "lacia_20261025_033705_9d946a04_mouth.png",
+      "left": 623,
+      "top": 165,
+      "right": 643,
+      "bottom": 172,
+      "depth_median": 0.465796875,
+      "depth_filename": "lacia_20261025_033705_9d946a04_mouth_depth.png"
+    },
+    {
+      "name": "eyebrow-r",
+      "filename": "lacia_20261025_033705_9d946a04_eyebrow-r.png",
+      "left": 578,
+      "top": 96,
+      "right": 623,
+      "bottom": 103,
+      "depth_median": 0.4404296875,
+      "depth_filename": "lacia_20261025_033705_9d946a04_eyebrow-r_depth.png"
+    },
+    {
+      "name": "eyebrow-l",
+      "filename": "lacia_20261025_033705_9d946a04_eyebrow-l.png",
+      "left": 650,
+      "top": 96,
+      "right": 684,
+      "bottom": 105,
+      "depth_median": 0.37109375,
+      "depth_filename": "lacia_20261025_033705_9d946a04_eyebrow-l_depth.png"
+    },
+    {
+      "name": "headwear",
+      "filename": "lacia_20261025_033705_9d946a04_headwear.png",
+      "left": 684,
+      "top": 28,
+      "right": 704,
+      "bottom": 84,
+      "depth_median": 0.30078125,
+      "depth_filename": "lacia_20261025_033705_9d946a04_headwear_depth.png"
+    },
+    {
+      "name": "eyewhite-r",
+      "filename": "lacia_20261025_033705_9d946a04_eyewhite-r.png",
+      "left": 584,
+      "top": 112,
+      "right": 616,
+      "bottom": 132,
+      "depth_median": 0.240234375,
+      "depth_filename": "lacia_20261025_033705_9d946a04_eyewhite-r_depth.png"
+    },
+    {
+      "name": "eyewhite-l",
+      "filename": "lacia_20261025_033705_9d946a04_eyewhite-l.png",
+      "left": 650,
+      "top": 113,
+      "right": 681,
+      "bottom": 134,
+      "depth_median": 0.240234375,
+      "depth_filename": "lacia_20261025_033705_9d946a04_eyewhite-l_depth.png"
+    },
+    {
+      "name": "eyelash-r",
+      "filename": "lacia_20261025_033705_9d946a04_eyelash-r.png",
+      "left": 578,
+      "top": 108,
+      "right": 619,
+      "bottom": 129,
+      "depth_median": 0.18359375,
+      "depth_filename": "lacia_20261025_033705_9d946a04_eyelash-r_depth.png"
+    },
+    {
+      "name": "irides-r",
+      "filename": "lacia_20261025_033705_9d946a04_irides-r.png",
+      "left": 591,
+      "top": 111,
+      "right": 612,
+      "bottom": 132,
+      "depth_median": 0.1796875,
+      "depth_filename": "lacia_20261025_033705_9d946a04_irides-r_depth.png"
+    },
+    {
+      "name": "irides-l",
+      "filename": "lacia_20261025_033705_9d946a04_irides-l.png",
+      "left": 651,
+      "top": 112,
+      "right": 674,
+      "bottom": 134,
+      "depth_median": 0.1796875,
+      "depth_filename": "lacia_20261025_033705_9d946a04_irides-l_depth.png"
+    },
+    {
+      "name": "eyelash-l",
+      "filename": "lacia_20261025_033705_9d946a04_eyelash-l.png",
+      "left": 647,
+      "top": 109,
+      "right": 685,
+      "bottom": 130,
+      "depth_median": 0.1728515625,
+      "depth_filename": "lacia_20261025_033705_9d946a04_eyelash-l_depth.png"
+    },
+    {
+      "name": "front hair",
+      "filename": "lacia_20261025_033705_9d946a04_front hair.png",
+      "left": 536,
+      "top": 4,
+      "right": 730,
+      "bottom": 302,
+      "depth_median": 0.16796875,
+      "depth_filename": "lacia_20261025_033705_9d946a04_front hair_depth.png"
+    }
+  ],
+  "width": 1280,
+  "height": 1280
+}

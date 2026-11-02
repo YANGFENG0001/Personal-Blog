@@ -22,9 +22,16 @@ interface Props {
   isArticle?: boolean;
   is404?: boolean;
   noindex?: boolean;
+  /**
+   * Pages that already show the character full-size (the /lacia stage) turn the
+   * corner mascot off. Hiding it with CSS would still hydrate a second rig and
+   * run a second animation loop for something nobody can see, so the element is
+   * simply not rendered.
+   */
+  noMascot?: boolean;
 }
 
-const { title, description, canonical, ogType, site: current = null, category = null, isArticle = false, is404 = false, noindex } = Astro.props;
+const { title, description, canonical, ogType, site: current = null, category = null, isArticle = false, is404 = false, noindex, noMascot = false } = Astro.props;
 const settings = getAllSettings();
 const tree = publicSiteTree();
 const currentTree = current ? tree.find((s) => s.id === current.id) : null;
@@ -124,7 +131,7 @@ const mascotPage = is404 ? 'notFound' : isArticle ? 'article' : Astro.url.pathna
     </div>
   </footer>
 
-  {mascot && <Mascot {...mascot} pack={mascotPack} page={mascotPage} />}
+  {mascot && !noMascot && <Mascot {...mascot} pack={mascotPack} page={mascotPage} />}
   <button class="to-top" type="button" aria-label="回到顶部" title="回到顶部" data-to-top set:html={iconSvg('arrow-up')} />
   <Ambient config={settings.encourage} easter={settings.easter} isArticle={isArticle} is404={is404} />
   {owner && settings.previewBall.enabled && !Astro.url.searchParams.has('theme-preview') && <PreviewBall mode="visitor" config={settings.previewBall} />}
