@@ -409,63 +409,197 @@ function tenki(): string {
 }
 
 /**
- * 秘棺城市 — after BEATLESS: a cold, desaturated near-future skyline with a
- * black monolith standing at the end of it, one ice-blue seam lit along its
- * edge. Flat slabs, no organic curves — the point is the stillness.
- * At night the city drops away and only the seam and the data motes remain.
+ * 秘棺城市 — after BEATLESS.
+ *
+ * Two rules carry this picture, and neither one is "add more detail".
+ *
+ * **Depth is value, not detail.** Four ranks (far2 → far1 → mid → near) step
+ * down in tone, and every block inside a rank picks one of three neighbouring
+ * fills so the skyline never reads as a single cut-out. The first version used
+ * one flat fill per rank, which is exactly why it looked like a sticker: with
+ * no value separation there is no distance, and with no distance the eye has
+ * nothing to look *into*.
+ *
+ * **The monolith is the subject, not a building.** It used to be 60 units wide
+ * and 314 tall, sitting in the same row as the mid band — narrower than the
+ * near blocks beside it, so it read as "one more tower". It is now a slab that
+ * runs off the bottom of the frame and clears the skyline by a wide margin,
+ * lit only by a rim on the side the bloom is on and a single glowing seam.
+ * Everything else exists to give it scale: the ranks behind it, the parapet in
+ * front of it, the aircraft above it.
+ *
+ * The camera stands on a roof — that is what the last layer is for. Without a
+ * foreground the ranks read as stacked paper; with one, the eye gets a
+ * distance from *here* to *there*, which is the whole trick of a background.
  */
 function lacia(): string {
   const r = rng(307);
+  const tone = () => `t${Math.floor(r() * 3)}`;
 
-  // Far skyline: wide, low slabs with the odd antenna.
-  let far = '';
-  for (let x = -20; x < 1460; ) {
-    const w = 26 + r() * 56;
-    const h = 18 + r() * 54;
-    far += `<rect x="${x.toFixed(0)}" y="${(302 - h).toFixed(0)}" width="${w.toFixed(0)}" height="${(h + 12).toFixed(0)}"/>`;
-    if (r() > 0.76) far += `<rect x="${(x + w * 0.5).toFixed(0)}" y="${(302 - h - 15).toFixed(0)}" width="1.6" height="15"/>`;
-    x += w + r() * 7;
+  /* ---- horizon glow: painted first, so every rank stands in front of it ---- */
+  const glow = `<ellipse class="l-hglow" cx="1074" cy="316" rx="430" ry="138"/>`;
+
+  /* ---- rank 1: barely a rank — the city dissolving into its own air ---- */
+  let far2 = '';
+  for (let x = -30; x < 1470; ) {
+    const w = 24 + r() * 58;
+    const h = 20 + r() * 56;
+    far2 += `<rect class="${tone()}" x="${x.toFixed(0)}" y="${(316 - h).toFixed(0)}" width="${w.toFixed(0)}" height="${(h + 24).toFixed(0)}"/>`;
+    x += w + r() * 9;
   }
 
-  // The monolith: a tall slab, tilted a touch, one luminous seam.
-  const mono =
-    '<g class="l-mono">' +
-    '<path class="l-mono-body" d="M676 302 L684 52 L734 44 L740 302Z"/>' +
-    '<path class="l-mono-edge" d="M684 52 L676 302 M734 44 L740 302"/>' +
-    '<path class="l-mono-seam" d="M711 60 L714 298"/>' +
-    '<path class="l-mono-glow" d="M711 60 L714 298"/>' +
-    '</g>';
+  /* ---- rank 2 ---- */
+  let far1 = '';
+  for (let x = -30; x < 1470; ) {
+    const w = 22 + r() * 48;
+    const h = 36 + r() * 76;
+    const top = 332 - h;
+    far1 += `<rect class="${tone()}" x="${x.toFixed(0)}" y="${top.toFixed(0)}" width="${w.toFixed(0)}" height="${(h + 12).toFixed(0)}"/>`;
+    if (r() > 0.72) far1 += `<rect class="ant" x="${(x + w * 0.5).toFixed(0)}" y="${(top - 16).toFixed(0)}" width="1.4" height="16"/>`;
+    x += w + r() * 6;
+  }
 
-  // Mid buildings with a sparse window grid (most lights are off).
+  /* ---- rank 3: setbacks, rooftop plant, window grids ---- */
   let mid = '';
   let win = '';
-  for (let x = -20; x < 1460; ) {
-    const w = 44 + r() * 66;
-    const h = 38 + r() * 84;
-    const top = 344 - h;
-    mid += `<rect x="${x.toFixed(0)}" y="${top.toFixed(0)}" width="${w.toFixed(0)}" height="${(h + 6).toFixed(0)}"/>`;
-    for (let wy = top + 10; wy < 334; wy += 14) {
-      for (let wx = x + 7; wx < x + w - 9; wx += 12) {
-        if (r() > 0.74) win += `<rect x="${wx.toFixed(0)}" y="${wy.toFixed(0)}" width="4.5" height="5.5"/>`;
+  for (let x = -30; x < 1470; ) {
+    const w = 42 + r() * 62;
+    const h = 52 + r() * 96;
+    const top = 356 - h;
+    const t = tone();
+    mid += `<rect class="${t}" x="${x.toFixed(0)}" y="${top.toFixed(0)}" width="${w.toFixed(0)}" height="${(h + 8).toFixed(0)}"/>`;
+    // A lit top edge. Flat rectangles read as clip art no matter how good the
+    // palette is; one lighter line along the top is all it takes to turn each
+    // block into a solid sitting under the same sky.
+    mid += `<rect class="rim" x="${x.toFixed(0)}" y="${top.toFixed(0)}" width="${w.toFixed(0)}" height="1.1"/>`;
+    // A narrower block on top. Without setbacks the roofline is a comb of bars
+    // of equal height, which is the single most "clip-art" thing a skyline can do.
+    if (r() > 0.55) {
+      const sw = w * (0.4 + r() * 0.3);
+      const sh = 12 + r() * 26;
+      mid += `<rect class="${t}" x="${(x + (w - sw) / 2).toFixed(0)}" y="${(top - sh).toFixed(0)}" width="${sw.toFixed(0)}" height="${sh.toFixed(0)}"/>`;
+    }
+    if (r() > 0.62)
+      mid += `<rect class="plant" x="${(x + w * 0.28).toFixed(0)}" y="${(top - 6).toFixed(0)}" width="${(w * 0.22).toFixed(0)}" height="6"/>`;
+    if (r() > 0.5)
+      mid += `<rect class="ant" x="${(x + w * 0.68).toFixed(0)}" y="${(top - 18).toFixed(0)}" width="1.2" height="18"/>`;
+    // Most lights are off. A floor that is fully lit is what makes the rest read
+    // as *dark* rather than as an unlit drawing.
+    const lit = r() > 0.82 ? 0.6 : 0.15;
+    for (let wy = top + 9; wy < 346; wy += 12) {
+      for (let wx = x + 5; wx < x + w - 7; wx += 10) {
+        if (r() < lit)
+          win += `<rect class="w${r() > 0.86 ? ' wb' : ''}" x="${wx.toFixed(0)}" y="${wy.toFixed(0)}" width="3.6" height="4.4"/>`;
       }
     }
-    x += w + 3 + r() * 9;
+    x += w + 2 + r() * 8;
   }
 
-  // Floating hexagonal frames — the "analog hack" made visible.
-  const hex = (i: number, x: number, y: number, s: number) =>
-    `<g transform="translate(${x} ${y}) scale(${(s / 22).toFixed(2)})"><path class="l-hex l-hex-${i}" d="M0 -22 L19 -11 L19 11 L0 22 L-19 11 L-19 -11Z"/></g>`;
-  const rings = hex(1, 296, 206, 26) + hex(2, 1118, 174, 18) + hex(3, 1006, 238, 12) + hex(4, 392, 250, 10);
+  /* ---- rank 4: near. Low and wide, cropped by the parapet below. ---- */
+  let near = '';
+  for (let x = -40; x < 1500; ) {
+    const w = 110 + r() * 190;
+    const h = 26 + r() * 44;
+    near += `<rect class="${tone()}" x="${x.toFixed(0)}" y="${(400 - h).toFixed(0)}" width="${w.toFixed(0)}" height="${h.toFixed(0)}"/>`;
+    near += `<rect class="nrim" x="${x.toFixed(0)}" y="${(400 - h).toFixed(0)}" width="${w.toFixed(0)}" height="1.8"/>`;
+    x += w + r() * 34;
+  }
 
-  const rail =
-    '<path class="l-rail" d="M0 336 H1440 M0 344 H1440"/>' +
-    Array.from({ length: 121 }, (_, i) => `M${i * 12} 336 V346`).join(' ');
+  /* ---- the monolith ----
+   *
+   * Drawn as three faces rather than one rect, because a single dark rectangle
+   * on a pale sky is a hole, not an object. The front face carries a horizontal
+   * gradient (light from the bloom, which sits upper-right), the right face
+   * turns away from the camera and goes nearly black, and a 1px rim runs along
+   * the top and the far edge — that rim is the entire reason it reads as solid
+   * and not as a silhouette cut out of the sky.
+   *
+   * Placement is constrained, not chosen. Two hard limits:
+   *
+   * 1. `xMidYMax slice` means the frame is cropped at the sides on any viewport
+   *    narrower or wider than 1440 — at 1080 the visible band is only x 198–1242.
+   *    Anything outside that disappears on some screen, so the slab has to live
+   *    inside it.
+   * 2. A dark object behind body text cannot clear AA. The site's content column
+   *    runs x 160–1280, so the slab is kept below y=130: its top lands where the
+   *    post list ends (they carry their own background) and it clears the prose.
+   *
+   * It still reads as the subject because it is a single unbroken mass, twice
+   * the width of any building, rimmed on one edge and split by a lit seam. */
+  const mono = `
+    <defs>
+      <linearGradient id="sc-lacia-mono-face" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" class="mf0"/><stop offset="0.62" class="mf1"/><stop offset="1" class="mf2"/>
+      </linearGradient>
+      <linearGradient id="sc-lacia-mono-side" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" class="ms0"/><stop offset="1" class="ms1"/>
+      </linearGradient>
+      <linearGradient id="sc-lacia-mono-refl" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" class="mr0"/><stop offset="1" class="mr1"/>
+      </linearGradient>
+      <filter id="sc-lacia-soft" x="-40%" y="-40%" width="180%" height="180%">
+        <feGaussianBlur stdDeviation="5"/>
+      </filter>
+    </defs>
+    <g class="l-mono">
+      <ellipse class="l-mono-refl" cx="936" cy="394" rx="112" ry="22" fill="url(#sc-lacia-mono-refl)" filter="url(#sc-lacia-soft)"/>
+      <path class="l-mono-side" d="M1016 130 L1040 130 L1046 400 L1030 400 Z" fill="url(#sc-lacia-mono-side)"/>
+      <path class="l-mono-body" d="M830 400 L844 130 L1016 130 L1030 400 Z" fill="url(#sc-lacia-mono-face)"/>
+      <path class="l-mono-edge" d="M844 130 L1040 130 L1046 400"/>
+      <path class="l-mono-seam" d="M936 136 L939 398"/>
+      <path class="l-mono-glow" d="M936 136 L939 398"/>
+      <circle class="l-mono-core" cx="937" cy="250" r="3.4"/>
+      <circle class="l-mono-core-halo" cx="937" cy="250" r="13" filter="url(#sc-lacia-soft)"/>
+    </g>`;
+
+  /* ---- atmosphere: the air between the camera and rank 3 ----
+   *
+   * Deliberately drawn *behind* the monolith and the near band. Painted last,
+   * as it used to be, it washed the monolith's base and the slab floated. */
+  const haze = `<rect class="l-haze" x="0" y="318" width="1440" height="82"/>`;
+
+  /* ---- aircraft: three dashes and a trail. At this size that is all it takes
+   * to put something at a known distance in the sky, which is what stops the
+   * upper half of the frame from being empty paper. ---- */
+  const craft = (x: number, y: number, s: number) =>
+    `<g class="l-craft" transform="translate(${x} ${y}) scale(${s})">
+       <rect x="-30" y="1.1" width="28" height="0.9" class="l-trail"/>
+       <path d="M0 0 L15 2.1 L15 3.1 L0 2.1 Z"/>
+       <path d="M5.4 1.9 L8.6 -2.6 L9.8 -2.6 L7.4 1.9 Z"/>
+     </g>`;
+  const craft_ = craft(560, 132, 1.5) + craft(1180, 96, 1.05) + craft(300, 214, 0.8);
+
+  /* ---- the parapet: the camera is on a roof ----
+   *
+   * The single most effective depth cue in the picture, and the one thing the
+   * first two versions were missing entirely: a hard-edged foreground object
+   * that overlaps the ranks behind it. Two lamp posts give it a known height. */
+  const lamp = (x: number, top: number, h: number) =>
+    `<rect class="fg-post" x="${x}" y="${top}" width="3.4" height="${h}"/>
+     <rect class="fg-arm" x="${x - 1}" y="${top}" width="15" height="2.6"/>
+     <circle class="fg-lamp-glow" cx="${x + 13}" cy="${top + 1}" r="11"/>
+     <circle class="fg-lamp" cx="${x + 13}" cy="${top + 1}" r="2.6"/>`;
+  let fg = `<path class="fg-deck" d="M0 374 H1440 V400 H0Z"/>`;
+  fg += `<rect class="fg-cap" x="0" y="371.5" width="1440" height="2.5"/>`;
+  fg += `<rect class="fg-rail" x="0" y="352" width="1440" height="2"/>`;
+  for (let x = 6; x < 1440; x += 26) fg += `<rect class="fg-post" x="${x}" y="352" width="2.2" height="22"/>`;
+  fg += lamp(176, 292, 80) + lamp(1252, 300, 72);
+
+  // Floating hexagonal frames — the "analog hack" made visible. Kept out of the
+  // monolith's half of the frame: they are a texture, and a texture on top of
+  // the subject is just noise.
+  const hex = (i: number, x: number, y: number, s: number) =>
+    `<g class="l-hex l-hex-${i}" transform="translate(${x} ${y}) scale(${(s / 22).toFixed(2)})"><path d="M0 -22 L19 -11 L19 11 L0 22 L-19 11 L-19 -11Z"/></g>`;
+  const rings = hex(1, 268, 158, 26) + hex(2, 430, 210, 15) + hex(3, 214, 232, 9);
 
   return [
     '<div class="l-bloom"></div>',
-    svg('sc-far', `<g class="l-far">${far}</g>${mono}<rect class="l-haze" x="0" y="252" width="1440" height="54"/>`),
-    svg('sc-mid', `<g class="l-mid">${mid}</g><g class="l-win">${win}</g>`),
-    svg('sc-near', `${rings}${rail}<path class="l-ground" d="M0 346 H1440 V400 H0Z"/>`),
+    svg('sc-far', `${glow}<g class="l-far2">${far2}</g><g class="l-far1">${far1}</g>${craft_}`),
+    svg('sc-mid', `<g class="l-mid">${mid}</g><g class="l-win">${win}</g>${haze}`),
+    svg('sc-mono', `${mono}`),
+    svg('sc-near', `${rings}<g class="l-near">${near}</g>`),
+    svg('sc-fg', fg),
+    '<div class="l-shaft"></div>',
   ].join('');
 }
 

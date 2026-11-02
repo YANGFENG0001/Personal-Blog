@@ -1,61 +1,165 @@
 /* 秘棺城市 — BEATLESS-inspired scene (markup: lacia() in src/lib/scenes.ts).
    Same rules as the other scene sheets: light-dark() colours so one markup
-   serves day and night, and only transform/opacity ever animate. */
+   serves day and night, and only transform/opacity ever animate.
+
+   The palette is a value ladder, not a set of pretty colours. Four ranks step
+   from the sky down to the parapet, and every block inside a rank picks one of
+   three neighbouring tones (`t0`..`t2`). That ladder *is* the depth: the first
+   version used one flat fill per rank, so the whole city sat on a single plane
+   and read as a silhouette sticker.
+
+   Two notes for anyone editing this:
+   - The scene is painted at 45% white veil (see `--veil`), so a 12% step in
+     here is only a 6% step on screen. That is why the near rank is as dark as
+     it is: it has to survive the wash and still read as a separate plane.
+   - Nothing here is decorative. Remove a rank or the parapet and the picture
+     flattens — that is the test. */
 
 [data-scene-id='lacia'] {
-  --sky-1: light-dark(#dfe3f2, #05060c); --sky-2: light-dark(#eef0f8, #0b0d16); --sky-3: light-dark(#f7f5fb, #14112a);
-  /* Lighter veil than the other scenes: the whole point of this one is the
-     black slab, and an 80% white wash turns it grey. Text still clears AA. */
-  --veil: light-dark(#f7f6fb73, #0b0c12d9);
+  --sky-1: light-dark(#dfe3f2, #05060c); --sky-2: light-dark(#eef0f8, #0b0d16); --sky-3: light-dark(#f7f5fb, #1c2038);
+  /* Lighter veil than the other scenes, on *both* sides: the whole point of
+     this one is the black slab, and an 80% white wash turns it grey. The night
+     value matters just as much — at 85% opaque the scene only contributes 15%
+     of the final pixel, which erased a night city that is already dark. */
+  --veil: light-dark(#f7f6fb73, #0a0c12b8);
   background:
     radial-gradient(56% 42% at 76% 22%, light-dark(#e8e6ff, #6f5bd028) 0%, transparent 72%),
     linear-gradient(180deg, var(--sky-1) 0%, var(--sky-2) 50%, var(--sky-3) 100%);
 }
 
-/* A pale bloom in the upper right — light without a sun. */
+/* A pale bloom in the upper right — light without a sun. The monolith's rim
+   light has to agree with it, or the slab looks lit from two places. */
 .l-bloom {
   position: absolute; right: 6%; top: 4%; width: 46vw; height: 46vw; border-radius: 50%;
   background: radial-gradient(circle, light-dark(#ffffff7a, #8f7fe040) 0%, transparent 62%);
   filter: blur(28px); opacity: 0.9; pointer-events: none;
 }
 
-/* ---------- far ---------- */
-[data-scene-id='lacia'] .l-far rect { fill: light-dark(#9aa2ba, #12141f); }
-[data-scene-id='lacia'] .l-haze { fill: light-dark(#e6e9f4, #14121f); opacity: 0.6; filter: blur(9px); }
-
-/* The monolith: near-black slab, one ice-blue seam down its face. */
-[data-scene-id='lacia'] .l-mono-body { fill: light-dark(#0a0b12, #030409); }
-[data-scene-id='lacia'] .l-mono-edge { fill: none; stroke: light-dark(#3a3d55, #2b3350); stroke-width: 1.2; }
-[data-scene-id='lacia'] .l-mono-seam { fill: none; stroke: light-dark(#4aa8e0, #b6e4ff); stroke-width: 1.8; }
-[data-scene-id='lacia'] .l-mono-glow {
-  fill: none; stroke: light-dark(#6fc4f0, #9ed8ff); stroke-width: 7; opacity: 0.4; filter: blur(5px);
+/* One soft beam falling through the haze. It is what makes the air look like
+   air; without it the bands read as stacked paper. */
+.l-shaft {
+  position: absolute; right: 2%; top: -14%; width: 58vw; height: 104vh;
+  background: linear-gradient(
+    194deg,
+    transparent 26%,
+    light-dark(#ffffff5c, #8fd0ff1f) 42%,
+    light-dark(#ffffff2e, #8fd0ff12) 55%,
+    transparent 70%
+  );
+  transform: skewX(-9deg);
+  filter: blur(16px);
+  opacity: 0.75;
+  pointer-events: none;
 }
 
-/* ---------- mid ---------- */
-[data-scene-id='lacia'] .l-mid rect { fill: light-dark(#6d7590, #0d0f18); }
-[data-scene-id='lacia'] .l-win rect { fill: light-dark(#aebdd8, #8fd0ff); opacity: light-dark(0.8, 0.7); }
+/* The horizon itself: the city is backlit, so the sky is brightest right at the
+   roofline and the ranks in front of it are dark by contrast. Painted first. */
+[data-scene-id='lacia'] .l-hglow { fill: light-dark(#ffffffbf, #7fc8ff59); filter: blur(34px); }
 
-/* ---------- near ---------- */
-[data-scene-id='lacia'] .l-hex { fill: none; stroke: light-dark(#8fa8cc88, #8fd0ff55); stroke-width: 1.4; }
-[data-scene-id='lacia'] .l-rail { fill: none; stroke: light-dark(#9aa2ba, #222a3d); stroke-width: 1.6; }
-[data-scene-id='lacia'] .l-ground { fill: light-dark(#b4bacd, #08090f); }
+/* ---------- rank 1–2: far skyline, barely separated from the sky ---------- */
+[data-scene-id='lacia'] .l-far2 rect { fill: light-dark(#d9dce9, #151926); }
+[data-scene-id='lacia'] .l-far2 .t1 { fill: light-dark(#d2d5e4, #131722); }
+[data-scene-id='lacia'] .l-far2 .t2 { fill: light-dark(#cbd0e0, #11141e); }
+
+[data-scene-id='lacia'] .l-far1 rect { fill: light-dark(#c4c9d9, #10141e); }
+[data-scene-id='lacia'] .l-far1 .t1 { fill: light-dark(#bcc1d3, #0e1119); }
+[data-scene-id='lacia'] .l-far1 .t2 { fill: light-dark(#b4bacd, #0c0f16); }
+
+/* Lit top edges. This is the cheapest fix for "flat vector skyline": every
+   block gets one lighter line along its roof, so the whole rank reads as
+   volumes under one sky instead of as rectangles filled in. */
+[data-scene-id='lacia'] .rim { fill: light-dark(#b9bfd0, #1a2030); opacity: 0.75; }
+[data-scene-id='lacia'] .nrim { fill: light-dark(#8b93a8, #1e2637); opacity: 0.85; }
+
+/* ---------- rank 3: mid — where the window grids live ---------- */
+[data-scene-id='lacia'] .l-mid rect { fill: light-dark(#9aa1b7, #0b0e16); }
+[data-scene-id='lacia'] .l-mid .t1 { fill: light-dark(#939ab1, #090c13); }
+[data-scene-id='lacia'] .l-mid .t2 { fill: light-dark(#8b92aa, #080a10); }
+[data-scene-id='lacia'] .l-mid .plant { fill: light-dark(#858ca3, #070910); }
+
+[data-scene-id='lacia'] .l-win .w { fill: light-dark(#eef3ff, #8fd0ff); opacity: 0.5; }
+/* A handful of brighter windows is what makes the rest read as *off*. */
+[data-scene-id='lacia'] .l-win .wb { fill: light-dark(#ffffff, #d5efff); opacity: 0.9; }
+
+/* Masts: present in silhouette, never as a line drawing. */
+[data-scene-id='lacia'] .ant { fill: light-dark(#7c8399, #151a26); opacity: 0.7; }
+
+/* ---------- rank 4: near ---------- */
+[data-scene-id='lacia'] .l-near rect { fill: light-dark(#5f6678, #060810); }
+[data-scene-id='lacia'] .l-near .t1 { fill: light-dark(#575e70, #05060d); }
+[data-scene-id='lacia'] .l-near .t2 { fill: light-dark(#4f5668, #04050a); }
+
+/* The haze sits between the camera and rank 3 — behind the monolith and behind
+   the near rank. It is atmosphere, not a wash over the whole plate. */
+[data-scene-id='lacia'] .l-haze { fill: light-dark(#e9ecf6, #1a2136); opacity: 0.5; filter: blur(11px); }
+
+/* ---------- the monolith ----------
+   Front face is a horizontal gradient (light comes from the bloom, upper
+   right); the right face turns away and goes nearly black; a 1px rim runs
+   along the top and the far edge. Remove the rim and the slab becomes a hole
+   in the sky — it is the only thing telling the eye where the edge is. */
+[data-scene-id='lacia'] .l-mono-body { stroke: none; }
+[data-scene-id='lacia'] .mf0 { stop-color: light-dark(#0a0c12, #04060c); }
+[data-scene-id='lacia'] .mf1 { stop-color: light-dark(#0e1017, #060810); }
+[data-scene-id='lacia'] .mf2 { stop-color: light-dark(#15181f, #0a0d15); }
+[data-scene-id='lacia'] .ms0 { stop-color: light-dark(#04050a, #010204); }
+[data-scene-id='lacia'] .ms1 { stop-color: light-dark(#0b0e15, #04060a); }
+[data-scene-id='lacia'] .mr0 { stop-color: light-dark(#7fb6d859, #6fc4f036); }
+[data-scene-id='lacia'] .mr1 { stop-color: transparent; }
+
+/* At night the slab and the sky are both near-black, so this rim is the only
+   thing separating the subject from the background. It has to be *brighter*
+   in dark mode, not dimmer — the usual reflex is wrong here. */
+[data-scene-id='lacia'] .l-mono-edge {
+  fill: none; stroke: light-dark(#7e8aa8, #5f7096); stroke-width: 1; opacity: 0.85;
+}
+[data-scene-id='lacia'] .l-mono-seam { fill: none; stroke: light-dark(#4aa8e0, #b6e4ff); stroke-width: 1.6; }
+[data-scene-id='lacia'] .l-mono-glow {
+  fill: none; stroke: light-dark(#6fc4f0, #9ed8ff); stroke-width: 8; opacity: 0.38; filter: blur(7px);
+}
+[data-scene-id='lacia'] .l-mono-core { fill: light-dark(#dff2ff, #eaf8ff); }
+[data-scene-id='lacia'] .l-mono-core-halo { fill: light-dark(#8fd0ff, #bfe8ff); opacity: 0.5; }
+
+/* ---------- aircraft: a dash and a trail, and that is enough ---------- */
+[data-scene-id='lacia'] .l-craft { fill: light-dark(#7f8799, #3d4a66); opacity: 0.6; }
+[data-scene-id='lacia'] .l-trail { fill: light-dark(#a7aec1, #47566f); opacity: 0.45; }
+
+/* ---------- the parapet: the camera is on a roof ---------- */
+[data-scene-id='lacia'] .fg-deck { fill: light-dark(#4b5163, #010204); }
+[data-scene-id='lacia'] .fg-cap { fill: light-dark(#9aa2b6, #2b3550); }
+[data-scene-id='lacia'] .fg-rail { fill: light-dark(#7d8598, #141a24); }
+[data-scene-id='lacia'] .fg-post { fill: light-dark(#6a7285, #0d1219); }
+[data-scene-id='lacia'] .fg-arm { fill: light-dark(#6a7285, #0d1219); }
+[data-scene-id='lacia'] .fg-lamp { fill: light-dark(#f6faff, #cfeaff); }
+[data-scene-id='lacia'] .fg-lamp-glow { fill: light-dark(#ffffff, #8fd0ff); opacity: 0.4; filter: blur(5px); }
+
+/* ---------- the analog-hack frames ---------- */
+[data-scene-id='lacia'] .l-hex path { fill: none; stroke: light-dark(#8fa8cc88, #8fd0ff55); stroke-width: 1.4; }
 
 /* Night: the city goes quiet, the seam stays lit. */
-:root[data-theme='dark'] [data-scene-id='lacia'] .l-mono-glow { opacity: 0.55; }
+:root[data-theme='dark'] [data-scene-id='lacia'] .l-mono-glow { opacity: 0.5; }
 @media (prefers-color-scheme: dark) {
-  :root[data-theme='auto'] [data-scene-id='lacia'] .l-mono-glow { opacity: 0.55; }
+  :root[data-theme='auto'] [data-scene-id='lacia'] .l-mono-glow { opacity: 0.5; }
 }
 
 /* ---------- motion ---------- */
 @media (prefers-reduced-motion: no-preference) {
   :root:not([data-motion='off']) [data-scene-id='lacia'] .l-mono-seam,
   :root:not([data-motion='off']) [data-scene-id='lacia'] .l-mono-glow { animation: l-seam 6.5s ease-in-out infinite; }
+  :root:not([data-motion='off']) [data-scene-id='lacia'] .l-mono-core-halo { animation: l-core 4.2s ease-in-out infinite; }
   :root:not([data-motion='off']) [data-scene-id='lacia'] .l-hex { animation: l-float 14s ease-in-out infinite; }
   :root:not([data-motion='off']) [data-scene-id='lacia'] .l-hex-2 { animation-duration: 18s; animation-delay: -4s; }
   :root:not([data-motion='off']) [data-scene-id='lacia'] .l-hex-3 { animation-duration: 11s; animation-delay: -7s; }
-  :root:not([data-motion='off']) [data-scene-id='lacia'] .l-hex-4 { animation-duration: 16s; animation-delay: -2s; }
   :root:not([data-motion='off']) [data-scene-id='lacia'] .l-bloom { animation: l-breathe 12s ease-in-out infinite; }
+  :root:not([data-motion='off']) [data-scene-id='lacia'] .l-shaft { animation: l-drift 23s ease-in-out infinite; }
+  :root:not([data-motion='off']) [data-scene-id='lacia'] .fg-lamp-glow { animation: l-lamp 7.5s ease-in-out infinite; }
 }
-@keyframes l-seam { 50% { opacity: 0.45; } }
+@keyframes l-seam { 50% { opacity: 0.4; } }
+@keyframes l-core { 50% { opacity: 0.28; transform: scale(1.25); transform-origin: 937px 250px; } }
 @keyframes l-float { 50% { transform: translateY(-9px); } }
 @keyframes l-breathe { 50% { opacity: 0.62; } }
+@keyframes l-lamp { 50% { opacity: 0.26; } }
+@keyframes l-drift {
+  0%, 100% { transform: skewX(-9deg) translateX(0); }
+  50% { transform: skewX(-9deg) translateX(-3vw); }
+}
