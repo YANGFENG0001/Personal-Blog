@@ -806,7 +806,21 @@
   --lr-u: 320;
   --ms-w: calc(var(--lr-u) * 0.6 * 1px);
   width: var(--ms-w);
+  /* The figure is bottom-anchored, and her soles are at canvas y=1274 of 1276 —
+     so at `bottom: 0` the shoe ends ~2px above the viewport edge. That is close
+     enough that the root breathing spring (and the knee springs, which swing
+     the boot about an axis near the ankle) put it over the edge for a few
+     frames at a time, which reads as "the mascot is cut off at the feet".
+     14px, not 8: the knee bones rotate about a pivot near the ankle, so the
+     boot itself swings ~6px below the rig box, and a 4s sample of every bone's
+     painted bottom put the worst case at box+6. At 14 the sole keeps ≥8px of
+     clear space through the whole spring cycle — measured, not guessed. */
+  bottom: 14px;
 }
+/* A 320px figure is fine on a laptop and absurd on a short window — at 360px
+   tall she would be 89% of the viewport and her head would meet the header. */
+@media (max-height: 520px) { .mascot[data-kind='rig'] { --lr-u: 260; } }
+@media (max-height: 420px) { .mascot[data-kind='rig'] { --lr-u: 200; } }
 /* The corner mascot is a cropped presentation: at 1:1 the deployed fan would
    be ~410px wide and sit on top of the page, so the device is drawn at half
    scale here. The display page shows it 1:1. */
