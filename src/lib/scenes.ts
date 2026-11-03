@@ -507,49 +507,104 @@ function lacia(): string {
 
   /* ---- the monolith ----
    *
-   * Drawn as three faces rather than one rect, because a single dark rectangle
-   * on a pale sky is a hole, not an object. The front face carries a horizontal
-   * gradient (light from the bloom, which sits upper-right), the right face
-   * turns away from the camera and goes nearly black, and a 1px rim runs along
-   * the top and the far edge — that rim is the entire reason it reads as solid
-   * and not as a silhouette cut out of the sky.
+   * It used to be a 220 x 270 slab sitting in the same row as the mid band,
+   * and it read as "one more tower". Scale alone was not the problem: a taller
+   * rectangle is still a rectangle. What makes a thing read as **monumental**
+   * is three cues, and this object now has all three.
    *
-   * Placement is constrained, not chosen. Two hard limits:
+   * 1. **It has no top.** The slab runs off the top of the frame and fades out
+   *    over its first 40 units, so the eye is never told where it ends. A hard
+   *    cut at the top says "this object is 300 tall"; a fade says "keep
+   *    looking". Its base runs off the bottom for the same reason — you can see
+   *    neither end of it, so you cannot measure it.
    *
-   * 1. `xMidYMax slice` means the frame is cropped at the sides on any viewport
-   *    narrower or wider than 1440 — at 1080 the visible band is only x 198–1242.
-   *    Anything outside that disappears on some screen, so the slab has to live
-   *    inside it.
-   * 2. A dark object behind body text cannot clear AA. The site's content column
-   *    runs x 160–1280, so the slab is kept below y=130: its top lands where the
-   *    post list ends (they carry their own background) and it clears the prose.
+   * 2. **It is modular.** Nine horizontal seams at a fixed 44-unit pitch, two
+   *    vertical arrises splitting the face into thirds, and two columns of
+   *    service lights at exactly half that pitch. Repetition is what reads as
+   *    *order*, and order is what reads as 森严 — a featureless black slab is
+   *    merely large. The pitch is also the only scale reference on the face:
+   *    44 units against a 290-wide face says "many storeys", and the eye
+   *    extrapolates the height from the count.
    *
-   * It still reads as the subject because it is a single unbroken mass, twice
-   * the width of any building, rimmed on one edge and split by a lit seam. */
+   * 3. **It tapers.** The base is 290 wide and the crown 252, so the two side
+   *    edges converge. That is a vertical vanishing point, i.e. the picture is
+   *    looking *up* at it. Without the taper a slab of this size reads as a
+   *    wall; with it, it reads as something you are standing underneath.
+   *
+   * The lighting stays deliberately minimal — one rim on the lit edge, one
+   * seam, one core. A monument lit like a building is a building.
+   *
+   * Placement is constrained, not chosen: `xMidYMax slice` crops the sides on
+   * any viewport narrower than 1440 (at 1080 the visible band is x 198–1242),
+   * and the content column runs x 160–1280, so the slab has to live inside
+   * that band. Its crown is faded precisely so the part that overlaps the
+   * lower end of the post list contributes almost nothing to the pixel. */
+  const MONO = { baseY: 400, topY: -4, xL: 828, xR: 1006, sideR: 1024, taper: 6, taperR: 5 };
+  /** Left/right edge of the front face at height y. */
+  const monoEdge = (y: number) => {
+    const k = (MONO.baseY - y) / (MONO.baseY - MONO.topY);
+    return [MONO.xL + k * MONO.taper, MONO.xR - k * MONO.taperR];
+  };
+
+  /* Horizontal seams, at a 120-unit pitch — four of them across the visible
+     height. Nine at 44 read as a floor count, which is the office-block cue
+     again; four read as the joints of a casting. They are also the only thing
+     giving the face a scale, so they have to be *sparse* to say "each of these
+     is enormous" rather than "each of these is a storey". */
+  let seams = '';
+  for (let y = MONO.baseY - 60, i = 0; y > MONO.topY + 40; y -= 120, i++) {
+    const [xl, xr] = monoEdge(y);
+    seams += `<rect class="l-mono-joint" x="${xl.toFixed(1)}" y="${y.toFixed(1)}" width="${(xr - xl).toFixed(1)}" height="1.4"/>`;
+  }
+
+  /* Vertical arrises: two, at the thirds. They are what gives the face a
+     readable left / centre / right and stops it being one flat fill. */
+  let arris = '';
+  for (const f of [1 / 3, 2 / 3]) {
+    const xb = MONO.xL + (MONO.xR - MONO.xL) * f;
+    const xt = MONO.xL + MONO.taper + (MONO.xR - MONO.xL - MONO.taper - MONO.taperR) * f;
+    arris += `<path class="l-mono-arris" d="M${xb.toFixed(1)} 400 L${xt.toFixed(1)} ${MONO.topY}"/>`;
+  }
+
+  /* No windows, no service lights, no lit floors. This is the one decision in
+     the whole scene that has to go *against* the instinct to add detail:
+     every lit window on a black slab turns it into an office block, because
+     windows are what buildings have. A monument is unlit — that is what makes
+     it read as something at a scale people are not part of. The structure is
+     carried by the seams and the two arrises, and the scale is carried by the
+     fact that you can see neither end of it. */
+
   const mono = `
     <defs>
       <linearGradient id="sc-lacia-mono-face" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0" class="mf0"/><stop offset="0.62" class="mf1"/><stop offset="1" class="mf2"/>
+        <stop offset="0" class="mf0"/><stop offset="0.58" class="mf1"/><stop offset="1" class="mf2"/>
       </linearGradient>
       <linearGradient id="sc-lacia-mono-side" x1="0" y1="0" x2="1" y2="0">
         <stop offset="0" class="ms0"/><stop offset="1" class="ms1"/>
       </linearGradient>
-      <linearGradient id="sc-lacia-mono-refl" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" class="mr0"/><stop offset="1" class="mr1"/>
+      <linearGradient id="sc-lacia-mono-fade" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+        <stop offset="0.035" stop-color="#fff" stop-opacity="0.46"/>
+        <stop offset="0.08" stop-color="#fff" stop-opacity="0.9"/>
+        <stop offset="0.13" stop-color="#fff" stop-opacity="1"/>
       </linearGradient>
+      <mask id="sc-lacia-mono-mask">
+        <rect x="812" y="-10" width="226" height="424" fill="url(#sc-lacia-mono-fade)"/>
+      </mask>
       <filter id="sc-lacia-soft" x="-40%" y="-40%" width="180%" height="180%">
         <feGaussianBlur stdDeviation="5"/>
       </filter>
     </defs>
-    <g class="l-mono">
-      <ellipse class="l-mono-refl" cx="936" cy="394" rx="112" ry="22" fill="url(#sc-lacia-mono-refl)" filter="url(#sc-lacia-soft)"/>
-      <path class="l-mono-side" d="M1016 130 L1040 130 L1046 400 L1030 400 Z" fill="url(#sc-lacia-mono-side)"/>
-      <path class="l-mono-body" d="M830 400 L844 130 L1016 130 L1030 400 Z" fill="url(#sc-lacia-mono-face)"/>
-      <path class="l-mono-edge" d="M844 130 L1040 130 L1046 400"/>
-      <path class="l-mono-seam" d="M936 136 L939 398"/>
-      <path class="l-mono-glow" d="M936 136 L939 398"/>
-      <circle class="l-mono-core" cx="937" cy="250" r="3.4"/>
-      <circle class="l-mono-core-halo" cx="937" cy="250" r="13" filter="url(#sc-lacia-soft)"/>
+    <g class="l-mono" mask="url(#sc-lacia-mono-mask)">
+      <path class="l-mono-side" d="M${MONO.xR} 400 L${MONO.xR - MONO.taperR} ${MONO.topY} L${MONO.sideR - MONO.taperR} ${MONO.topY} L${MONO.sideR} 400 Z" fill="url(#sc-lacia-mono-side)"/>
+      <path class="l-mono-body" d="M${MONO.xL} 400 L${MONO.xL + MONO.taper} ${MONO.topY} L${MONO.xR - MONO.taperR} ${MONO.topY} L${MONO.xR} 400 Z" fill="url(#sc-lacia-mono-face)"/>
+      ${seams}${arris}
+      <path class="l-mono-seam" d="M919 400 L917.6 ${MONO.topY}"/>
+      <path class="l-mono-glow" d="M919 400 L917.6 ${MONO.topY}"/>
+      <circle class="l-mono-core" cx="918" cy="232" r="3.4"/>
+      <circle class="l-mono-core-halo" cx="918" cy="232" r="13" filter="url(#sc-lacia-soft)"/>
+      <path class="l-mono-plinth" d="M${MONO.xL + 4} 352 L${MONO.xR - 4} 352 M${MONO.xL + 10} 362 L${MONO.xR - 10} 362"/>
+      <path class="l-mono-edge" d="M${MONO.xL + MONO.taper} ${MONO.topY} L${MONO.xR - MONO.taperR} ${MONO.topY} M${MONO.xR - MONO.taperR} ${MONO.topY} L${MONO.sideR - MONO.taperR} ${MONO.topY} L${MONO.sideR} 400 M${MONO.xR} 400 L${MONO.xR - MONO.taperR} ${MONO.topY}"/>
     </g>`;
 
   /* ---- atmosphere: the air between the camera and rank 3 ----

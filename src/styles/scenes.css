@@ -13,9 +13,12 @@
 .sc-clouds .sc-layer { top: 0; bottom: auto; height: 60vh; width: 120%; left: -10%; }
 .sc-clouds-big .sc-layer { top: auto; bottom: 10vh; height: 70vh; }
 
-/* Readability veil: content sits on a softly lightened band in the middle. */
+/* Readability veil: content sits on a softly lightened band in the middle.
+   `z-index: 1` exists so a scene can lift a single layer above it — see
+   `.sc-mono` in scenes-lacia.css. Without the number the veil is an anonymous
+   ::after that always paints last, and nothing can ever get out from under it. */
 .scene::after {
-  content: ''; position: absolute; inset: 0;
+  content: ''; position: absolute; inset: 0; z-index: 1;
   background: linear-gradient(90deg, transparent 0%, var(--veil) 18%, var(--veil) 82%, transparent 100%);
 }
 @media (max-width: 900px) { .scene::after { background: var(--veil); } }
