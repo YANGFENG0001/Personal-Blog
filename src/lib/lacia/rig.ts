@@ -24,7 +24,7 @@
  * head's *world* angle through its own spring and the pose is the difference,
  * so the offset is zero at rest and can never oppose the head.
  */
-import { LACIA_CANVAS, LACIA_ELBOW, LACIA_KNEE, LACIA_PARTS } from './parts';
+import { LACIA_ANKLE, LACIA_CANVAS, LACIA_ELBOW, LACIA_KNEE, LACIA_PARTS, LACIA_WRIST } from './parts';
 import { FACE_IDS, FACE_PAD, FORM_FACE, STATE_FACE, BLUSH_STATES, browParts, mouthParts, type BrowVariant, type MouthVariant } from './face';
 import { buildScript, type SayLine, type VisemeCue } from '../viseme';
 import { LACIA_FORM_ORDER, type LaciaForm } from './lines';
@@ -49,7 +49,11 @@ export type LaciaBone =
   | 'kneeR'
   | 'kneeL'
   | 'elbowR'
-  | 'elbowL';
+  | 'elbowL'
+  | 'wristR'
+  | 'wristL'
+  | 'ankleR'
+  | 'ankleL';
 
 export type LaciaState = 'idle' | 'talk' | 'happy' | 'held' | 'sleep';
 
@@ -61,12 +65,14 @@ const BONE_OF: Record<string, LaciaBone> = {
   'handwear-l-up': 'armL',
   'handwear-r-lo': 'elbowR',
   'handwear-l-lo': 'elbowL',
+  'handwear-r-hand': 'wristR',
+  'handwear-l-hand': 'wristL',
   'legwear-r-up': 'legR',
   'legwear-l-up': 'legL',
   'legwear-r-lo': 'kneeR',
   'legwear-l-lo': 'kneeL',
-  'footwear-l': 'kneeL',
-  'footwear-r': 'kneeR',
+  'footwear-l': 'ankleL',
+  'footwear-r': 'ankleR',
   neck: 'neck',
   topwear: 'torso',
 };
@@ -92,6 +98,16 @@ const PIVOT: Record<LaciaBone, readonly [number, number]> = {
   kneeL: LACIA_KNEE.l,
   elbowR: LACIA_ELBOW.r,
   elbowL: LACIA_ELBOW.l,
+  /* The wrist is measured *inside the forearm crop* — searching the whole arm
+     for the narrowest row finds this same point, but searching it for "the
+     elbow" finds it too, which is how the first rig ended up with a hand that
+     swivelled on the elbow. */
+  wristR: LACIA_WRIST.r,
+  wristL: LACIA_WRIST.l,
+  /* The boot cuff. The boot is one piece, so this pivot is the only thing that
+     separates the ankle from the shin. */
+  ankleR: LACIA_ANKLE.r,
+  ankleL: LACIA_ANKLE.l,
 };
 
 const EYE = new Set(['eyewhite-r', 'eyewhite-l', 'irides-r', 'irides-l', 'eyelash-r', 'eyelash-l']);
@@ -176,18 +192,26 @@ export function laciaMarkup(opts: { base?: string; uid?: string } = {}): string 
           <div class="lr-bone lr-hips" data-bone="hips">
             ${deviceLock}
             <div class="lr-bone lr-leg" data-bone="legR">
-              <div class="lr-bone lr-knee" data-bone="kneeR">${p.kneeR ?? ''}</div>${p.legR ?? ''}
+              <div class="lr-bone lr-knee" data-bone="kneeR">
+                <div class="lr-bone lr-ankle" data-bone="ankleR">${p.ankleR ?? ''}</div>${p.kneeR ?? ''}
+              </div>${p.legR ?? ''}
             </div>
             <div class="lr-bone lr-leg" data-bone="legL">
-              <div class="lr-bone lr-knee" data-bone="kneeL">${p.kneeL ?? ''}</div>${p.legL ?? ''}
+              <div class="lr-bone lr-knee" data-bone="kneeL">
+                <div class="lr-bone lr-ankle" data-bone="ankleL">${p.ankleL ?? ''}</div>${p.kneeL ?? ''}
+              </div>${p.legL ?? ''}
             </div>
             <div class="lr-bone lr-spine" data-bone="spine">
               <div class="lr-bone lr-chest" data-bone="chest">
                 <div class="lr-bone lr-arm" data-bone="armR">
-                  <div class="lr-bone lr-elbow" data-bone="elbowR">${p.elbowR ?? ''}</div>${p.armR ?? ''}
+                  <div class="lr-bone lr-elbow" data-bone="elbowR">
+                    <div class="lr-bone lr-wrist" data-bone="wristR">${p.wristR ?? ''}</div>${p.elbowR ?? ''}
+                  </div>${p.armR ?? ''}
                 </div>
                 <div class="lr-bone lr-arm" data-bone="armL">
-                  <div class="lr-bone lr-elbow" data-bone="elbowL">${p.elbowL ?? ''}</div>${p.armL ?? ''}
+                  <div class="lr-bone lr-elbow" data-bone="elbowL">
+                    <div class="lr-bone lr-wrist" data-bone="wristL">${p.wristL ?? ''}</div>${p.elbowL ?? ''}
+                  </div>${p.armL ?? ''}
                 </div>
                 <div class="lr-bone lr-torso" data-bone="torso">${p.torso ?? ''}</div>
                 <div class="lr-bone lr-neck" data-bone="neck">${p.neck ?? ''}
@@ -304,16 +328,23 @@ const ENERGY: Record<LaciaState, number> = { idle: 1, talk: 1.15, happy: 1.3, he
  */
 const FORM_POSE: Record<
   LaciaForm,
-  { rootY: number; hipsX: number; spine: number; chest: number; head: number; armR: number; armL: number; elbowR: number; elbowL: number }
+  {
+    rootY: number; hipsX: number; spine: number; chest: number; head: number;
+    armR: number; armL: number; elbowR: number; elbowL: number; wristR: number; wristL: number;
+  }
 > = {
-  coffin: { rootY: 0, hipsX: 0, spine: 0, chest: 0, head: 0, armR: 0, armL: 0, elbowR: 0, elbowL: 0 },
+  coffin: { rootY: 0, hipsX: 0, spine: 0, chest: 0, head: 0, armR: 0, armL: 0, elbowR: 0, elbowL: 0, wristR: 0, wristL: 0 },
   /* `elbowL` is what finally makes "扶导轨" possible: the upper arm swings out
      to the device and the forearm comes back to meet the rail. With one rigid
      arm the hand stopped ~15px short of it and the pose read as reaching. */
-  railgun: { rootY: 9, hipsX: 6, spine: 3, chest: 8, head: -4, armR: 8, armL: -22, elbowR: 4, elbowL: -9 },
+  /* `wristL` closes the grip: the rail runs under her palm, so the hand turns
+     in toward the device while the forearm comes back to meet it. Without this
+     the fingers stay parallel to the forearm and the pose reads as "hand near
+     rail", not "hand on rail". */
+  railgun: { rootY: 9, hipsX: 6, spine: 3, chest: 8, head: -4, armR: 8, armL: -16, elbowR: 4, elbowL: 6, wristR: 0, wristL: -20 },
   /* Forearm across the body — the one pose that is impossible without an elbow. */
-  shield: { rootY: 3, hipsX: -5, spine: -2, chest: -7, head: 6, armR: -6, armL: 8, elbowR: -4, elbowL: 30 },
-  unfold: { rootY: -5, hipsX: 0, spine: 1, chest: 3, head: -3, armR: 17, armL: -17, elbowR: 8, elbowL: -8 },
+  shield: { rootY: 3, hipsX: -5, spine: -2, chest: -7, head: 6, armR: -6, armL: 8, elbowR: -4, elbowL: 30, wristR: 0, wristL: 9 },
+  unfold: { rootY: -5, hipsX: 0, spine: 1, chest: 3, head: -3, armR: 17, armL: -17, elbowR: 8, elbowL: -8, wristR: 0, wristL: 0 },
 };
 
 /** Gaze bias per form. */
@@ -446,6 +477,13 @@ export class LaciaRig {
     kneeLR: new Spring(0.95, 0.72),
     elbowRR: new Spring(1.1, 0.68),
     elbowLR: new Spring(1.1, 0.68),
+    /* The hand is the lightest thing on the chain, so it is the fastest and the
+       least damped — it should still be settling after the forearm has stopped.
+       Same idea for the boot, one step slower: a boot has mass. */
+    wristRR: new Spring(1.45, 0.5),
+    wristLR: new Spring(1.45, 0.5),
+    ankleRR: new Spring(1.05, 0.78),
+    ankleLR: new Spring(1.05, 0.78),
     monY: new Spring(0.42, 0.55),
     monR: new Spring(0.3, 0.6),
     /* The device's own swing on its mount, separate from her body.
@@ -760,14 +798,32 @@ export class LaciaRig {
       S.rootY.step(breath * 1.0 * e + P.rootY, FIXED);
       S.hipsX.step(sway * 2.3 * e + P.hipsX, FIXED);
       S.hipsR.step(sway * 0.42 * e, FIXED);
-      S.spineR.step((-sway * 0.3 + look * 0.45) * e + P.spine, FIXED);
+      /* `spineR` is stepped *below*, after `monAim`, because the device's
+         reaction feeds into it. */
       S.chestR.step((breath * 0.22 + micro * 0.1) * e + P.chest, FIXED);
       S.torsoY.step(1 + breath * 0.011 * e, FIXED);
       S.torsoX.step(1 - breath * 0.0045 * e, FIXED);
       S.neckR.step((look * 1.1 + micro * 0.22) * e, FIXED);
       S.neckY.step(-breath * 2.0 * e, FIXED);
       S.headTurn.step(this.turnTarget * e, FIXED);
-      S.headR.step((sway * 1.0 + micro * 0.42 + look * 2.9 + S.headTurn.x) * e + P.head, FIXED);
+      /* ── head stabilisation ─────────────────────────────────────────────
+       *
+       * A head is not a flag on a pole. Standing still, the body sways a few
+       * degrees and the head very nearly does not: the neck cancels most of
+       * what the hips, spine and chest hand up, because the vestibular system
+       * is trying to hold the eyes level. Before this term the head was driven
+       * by `sway` on its own, so it swung *with* the torso and the whole figure
+       * read as one rigid stick pivoting at the ankle.
+       *
+       * The compensation is taken from the *current* spring values, not from
+       * the targets, so it cannot run ahead of the body it is correcting. 0.55
+       * rather than 1.0 on purpose: a fully stabilised head looks like a
+       * chicken and stops belonging to the body. */
+      const torsoWorld = S.hipsR.x + S.spineR.x + S.chestR.x + S.neckR.x;
+      S.headR.step(
+        (sway * 0.42 + micro * 0.42 + look * 2.9 + S.headTurn.x) * e + P.head - torsoWorld * 0.55,
+        FIXED,
+      );
       S.headX.step(look * 1.9 * e, FIXED);
       S.headY.step(-breath * 1.1 * e, FIXED);
       /* Both hair layers chase the same quantity — the head's world angle —
@@ -778,8 +834,37 @@ export class LaciaRig {
       const phi = S.hipsR.x + S.spineR.x + S.chestR.x + S.neckR.x + S.headR.x;
       S.hairFWorld.step(phi, FIXED);
       S.hairBWorld.step(phi, FIXED);
-      S.armRR.step((micro * 0.85 - sway * 0.55) * e + P.armR, FIXED);
-      S.armLR.step((-micro * 0.85 - sway * 0.55) * e + P.armL, FIXED);
+      /* ── weight transfer ────────────────────────────────────────────────
+       *
+       * `weight` is the single most important term in this function. A standing
+       * person is never symmetric: the centre of mass drifts from one foot to
+       * the other over roughly ten seconds, the loaded leg straightens and the
+       * free one softens. Both legs used to be driven by the same `sway`
+       * expression — literally identical numbers — so the lower body moved as
+       * one board, and no amount of extra amplitude on the knees could fix
+       * that, because the two legs had no reason to disagree.
+       *
+       * `weight` is +1 when her weight is on the left foot, −1 on the right,
+       * and its period (24s) is deliberately not a multiple of `sway`'s (12s),
+       * so the combination takes a couple of minutes to repeat. */
+      const weight = Math.sin(t * TAU * 0.041 + 0.9);
+      const loadR = 0.5 - weight * 0.5; // 1 = right leg carries her
+      const loadL = 1 - loadR;
+
+      /* ── arms hang ──────────────────────────────────────────────────────
+       *
+       * The upper arm's target carries `−torsoWorld × 0.45`. That is not a
+       * stylistic choice: an arm hanging from a moving shoulder stays put in
+       * space, so *relative to the torso* it swings the other way. Driving it
+       * with its own sine (which is what this did) makes it move with the
+       * body, and an arm that moves with the body reads as a mannequin with a
+       * welded shoulder.
+       *
+       * The two sides take the same torso term with opposite signs, because the
+       * weight shift is what makes one arm hang closer to the hip than the
+       * other. */
+      S.armRR.step((micro * 0.55 + weight * 0.55) * e + P.armR - torsoWorld * 0.45, FIXED);
+      S.armLR.step((-micro * 0.55 - weight * 0.55) * e + P.armL - torsoWorld * 0.45, FIXED);
       /* Elbows carry the arm's swing a little late and a little less, so the
          forearm trails the upper arm instead of moving as one rod. The slow
          independent term is what keeps the arms from looking pinned — an arm
@@ -787,8 +872,44 @@ export class LaciaRig {
          is moving. */
       S.elbowRR.step(-S.armRR.x * 0.35 + (1.1 + 0.8 * Math.sin(t * TAU * 0.071 + 0.6)) * e + P.elbowR, FIXED);
       S.elbowLR.step(-S.armLR.x * 0.35 + (1.1 + 0.8 * Math.sin(t * TAU * 0.059 + 2.4)) * e + P.elbowL, FIXED);
-      S.legRR.step(-sway * 1.3 * e, FIXED);
-      S.legLR.step(-sway * 1.3 * e, FIXED);
+      /* ── wrists ─────────────────────────────────────────────────────────
+       *
+       * A hand is not welded to a forearm. It hangs: it lags the forearm,
+       * overshoots it, and settles after it. Two things make that read:
+       *
+       * 1. The *negative* coupling. `wrist = −elbow × 0.28` means the hand
+       *    counter-rotates a little against the forearm, which is what a wrist
+       *    does under its own weight when the arm swings. Driving it with
+       *    `+elbow × k` makes the hand swing *past* the forearm, which looks
+       *    like a flag on a pole.
+       * 2. Its own slow term, on a period that matches neither the arm nor the
+       *    leg. Hands are where stillness is most visible: a hand that holds
+       *    exactly one angle is the clearest tell that a figure is a puppet.
+       *
+       * In `railgun` the near hand is gripping the rail, so it also has to
+       * follow the device — see `grip` below. A hand that stays put while the
+       * rail it is holding rotates is the thing that reads as "no linkage". */
+      const grip = this.form === 'railgun' ? 1 : 0;
+      S.wristRR.step(
+        -S.elbowRR.x * 0.28 + (0.9 + 0.7 * Math.sin(t * TAU * 0.093 + 1.9)) * e + P.wristR,
+        FIXED,
+      );
+      S.wristLR.step(
+        -S.elbowLR.x * 0.28 +
+          (0.9 + 0.7 * Math.sin(t * TAU * 0.077 + 4.1)) * e +
+          P.wristL +
+          S.monAim.x * 0.55 * grip,
+        FIXED,
+      );
+      /* ── hips and legs ──────────────────────────────────────────────────
+       *
+       * The thigh term is the *sum* of two things: the whole-body sway (both
+       * legs lean the same way, which is what a body does when it leans) and
+       * the weight transfer (the legs lean opposite ways, which is what a body
+       * does when it shifts from one foot to the other). Keeping them separate
+       * is why this reads as standing rather than as swaying. */
+      S.legRR.step((sway * 1.15 + weight * 0.85) * e, FIXED);
+      S.legLR.step((sway * 1.15 - weight * 0.85) * e, FIXED);
       /* Knees do two jobs, and neither one is a sagittal bend.
        *
        *  This art is a **front view**, so a real knee bend (heel toward the hip)
@@ -811,12 +932,42 @@ export class LaciaRig {
        *  then beat against each other and one of them sits almost still for
        *  seconds at a time, which is its own kind of stiff. */
       const kneeSoft = this.state === 'held' ? 9 : this.state === 'sleep' ? 3 : 2.4;
+      /* A loaded leg straightens and an unloaded one softens. This is the third
+         cue that the two legs are not the same object: the thigh angles already
+         disagree, and now their knees do too, in the opposite direction. The
+         factor is a *range* (0.55× to 1.45×), not an offset, so `held` and
+         `sleep` keep their much larger soft values. */
       S.kneeRR.step(
-        -S.legRR.x * 0.85 + (kneeSoft + 1.5 * Math.sin(t * TAU * 0.107) + 0.8 * Math.sin(t * TAU * 0.043 + 1.3)) * e,
+        -S.legRR.x * 0.85 +
+          (kneeSoft * (1.45 - 0.9 * loadR) + 1.5 * Math.sin(t * TAU * 0.107) + 0.8 * Math.sin(t * TAU * 0.043 + 1.3)) * e,
         FIXED,
       );
       S.kneeLR.step(
-        -S.legLR.x * 0.85 + (kneeSoft + 1.5 * Math.sin(t * TAU * 0.089 + 2.1) + 0.8 * Math.sin(t * TAU * 0.051 + 0.4)) * e,
+        -S.legLR.x * 0.85 +
+          (kneeSoft * (1.45 - 0.9 * loadL) + 1.5 * Math.sin(t * TAU * 0.089 + 2.1) + 0.8 * Math.sin(t * TAU * 0.051 + 0.4)) * e,
+        FIXED,
+      );
+      /* ── ankles ─────────────────────────────────────────────────────────
+       *
+       * This is the joint that keeps her feet on the ground. Because the shin is
+       * driven by a counter-rotation, the boot inherits that swing — and a boot
+       * that tilts with the shin is the single clearest sign that a rig has no
+       * ankle at all: she reads as standing on two stilts hinged at the knee.
+       *
+       * Cancelling ~80% of the shin's angle keeps the sole level; the leftover
+       * 20% is what gives the ankle something to do. As with the knee, this is
+       * a front view, so a real dorsiflexion (toes up) would be invisible —
+       * what reads from the front is the *sole's* angle, which is exactly what
+       * this term controls.
+       *
+       * The independent terms run on different periods per side, and the loaded
+       * foot is the stiller one: it is the one carrying her. */
+      S.ankleRR.step(
+        -S.kneeRR.x * 0.8 + (0.7 + 0.55 * Math.sin(t * TAU * 0.13 + 2.2)) * (1.3 - 0.6 * loadR) * e,
+        FIXED,
+      );
+      S.ankleLR.step(
+        -S.kneeLR.x * 0.8 + (0.7 + 0.55 * Math.sin(t * TAU * 0.111 + 0.5)) * (1.3 - 0.6 * loadL) * e,
         FIXED,
       );
       S.monY.step(Math.sin((t * TAU) / 6.4) * 3.4 - S.rootY.x * 0.12, FIXED);
@@ -831,6 +982,15 @@ export class LaciaRig {
          the bore turns with her, more of it in `railgun` because that is the
          form where a barrel pointed at the wrong thing is a mistake. */
       S.monWorld.step(S.hipsR.x, FIXED);
+      /* The socket is not a one-way street. A 1150-unit mass pivoting at her
+         waist pulls on her; without this term she moves the device and is never
+         moved by it, which is exactly what reads as "two objects animated by
+         the same clock". Velocity, not displacement: feeding the *position*
+         back closes a loop through chest → neck → head → `monAim` and sets up a
+         slow oscillation. The velocity term is pure damping and cannot do that.
+         `S.monAim.v` is in degrees/second and the aim spring is soft, so the
+         coefficient stays small. */
+      S.spineR.step((-sway * 0.3 + look * 0.45) * e + P.spine - S.monAim.v * 0.045, FIXED);
       /* Only the *dynamic* part of her head goes into the aim: the idle
          look-around (`headTurn`) and the pointer. Feeding it `headR` instead
          looked right in the code and wrong on screen, because `headR` also
@@ -962,6 +1122,10 @@ export class LaciaRig {
     put('kneeL', `rotate(${f(S.kneeLR.x)}deg)`);
     put('elbowR', `rotate(${f(S.elbowRR.x)}deg)`);
     put('elbowL', `rotate(${f(S.elbowLR.x)}deg)`);
+    put('wristR', `rotate(${f(S.wristRR.x)}deg)`);
+    put('wristL', `rotate(${f(S.wristLR.x)}deg)`);
+    put('ankleR', `rotate(${f(S.ankleRR.x)}deg)`);
+    put('ankleL', `rotate(${f(S.ankleLR.x)}deg)`);
 
     /* Brows and mouth are images inside the head bone, so they need no world
        matrix — the head carries them. Only their own offset is written, and it

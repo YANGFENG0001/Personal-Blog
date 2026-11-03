@@ -72,50 +72,80 @@ def add(name, img, ox, oy, z):
     print(f"  {name:16s} {px1-px0:4d}x{py1-py0:<4d} at ({px0+ox-x0},{py0+oy-y0})")
 
 
-# How much the two knee crops overlap, in canvas px. The shin rotates a few
-# degrees about the knee; without an overlap that rotation opens a wedge-shaped
-# gap straight through the leg. 16 is enough for ~8° at this leg's thickness and
-# small enough that the doubled band never reads as a seam — the surface there is
-# a single dark tone, so the overlap has nothing to disagree about.
+# How much two segments of one limb overlap, in canvas px. A segment rotates a
+# few degrees about its joint; without an overlap that rotation opens a
+# wedge-shaped gap straight through the limb. 16 is enough for ~8° at these
+# thicknesses and small enough that the doubled band never reads as a seam — the
+# surface there is a single dark tone, so the overlap has nothing to disagree
+# about. The wrist is thinner than the knee, so it needs less.
 KNEE_OVERLAP = 16
+WRIST_OVERLAP = 9
 
-# side -> (pivot x, pivot y) in canvas coords, filled in by split_joint()
+# side -> (pivot x, pivot y) in canvas coords, filled in by cut_at()
 KNEES = {}
 ELBOWS = {}
+WRISTS = {}
+ANKLES = {}
 
 # Which band of a limb's height the joint is searched in, as (low, high).
 #
-# These are not interchangeable and that is the whole point. The knee sits at
-# 40–60% of a leg; an arm's narrowest point at 40–60% is the **wrist**, not the
-# elbow (measured: 28px fill at 64% of the arm, versus 36px at 33%). Cutting at
-# the wrist gives a hand that swivels — which looks like a broken toy, not like
-# an elbow.
-JOINT_BANDS = {"knee": (0.40, 0.60), "elbow": (0.25, 0.50)}
+# These are not interchangeable and that is the whole point. Measured on this
+# art, as a fraction of the limb layer's height:
+#
+#   knee   ~45%   (40–60% band; the silhouette pinches just above the joint)
+#   elbow  ~33%   (25–50% band)
+#   wrist  ~70%   (60–78% band) — and note this one is *below* the elbow, so it
+#                  is searched inside the forearm crop, not the whole arm
+#   ankle  ~10%   (02–30% band) — the boot cuff, i.e. the narrowest row of the
+#                  footwear layer, which is where a boot grips the ankle
+#
+# Sharing one band between joints is what produces the classic broken-doll rig:
+# searching 40–60% of an arm for "the elbow" finds the wrist, and the hand then
+# swivels like a prop instead of hanging off a forearm.
+JOINT_BANDS = {
+    "knee": (0.40, 0.60),
+    "elbow": (0.25, 0.50),
+    "wrist": (0.60, 0.78),
+    "ankle": (0.02, 0.30),
+}
 
 
-def split_joint(nm, out, ox, oy, z, joint):
-    """Cut a limb into two segments at `joint`.
+def cut_at(arr, joint):
+    """Find the joint row in `arr` and return (row, pivot in canvas coords).
 
-    The joint row is the **narrowest row inside that joint's band**. On a
-    standing figure the silhouette pinches just above the joint; picking it by
-    measurement rather than by a hardcoded fraction is what makes this survive a
-    re-split with different crops. (The first knee guess — 45% — landed 80px low
-    on this art, on the calf, which reads as a broken doll because the shin then
-    swings from mid-calf.)
+    The row is the **narrowest row inside that joint's band**. On a standing
+    figure the silhouette pinches at every real joint; picking it by measurement
+    rather than by a hardcoded fraction is what makes this survive a re-split
+    with different crops. (The first knee guess — 45% — landed 80px low on this
+    art, on the calf, which reads as a broken doll because the shin then swings
+    from mid-calf.)
     """
     lo_f, hi_f = JOINT_BANDS[joint]
-    a = out[:, :, 3] > 40
+    a = arr[:, :, 3] > 40
     ys = np.where(a.any(axis=1))[0]
     top, bot = int(ys[0]), int(ys[-1])
     lo, hi = top + int((bot - top) * lo_f), top + int((bot - top) * hi_f)
     row = min((int(a[y].sum()), y) for y in range(lo, hi))[1]
     xs = np.where(a[row])[0]
-    # `out` is sized to the *layer's own crop*, so its coordinates are local to
-    # (ox, oy); parts.ts stores everything relative to the character bbox. Both
-    # offsets have to be undone or the pivot lands outside the figure.
-    pivot = (round(float(xs.mean()) + ox - x0, 1), float(row + oy - y0))
-    (KNEES if joint == "knee" else ELBOWS)[nm[-1]] = pivot
+    return row, xs.mean()
 
+
+def pivot_of(row, cx, ox, oy):
+    """Layer-local (row, cx) -> canvas coords, relative to the character bbox.
+
+    `arr` is sized to the *layer's own crop*, so its coordinates are local to
+    (ox, oy); parts.ts stores everything relative to the character bbox. Both
+    offsets have to be undone or the pivot lands outside the figure — the first
+    version of this returned y = -354.
+    """
+    return (round(float(cx) + ox - x0, 1), float(row + oy - y0))
+
+
+def split_joint(nm, out, ox, oy, z, joint):
+    """Cut a limb into two segments at `joint` (knee / ankle)."""
+    row, cx = cut_at(out, joint)
+    pivot = pivot_of(row, cx, ox, oy)
+    {"knee": KNEES, "ankle": ANKLES}[joint][nm[-1]] = pivot
     up = out.copy()
     up[row + KNEE_OVERLAP:] = 0
     dn = out.copy()
@@ -123,6 +153,36 @@ def split_joint(nm, out, ox, oy, z, joint):
     add(f"{nm}-up", Image.fromarray(up), ox, oy, z)
     add(f"{nm}-lo", Image.fromarray(dn), ox, oy, z)
     print(f"    {joint} pivot {pivot} in canvas coords")
+
+
+def split_arm(nm, out, ox, oy, z):
+    """Cut an arm into three segments: upper arm, forearm, hand.
+
+    Three, not two, because the elbow alone cannot express a hand. With a single
+    forearm+hand layer the wrist is welded shut: the hand always points the way
+    the forearm happens to point, which is the difference between "her arm is
+    bent" and "she is holding something". The hand also needs its own pivot to
+    hang — a hand that rotates with the forearm at the same instant reads as a
+    paddle.
+    """
+    e_row, e_cx = cut_at(out, "elbow")
+    ELBOWS[nm[-1]] = pivot_of(e_row, e_cx, ox, oy)
+    up = out.copy()
+    up[e_row + KNEE_OVERLAP:] = 0
+    fore_hand = out.copy()
+    fore_hand[:e_row - KNEE_OVERLAP] = 0
+
+    w_row, w_cx = cut_at(fore_hand, "wrist")
+    WRISTS[nm[-1]] = pivot_of(w_row, w_cx, ox, oy)
+    fore = fore_hand.copy()
+    fore[w_row + WRIST_OVERLAP:] = 0
+    hand = fore_hand.copy()
+    hand[:w_row - WRIST_OVERLAP] = 0
+
+    add(f"{nm}-up", Image.fromarray(up), ox, oy, z)
+    add(f"{nm}-lo", Image.fromarray(fore), ox, oy, z)
+    add(f"{nm}-hand", Image.fromarray(hand), ox, oy, z)
+    print(f"    elbow {ELBOWS[nm[-1]]} / wrist {WRISTS[nm[-1]]}")
 
 
 def split_lr(name, img, ox, oy, z, knee=False):
@@ -153,6 +213,14 @@ def split_lr(name, img, ox, oy, z, knee=False):
         out[~m] = 0
         if knee:
             split_joint(nm, out, ox, oy, z, "knee")
+        elif name == "footwear":
+            # Boots stay whole — an ankle is not a place you cut a boot in half.
+            # What the split is for here is the *pivot*: the boot becomes its own
+            # bone so the sole can stay level while the shin swings.
+            row, acx = cut_at(out, "ankle")
+            ANKLES[nm[-1]] = pivot_of(row, acx, ox, oy)
+            add(nm, Image.fromarray(out), ox, oy, z)
+            print(f"    ankle pivot {ANKLES[nm[-1]]} in canvas coords")
         else:
             add(nm, Image.fromarray(out), ox, oy, z)
 
@@ -166,8 +234,8 @@ for layer in meta["layers"]:
     if name in ("legwear", "footwear"):
         split_lr(name, img, ox, oy, Z, knee=(name == "legwear"))
     elif name in ("handwear-l", "handwear-r"):
-        # Already one layer per arm, so no L/R split — just the elbow cut.
-        split_joint(name, np.array(img), ox, oy, Z, "elbow")
+        # Already one layer per arm, so no L/R split — just the two cuts.
+        split_arm(name, np.array(img), ox, oy, Z)
     else:
         add(name, img, ox, oy, Z)
 
@@ -210,6 +278,16 @@ lines = [
     "export const LACIA_ELBOW = {",
     f"  r: [{ELBOWS['r'][0]}, {ELBOWS['r'][1]}],",
     f"  l: [{ELBOWS['l'][0]}, {ELBOWS['l'][1]}],",
+    "} as const;",
+    "/** Wrist pivots — measured inside each forearm crop, not the whole arm. */",
+    "export const LACIA_WRIST = {",
+    f"  r: [{WRISTS['r'][0]}, {WRISTS['r'][1]}],",
+    f"  l: [{WRISTS['l'][0]}, {WRISTS['l'][1]}],",
+    "} as const;",
+    "/** Ankle pivots — the boot cuff, i.e. the narrowest row of each boot. */",
+    "export const LACIA_ANKLE = {",
+    f"  r: [{ANKLES['r'][0]}, {ANKLES['r'][1]}],",
+    f"  l: [{ANKLES['l'][0]}, {ANKLES['l'][1]}],",
     "} as const;",
     "",
     "export const LACIA_PARTS: readonly LaciaPart[] = [",
