@@ -452,11 +452,28 @@ export class LaciaRig {
     rootY: new Spring(1.6, 1.0),
     hipsX: new Spring(0.7, 0.9),
     hipsR: new Spring(0.7, 0.9),
-    spineR: new Spring(0.9, 0.85),
-    chestR: new Spring(1.1, 0.8),
+    /* The spine and the ribcage are deliberately *softer and less damped* than
+       the hips. A torso that returns to rest as fast as the pelvis it sits on
+       has no mass above the waist — which is the whole of "腰部僵硬". 0.72 Hz
+       with ζ 0.72 gives roughly a 1.4 s settle: slow enough to see, quick
+       enough that it never looks like jelly. */
+    spineR: new Spring(0.72, 0.72),
+    chestR: new Spring(0.95, 0.66),
+    /* The bust is not part of the ribcage. It hangs off it with its own mass, so
+       it gets its own, much softer spring: rotation lags the chest and lateral
+       drift lags the hips. Both are small — a bust that swings on its own is a
+       different, worse problem — but zero here is what makes the chest read as
+       a printed T-shirt. */
+    torsoR: new Spring(1.15, 0.52),
+    torsoShift: new Spring(0.58, 0.6),
     torsoY: new Spring(0.6, 1.0, 1),
     torsoX: new Spring(0.6, 1.0, 1),
-    neckR: new Spring(1.3, 0.8),
+    /* The neck is the last link before the head, and the only one that can make
+       the head *translate*. Rotating it alone moves the head on an arc, which
+       is why a neck driven by rotation only still reads as a stick: the head
+       pivots instead of drifting. */
+    neckR: new Spring(1.05, 0.6),
+    neckX: new Spring(0.82, 0.5),
     neckY: new Spring(1.3, 1.0),
     headR: new Spring(1.15, 0.62),
     headX: new Spring(1.0, 0.7),
@@ -479,9 +496,13 @@ export class LaciaRig {
     elbowLR: new Spring(1.1, 0.68),
     /* The hand is the lightest thing on the chain, so it is the fastest and the
        least damped — it should still be settling after the forearm has stopped.
+       It was 1.45 Hz / ζ 0.5, which settles in ~0.6 s: technically "alive", but
+       on a hand that only travels 1.5° the settle is over before the eye gets
+       there, so the hand looked pinned. 1.05 Hz / ζ 0.42 is slow enough that
+       the follow-through is visible and the overshoot is ~25% rather than 15%.
        Same idea for the boot, one step slower: a boot has mass. */
-    wristRR: new Spring(1.45, 0.5),
-    wristLR: new Spring(1.45, 0.5),
+    wristRR: new Spring(1.05, 0.42),
+    wristLR: new Spring(1.05, 0.42),
     ankleRR: new Spring(1.05, 0.78),
     ankleLR: new Spring(1.05, 0.78),
     monY: new Spring(0.42, 0.55),
@@ -788,6 +809,12 @@ export class LaciaRig {
     const micro = Math.sin(t * TAU * 0.31 + 1.1);
     const look = this.pointer.sx;
     const e = this.energy;
+    /* Declared up here rather than at the weight-transfer block below, because
+       three separate chains now read it (bust drift, neck drift, legs) and a
+       block-scoped `const` halfway down the loop is a trap. Its period (24 s) is
+       deliberately not a multiple of `sway`'s (12 s), so the combination takes a
+       couple of minutes to repeat. */
+    const weight = Math.sin(t * TAU * 0.041 + 0.9);
 
     const FIXED = 1 / 120;
     const P = FORM_POSE[this.form];
@@ -800,11 +827,57 @@ export class LaciaRig {
       S.hipsR.step(sway * 0.42 * e, FIXED);
       /* `spineR` is stepped *below*, after `monAim`, because the device's
          reaction feeds into it. */
-      S.chestR.step((breath * 0.22 + micro * 0.1) * e + P.chest, FIXED);
-      S.torsoY.step(1 + breath * 0.011 * e, FIXED);
-      S.torsoX.step(1 - breath * 0.0045 * e, FIXED);
-      S.neckR.step((look * 1.1 + micro * 0.22) * e, FIXED);
-      S.neckY.step(-breath * 2.0 * e, FIXED);
+      S.chestR.step((breath * 1.5 + micro * 0.45 + sway * 0.5) * e + P.chest, FIXED);
+      S.torsoY.step(1 + breath * 0.018 * e, FIXED);
+      S.torsoX.step(1 - breath * 0.007 * e, FIXED);
+      /* ── bust ───────────────────────────────────────────────────────────
+       *
+       * `torso` carries the topwear layer, so this is the one bone that can
+       * make the chest move on its own instead of moving with the ribcage.
+       *
+       * Two things are being modelled, and they are not the same:
+       *
+       * 1. **Rotation follows the chest, late and partially.** `+0.35 ×
+       *    (chest − pose)` — positive, not negative. A soft mass hanging off
+       *    the ribcage rotates *less* than the ribcage and *after* it; because
+       *    this spring is much softer than the chest's (1.15 Hz / ζ 0.52
+       *    against 0.95 Hz / ζ 0.66) the lag comes out of the spring, not out
+       *    of a hand-written phase. Writing `−chest × k` was the first
+       *    attempt: it makes the bust rotate *against* the ribcage, which on
+       *    a front view reads as the chest tilting the wrong way.
+       * 2. **Lateral drift lags the hips.** `torsoShift` targets `weight`, not
+       *    `hipsX`, so it keeps drifting after the pelvis has stopped — and
+       *    the `−hipsX × 0.35` term makes the ribcage counter the pelvis
+       *    instead of riding on it, which is what standing on one hip does.
+       *
+       * Amplitudes stay in the 1–2 px / 1–2° range. This is a standing figure
+       * breathing, not a walk cycle; the point is that the surface is never
+       * exactly still, not that anything visibly swings. */
+      S.torsoR.step(
+        (S.chestR.x - P.chest) * 0.35 +
+          (0.6 * Math.sin(t * TAU * 0.19 + 2.3) + 0.3 * Math.sin(t * TAU * 0.063 + 1.1)) * e,
+        FIXED,
+      );
+      /* Only the *dynamic* part of the pelvis is fed back. `hipsX` carries the
+         form's own offset (railgun leans 6 px), and a pose is not a reaction —
+         feeding the raw value would tilt the bust permanently by 2 px in that
+         form only. Same reason `monAim` refuses `headR`. */
+      S.torsoShift.step(weight * 1.6 * e - (S.hipsX.x - P.hipsX) * 0.35, FIXED);
+      /* ── neck ───────────────────────────────────────────────────────────
+       *
+       * This used to be `look × 1.1 + micro × 0.22` — i.e. the neck only moved
+       * when the pointer did, and by a fifth of a degree otherwise. That is
+       * exactly "脖子僵硬": between the shoulders and the head there was a
+       * rigid column, so the head looked mounted rather than carried.
+       *
+       * A living neck never stops: it carries the head's weight, so it holds a
+       * slow drift of its own (0.9° on the breath, 0.55° on the sway) and a
+       * faster micro-tremor. `neckX` is what makes that read — pure rotation
+       * pivots the head on an arc, which still looks like a stick; a lateral
+       * offset makes the head *float* over the shoulders. */
+      S.neckR.step((look * 1.1 + micro * 0.5 + breath * 0.9 + sway * 0.55) * e, FIXED);
+      S.neckX.step(weight * 1.5 * e - (S.chestR.x - P.chest) * 0.18, FIXED);
+      S.neckY.step((-breath * 2.4 + weight * 1.2) * e, FIXED);
       S.headTurn.step(this.turnTarget * e, FIXED);
       /* ── head stabilisation ─────────────────────────────────────────────
        *
@@ -816,12 +889,16 @@ export class LaciaRig {
        * read as one rigid stick pivoting at the ankle.
        *
        * The compensation is taken from the *current* spring values, not from
-       * the targets, so it cannot run ahead of the body it is correcting. 0.55
+       * the targets, so it cannot run ahead of the body it is correcting. 0.68
        * rather than 1.0 on purpose: a fully stabilised head looks like a
-       * chicken and stops belonging to the body. */
+       * chicken and stops belonging to the body. It went up from 0.55 when the
+       * chest and neck amplitudes were raised — with more torso motion to
+       * cancel, 0.55 let the head ride along and the neck stopped reading as
+       * soft. The visible result is *more* neck motion and *less* head motion,
+       * which is the right way round. */
       const torsoWorld = S.hipsR.x + S.spineR.x + S.chestR.x + S.neckR.x;
       S.headR.step(
-        (sway * 0.42 + micro * 0.42 + look * 2.9 + S.headTurn.x) * e + P.head - torsoWorld * 0.55,
+        (sway * 0.42 + micro * 0.42 + look * 2.9 + S.headTurn.x) * e + P.head - torsoWorld * 0.68,
         FIXED,
       );
       S.headX.step(look * 1.9 * e, FIXED);
@@ -844,10 +921,9 @@ export class LaciaRig {
        * one board, and no amount of extra amplitude on the knees could fix
        * that, because the two legs had no reason to disagree.
        *
-       * `weight` is +1 when her weight is on the left foot, −1 on the right,
-       * and its period (24s) is deliberately not a multiple of `sway`'s (12s),
-       * so the combination takes a couple of minutes to repeat. */
-      const weight = Math.sin(t * TAU * 0.041 + 0.9);
+       * `weight` is +1 when her weight is on the left foot, −1 on the right.
+       * (Its declaration sits with the other oscillators at the top of the
+       * loop, because the bust and the neck read it too.) */
       const loadR = 0.5 - weight * 0.5; // 1 = right leg carries her
       const loadL = 1 - loadR;
 
@@ -890,13 +966,19 @@ export class LaciaRig {
        * follow the device — see `grip` below. A hand that stays put while the
        * rail it is holding rotates is the thing that reads as "no linkage". */
       const grip = this.form === 'railgun' ? 1 : 0;
+      /* Two incommensurate sines per hand, ~2° total travel. One sine at this
+         amplitude reads as a mechanism: the hand reaches its limit, reverses,
+         reaches it again, forever. The second term is what makes the envelope
+         wander. */
       S.wristRR.step(
-        -S.elbowRR.x * 0.28 + (0.9 + 0.7 * Math.sin(t * TAU * 0.093 + 1.9)) * e + P.wristR,
+        -S.elbowRR.x * 0.34 +
+          (1.5 + 1.25 * Math.sin(t * TAU * 0.093 + 1.9) + 0.6 * Math.sin(t * TAU * 0.147 + 0.4)) * e +
+          P.wristR,
         FIXED,
       );
       S.wristLR.step(
-        -S.elbowLR.x * 0.28 +
-          (0.9 + 0.7 * Math.sin(t * TAU * 0.077 + 4.1)) * e +
+        -S.elbowLR.x * 0.34 +
+          (1.5 + 1.25 * Math.sin(t * TAU * 0.077 + 4.1) + 0.6 * Math.sin(t * TAU * 0.131 + 2.8)) * e +
           P.wristL +
           S.monAim.x * 0.55 * grip,
         FIXED,
@@ -990,7 +1072,10 @@ export class LaciaRig {
          slow oscillation. The velocity term is pure damping and cannot do that.
          `S.monAim.v` is in degrees/second and the aim spring is soft, so the
          coefficient stays small. */
-      S.spineR.step((-sway * 0.3 + look * 0.45) * e + P.spine - S.monAim.v * 0.045, FIXED);
+      S.spineR.step(
+        (-sway * 0.85 + weight * 0.5 + breath * 0.6 + look * 0.45) * e + P.spine - S.monAim.v * 0.045,
+        FIXED,
+      );
       /* Only the *dynamic* part of her head goes into the aim: the idle
          look-around (`headTurn`) and the pointer. Feeding it `headR` instead
          looked right in the code and wrong on screen, because `headR` also
@@ -1082,7 +1167,7 @@ export class LaciaRig {
     const worldHips = matMul(matMove(0, S.rootY.x), matAbout(matMul(matMove(S.hipsX.x, 0), matRot(S.hipsR.x)), 246, 700));
     const worldSpine = matMul(worldHips, matAbout(matRot(S.spineR.x), 246, 700));
     const worldChest = matMul(worldSpine, matAbout(matRot(S.chestR.x), 246, 660));
-    const worldNeck = matMul(worldChest, matAbout(matMul(matMove(0, S.neckY.x), matRot(S.neckR.x)), 235, 214));
+    const worldNeck = matMul(worldChest, matAbout(matMul(matMove(S.neckX.x, S.neckY.x), matRot(S.neckR.x)), 235, 214));
     const worldHead = matMul(worldNeck, matAbout(matMul(matMove(S.headX.x, S.headY.x), matRot(S.headR.x)), 235, 186));
     return { worldHips, worldHead, phi: S.hipsR.x + S.spineR.x + S.chestR.x + S.neckR.x + S.headR.x };
   }
@@ -1099,8 +1184,12 @@ export class LaciaRig {
     put('hips', `translateX(${f(S.hipsX.x)}px) rotate(${f(S.hipsR.x)}deg)`);
     put('spine', `rotate(${f(S.spineR.x)}deg)`);
     put('chest', `rotate(${f(S.chestR.x)}deg)`);
-    put('torso', `scale(${f(S.torsoX.x)},${f(S.torsoY.x)})`);
-    put('neck', `translateY(${f(S.neckY.x)}px) rotate(${f(S.neckR.x)}deg)`);
+    /* Translate before rotate: the lateral drift is in the parent's frame (the
+       ribcage has moved), while the rotation is about the torso's own pivot.
+       Swapping the two would swing the whole upper body around a point 60 units
+       below the bust every time it drifted a pixel. */
+    put('torso', `translateX(${f(S.torsoShift.x)}px) rotate(${f(S.torsoR.x)}deg) scale(${f(S.torsoX.x)},${f(S.torsoY.x)})`);
+    put('neck', `translate(${f(S.neckX.x)}px,${f(S.neckY.x)}px) rotate(${f(S.neckR.x)}deg)`);
     put('head', `translate(${f(S.headX.x)}px,${f(S.headY.x)}px) rotate(${f(S.headR.x)}deg)`);
 
     const { worldHips, worldHead, phi } = this.chain();

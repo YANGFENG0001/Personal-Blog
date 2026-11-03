@@ -83,14 +83,17 @@ function renderMap(w: number, h: number, field: Field): string {
  * Build the displacement fields. Everything is derived from the head anchor and
  * the baseline, so an arbitrary pack needs no hand-tuned regions.
  *
- * Three zones, not four. A "hem" zone was tried and removed: it slides whatever
- * is down there sideways, which reads as the legs skating across the floor on a
+ * Five zones. A "hem" zone was tried and removed: it slides whatever is down
+ * there sideways, which reads as the legs skating across the floor on a
  * character in a bodysuit. Anything below the hips is left alone.
  *
  * The hard constraint shaping all of this: a field is a function of (u, v)
  * only, so it cannot tell hair from the arm behind it — they occupy the same
  * columns. That is why the hair zone stops at the shoulders instead of running
- * down the full length of the hair.
+ * down the full length of the hair. The same constraint is why there is no
+ * wrist or elbow zone: a pack has no joint anchors, so "the hand" is a guess
+ * about a column range, and a guessed hand that drifts is worse than a hand
+ * that does not.
  */
 function buildFields(opts: WarpOptions): { name: string; field: Field }[] {
   const [hx, hy] = opts.head;
@@ -125,6 +128,21 @@ function buildFields(opts: WarpOptions): { name: string; field: Field }[] {
     return [along * side, 0];
   };
 
+  // Neck: a pure lateral drift across the whole band, tapered top and bottom.
+  //
+  // This is the zone that makes the head look *carried*. The head field above
+  // already rotates, but rotation alone swings the head on an arc, and an arc
+  // still reads as a stick with a ball on it. Translating the neck band on its
+  // own, slower phase is what a real neck does under a heavy head — and it is
+  // the one thing a flat pack can do that a joint-less image otherwise cannot.
+  const neckTop = hy + 0.015;
+  const neckBottom = hy + 0.145;
+  const neck: Field = (_u, v) => {
+    if (v < neckTop || v > neckBottom) return [0, 0];
+    const p = (v - neckTop) / (neckBottom - neckTop);
+    return [Math.sin(Math.PI * p), 0];
+  };
+
   // Torso: breathing. Vertical, peaking at the chest, stopped at the waist —
   // running it down to the hips lifts the pelvis off the legs, which reads as
   // the waist stretching rather than as a breath.
@@ -137,10 +155,25 @@ function buildFields(opts: WarpOptions): { name: string; field: Field }[] {
     return [0, along * span(u, hx, 0.04, 0.2)];
   };
 
+  // Bust: the mass on the ribcage, so it lags the breath on both axes. Same
+  // period as `torso` on purpose — a different period would read as two
+  // unrelated things wobbling, which is exactly what the head/hair pair is
+  // arranged to avoid. The lag comes from the phase, not from the frequency.
+  const bustTop = hy + 0.185;
+  const bustBottom = Math.min(foot - 0.34, hy + 0.4);
+  const bust: Field = (_u, v) => {
+    if (v < bustTop || v > bustBottom) return [0, 0];
+    const p = (v - bustTop) / (bustBottom - bustTop);
+    const along = Math.sin(Math.PI * p);
+    return [along * 0.7, along * 0.35];
+  };
+
   return [
     { name: 'head', field: head },
     { name: 'hair', field: hair },
+    { name: 'neck', field: neck },
     { name: 'torso', field: torso },
+    { name: 'bust', field: bust },
   ];
 }
 
@@ -162,7 +195,15 @@ const RHYTHM: Record<string, { amp: number; period: number; phase: number }> = {
   // At the default 240 px size this is about 4° of crown travel.
   head: { amp: 0.012, period: 7, phase: 0 },
   hair: { amp: 0.026, period: 7, phase: 0.6 },
+  /* The neck drifts on the body's period but nearly opposite in phase, so the
+     head is always slightly behind the shoulders. Small on purpose: this is the
+     "carried, not mounted" cue, and anything above ~1% of the width reads as
+     the head sliding off. */
+  neck: { amp: 0.009, period: 7, phase: 2.2 },
   torso: { amp: 0.013, period: 4.8, phase: 1.9 },
+  /* Same period as the breath, 0.7 rad late: follow-through, not a second
+     rhythm. Different frequency here would read as two things wobbling. */
+  bust: { amp: 0.008, period: 4.8, phase: 2.6 },
 };
 
 export interface WarpHandle {

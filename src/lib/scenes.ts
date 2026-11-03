@@ -436,199 +436,194 @@ function lacia(): string {
   const r = rng(307);
   const tone = () => `t${Math.floor(r() * 3)}`;
 
-  /* ---- horizon glow: painted first, so every rank stands in front of it ---- */
-  const glow = `<ellipse class="l-hglow" cx="1074" cy="316" rx="430" ry="138"/>`;
+  /* ══ 这座城市是什么 ══════════════════════════════════════════════════════
+   *
+   * The previous version was a dark skyline with a 290-wide black tower in it.
+   * That is a *mood*, not the place: it could be any cyberpunk backdrop, and
+   * the tower was invented — canonically the Black Monolith is a device that
+   * **floats behind her at roughly her own height**, not a building.
+   *
+   * What the source material actually shows, and what is drawn below:
+   *
+   *   · it is a **coastal** city — water, a horizon, and a lot of sky. That is
+   *     the single strongest "this is that city" cue, and the old plate had
+   *     none of it.
+   *   · the architecture is **glass, banded horizontally**. Curtain wall, not
+   *     punched windows: the dominant texture is a stack of thin even lines.
+   *     This is also the reason the new plate reads *better* behind text than
+   *     the old one did — horizontal bands are a lower spatial frequency than
+   *     a random window grid at the same contrast.
+   *   · an **elevated expressway** crosses the frame on tall piers. It is the
+   *     one object that puts the camera at a known height above the water.
+   *   · the palette is **high-key**: pale blue, white, a little lavender. The
+   *     dark accent in the whole picture is the device.
+   *
+   * Readability is a constraint on top of that, not a compromise with it:
+   * everything except the device stays under the veil and inside a narrow
+   * value band, and the busy parts are kept out of the middle of the frame. */
 
-  /* ---- rank 1: barely a rank — the city dissolving into its own air ---- */
-  let far2 = '';
-  for (let x = -30; x < 1470; ) {
-    const w = 24 + r() * 58;
-    const h = 20 + r() * 56;
-    far2 += `<rect class="${tone()}" x="${x.toFixed(0)}" y="${(316 - h).toFixed(0)}" width="${w.toFixed(0)}" height="${(h + 24).toFixed(0)}"/>`;
-    x += w + r() * 9;
+  const HORIZON = 214;
+  const SEA_BOTTOM = 268;
+
+  /* ---- the bay ---- */
+  const sea = `
+    <rect class="l-sea" x="0" y="${HORIZON}" width="1440" height="${SEA_BOTTOM - HORIZON}"/>
+    <path class="l-sea-path" d="M958 ${HORIZON} L1058 ${HORIZON} L1128 ${SEA_BOTTOM} L888 ${SEA_BOTTOM} Z"/>
+    <rect class="l-sea-line" x="0" y="${HORIZON - 0.8}" width="1440" height="1.6"/>`;
+
+  /* ---- far shore: a thin band of blocks sitting on the waterline ---- */
+  let shore = '';
+  for (let x = -20; x < 1470; ) {
+    const w = 16 + r() * 46;
+    const h = 10 + r() * 34;
+    shore += `<rect class="${tone()}" x="${x.toFixed(0)}" y="${(HORIZON - h).toFixed(0)}" width="${w.toFixed(0)}" height="${(h + 3).toFixed(0)}"/>`;
+    x += w + r() * 10;
   }
 
-  /* ---- rank 2 ---- */
-  let far1 = '';
-  for (let x = -30; x < 1470; ) {
-    const w = 22 + r() * 48;
-    const h = 36 + r() * 76;
-    const top = 332 - h;
-    far1 += `<rect class="${tone()}" x="${x.toFixed(0)}" y="${top.toFixed(0)}" width="${w.toFixed(0)}" height="${(h + 12).toFixed(0)}"/>`;
-    if (r() > 0.72) far1 += `<rect class="ant" x="${(x + w * 0.5).toFixed(0)}" y="${(top - 16).toFixed(0)}" width="1.4" height="16"/>`;
-    x += w + r() * 6;
-  }
-
-  /* ---- rank 3: setbacks, rooftop plant, window grids ---- */
-  let mid = '';
-  let win = '';
-  for (let x = -30; x < 1470; ) {
-    const w = 42 + r() * 62;
-    const h = 52 + r() * 96;
-    const top = 356 - h;
-    const t = tone();
-    mid += `<rect class="${t}" x="${x.toFixed(0)}" y="${top.toFixed(0)}" width="${w.toFixed(0)}" height="${(h + 8).toFixed(0)}"/>`;
-    // A lit top edge. Flat rectangles read as clip art no matter how good the
-    // palette is; one lighter line along the top is all it takes to turn each
-    // block into a solid sitting under the same sky.
-    mid += `<rect class="rim" x="${x.toFixed(0)}" y="${top.toFixed(0)}" width="${w.toFixed(0)}" height="1.1"/>`;
-    // A narrower block on top. Without setbacks the roofline is a comb of bars
-    // of equal height, which is the single most "clip-art" thing a skyline can do.
-    if (r() > 0.55) {
-      const sw = w * (0.4 + r() * 0.3);
-      const sh = 12 + r() * 26;
-      mid += `<rect class="${t}" x="${(x + (w - sw) / 2).toFixed(0)}" y="${(top - sh).toFixed(0)}" width="${sw.toFixed(0)}" height="${sh.toFixed(0)}"/>`;
-    }
-    if (r() > 0.62)
-      mid += `<rect class="plant" x="${(x + w * 0.28).toFixed(0)}" y="${(top - 6).toFixed(0)}" width="${(w * 0.22).toFixed(0)}" height="6"/>`;
-    if (r() > 0.5)
-      mid += `<rect class="ant" x="${(x + w * 0.68).toFixed(0)}" y="${(top - 18).toFixed(0)}" width="1.2" height="18"/>`;
-    // Most lights are off. A floor that is fully lit is what makes the rest read
-    // as *dark* rather than as an unlit drawing.
-    const lit = r() > 0.82 ? 0.6 : 0.15;
-    for (let wy = top + 9; wy < 346; wy += 12) {
-      for (let wx = x + 5; wx < x + w - 7; wx += 10) {
-        if (r() < lit)
-          win += `<rect class="w${r() > 0.86 ? ' wb' : ''}" x="${wx.toFixed(0)}" y="${wy.toFixed(0)}" width="3.6" height="4.4"/>`;
+  /* ---- rank 2: the glass towers, with the curtain wall as a pattern ----
+   *
+   * One `<pattern>` per axis rather than a few hundred `<rect>`s: the bands are
+   * what carry the material, and a pattern keeps the pitch exact across towers
+   * of different heights. The vertical mullions are a second, much fainter
+   * pattern so a tower face does not read as a barcode. */
+  let towers = '';
+  let towerBands = '';
+  /* Two clusters, with the bay left open between them — a skyline that spans
+     the whole frame has no distance in it, because nothing is in front. */
+  const clusters: Array<[number, number]> = [
+    [-30, 430],
+    [880, 1480],
+  ];
+  for (const [from, to] of clusters) {
+    for (let x = from; x < to; ) {
+      const w = 46 + r() * 74;
+      const h = 90 + r() * 150;
+      const top = 400 - h;
+      const t = tone();
+      towers += `<rect class="${t}" x="${x.toFixed(0)}" y="${top.toFixed(0)}" width="${w.toFixed(0)}" height="${(h + 6).toFixed(0)}"/>`;
+      /* Curtain wall. Two overlay rects per tower, both clipped to the tower's
+         own box so the pattern never spills onto the sky. */
+      const bandRect = (cls: string, x0: number, y0: number, w0: number, h0: number) =>
+        `<rect x="${x0.toFixed(0)}" y="${y0.toFixed(0)}" width="${w0.toFixed(0)}" height="${h0.toFixed(0)}" fill="url(#${cls})"/>`;
+      towerBands += bandRect('sc-lacia-cw', x, top, w, h + 6);
+      towerBands += bandRect('sc-lacia-cwv', x, top, w, h + 6);
+      /* One lit edge along the roof. Flat rectangles read as clip art no matter
+         how good the palette is; a single lighter line turns each block into a
+         volume under the same sky. */
+      towers += `<rect class="rim" x="${x.toFixed(0)}" y="${top.toFixed(0)}" width="${w.toFixed(0)}" height="1.2"/>`;
+      /* Setback. Without them the roofline is a comb of equal bars. */
+      if (r() > 0.5) {
+        const sw = w * (0.42 + r() * 0.28);
+        const sh = 16 + r() * 34;
+        towers += `<rect class="${t}" x="${(x + (w - sw) / 2).toFixed(0)}" y="${(top - sh).toFixed(0)}" width="${sw.toFixed(0)}" height="${sh.toFixed(0)}"/>`;
+        towerBands += bandRect('sc-lacia-cw', x + (w - sw) / 2, top - sh, sw, sh);
+        towerBands += bandRect('sc-lacia-cwv', x + (w - sw) / 2, top - sh, sw, sh);
       }
+      x += w + 6 + r() * 16;
     }
-    x += w + 2 + r() * 8;
   }
 
-  /* ---- rank 4: near. Low and wide, cropped by the parapet below. ---- */
+  /* ---- the elevated expressway ----
+   *
+   * A shallow arc, not a straight bar: a straight deck at this angle reads as a
+   * drawn line, while a 44-unit sag across the frame reads as something 400 m
+   * long seen from the side. The piers are sampled off the same curve, so the
+   * deck can never detach from them. */
+  const DECK = { x0: -40, x1: 1480, y0: 332, y1: 314, cy: 288 };
+  const deckY = (x: number) => {
+    const t = (x - DECK.x0) / (DECK.x1 - DECK.x0);
+    const u = 1 - t;
+    return u * u * DECK.y0 + 2 * u * t * DECK.cy + t * t * DECK.y1;
+  };
+  const deckPath = `M${DECK.x0} ${DECK.y0} Q720 ${DECK.cy} ${DECK.x1} ${DECK.y1}`;
+  let piers = '';
+  for (let x = 90; x < 1440; x += 168) {
+    const y = deckY(x);
+    piers += `<rect class="xw-pier" x="${(x - 3.4).toFixed(1)}" y="${y.toFixed(1)}" width="6.8" height="${(400 - y).toFixed(1)}"/>`;
+    piers += `<rect class="xw-foot" x="${(x - 7).toFixed(1)}" y="${(y + 6).toFixed(1)}" width="14" height="2.4"/>`;
+  }
+  const xway = `
+    ${piers}
+    <path class="xw-deck" d="${deckPath}" fill="none" stroke-width="7.5"/>
+    <path class="xw-rail" d="${deckPath}" fill="none" stroke-width="1.5" transform="translate(0 -3.4)"/>
+    <path class="xw-under" d="${deckPath}" fill="none" stroke-width="2.2" transform="translate(0 5.2)"/>`;
+
+  /* ---- rank 3: near, low and wide, cropped by the parapet ---- */
   let near = '';
   for (let x = -40; x < 1500; ) {
-    const w = 110 + r() * 190;
-    const h = 26 + r() * 44;
+    const w = 130 + r() * 210;
+    const h = 30 + r() * 52;
     near += `<rect class="${tone()}" x="${x.toFixed(0)}" y="${(400 - h).toFixed(0)}" width="${w.toFixed(0)}" height="${h.toFixed(0)}"/>`;
     near += `<rect class="nrim" x="${x.toFixed(0)}" y="${(400 - h).toFixed(0)}" width="${w.toFixed(0)}" height="1.8"/>`;
-    x += w + r() * 34;
+    x += w + r() * 40;
   }
 
-  /* ---- the monolith ----
+  /* ══ the black landmark ═════════════════════════════════════════════════
    *
-   * It used to be a 220 x 270 slab sitting in the same row as the mid band,
-   * and it read as "one more tower". Scale alone was not the problem: a taller
-   * rectangle is still a rectangle. What makes a thing read as **monumental**
-   * is three cues, and this object now has all three.
+   * This is the correction that matters most. The previous version put the
+   * Black Monolith in the *sky* as a 290-wide slab running off the top of the
+   * frame. Two things were wrong with that, and only one of them was scale:
    *
-   * 1. **It has no top.** The slab runs off the top of the frame and fades out
-   *    over its first 40 units, so the eye is never told where it ends. A hard
-   *    cut at the top says "this object is 300 tall"; a fade says "keep
-   *    looking". Its base runs off the bottom for the same reason — you can see
-   *    neither end of it, so you cannot measure it.
+   *   · canonically the monolith is a **device that floats behind her at about
+   *     her own height**, not a building. A second one hanging in the city
+   *     backdrop is a duplicate of a thing the character already carries, and
+   *     at 62 x 96 against a pale sky it read as a bug, not as a monument.
+   *   · a slab with neither end visible only reads as monumental when there is
+   *     a city around it to give it scale. Alone in the sky it reads as an
+   *     unfinished rectangle.
    *
-   * 2. **It is modular.** Nine horizontal seams at a fixed 44-unit pitch, two
-   *    vertical arrises splitting the face into thirds, and two columns of
-   *    service lights at exactly half that pitch. Repetition is what reads as
-   *    *order*, and order is what reads as 森严 — a featureless black slab is
-   *    merely large. The pitch is also the only scale reference on the face:
-   *    44 units against a 290-wide face says "many storeys", and the eye
-   *    extrapolates the height from the count.
+   * So it is now **architecture**: one black glass tower standing in the
+   * right-hand cluster, cropped by the frame at the bottom, taller than
+   * everything around it. It keeps the black accent the palette needs, it has
+   * a roofline so the eye can measure it, and it belongs to the picture.
    *
-   * 3. **It tapers.** The base is 290 wide and the crown 252, so the two side
-   *    edges converge. That is a vertical vanishing point, i.e. the picture is
-   *    looking *up* at it. Without the taper a slab of this size reads as a
-   *    wall; with it, it reads as something you are standing underneath.
-   *
-   * The lighting stays deliberately minimal — one rim on the lit edge, one
-   * seam, one core. A monument lit like a building is a building.
-   *
-   * Placement is constrained, not chosen: `xMidYMax slice` crops the sides on
-   * any viewport narrower than 1440 (at 1080 the visible band is x 198–1242),
-   * and the content column runs x 160–1280, so the slab has to live inside
-   * that band. Its crown is faded precisely so the part that overlaps the
-   * lower end of the post list contributes almost nothing to the pixel. */
-  const MONO = { baseY: 400, topY: -4, xL: 828, xR: 1006, sideR: 1024, taper: 6, taperR: 5 };
-  /** Left/right edge of the front face at height y. */
-  const monoEdge = (y: number) => {
-    const k = (MONO.baseY - y) / (MONO.baseY - MONO.topY);
-    return [MONO.xL + k * MONO.taper, MONO.xR - k * MONO.taperR];
-  };
-
-  /* Horizontal seams, at a 120-unit pitch — four of them across the visible
-     height. Nine at 44 read as a floor count, which is the office-block cue
-     again; four read as the joints of a casting. They are also the only thing
-     giving the face a scale, so they have to be *sparse* to say "each of these
-     is enormous" rather than "each of these is a storey". */
-  let seams = '';
-  for (let y = MONO.baseY - 60, i = 0; y > MONO.topY + 40; y -= 120, i++) {
-    const [xl, xr] = monoEdge(y);
-    seams += `<rect class="l-mono-joint" x="${xl.toFixed(1)}" y="${y.toFixed(1)}" width="${(xr - xl).toFixed(1)}" height="1.4"/>`;
-  }
-
-  /* Vertical arrises: two, at the thirds. They are what gives the face a
-     readable left / centre / right and stops it being one flat fill. */
-  let arris = '';
-  for (const f of [1 / 3, 2 / 3]) {
-    const xb = MONO.xL + (MONO.xR - MONO.xL) * f;
-    const xt = MONO.xL + MONO.taper + (MONO.xR - MONO.xL - MONO.taper - MONO.taperR) * f;
-    arris += `<path class="l-mono-arris" d="M${xb.toFixed(1)} 400 L${xt.toFixed(1)} ${MONO.topY}"/>`;
-  }
-
-  /* No windows, no service lights, no lit floors. This is the one decision in
-     the whole scene that has to go *against* the instinct to add detail:
-     every lit window on a black slab turns it into an office block, because
-     windows are what buildings have. A monument is unlit — that is what makes
-     it read as something at a scale people are not part of. The structure is
-     carried by the seams and the two arrises, and the scale is carried by the
-     fact that you can see neither end of it. */
-
+   * Still unlit — no windows, no service lights. Every lit window on a black
+   * slab turns it back into an office block, because windows are what
+   * buildings have. Structure is carried by two cast joints and one seam. */
+  /* Coffin plan, not a rectangle: the silhouette of the device the character
+     carries, stood up as a building. A plain tapered slab at this width read as
+     a scrollbar no matter how it was shaded — the chamfered shoulders are what
+     make the shape recognisable in one glance, and they are the one thing that
+     connects the backdrop to the character. */
+  const MONO = { xL: 1288, xR: 1396, top: 206, chamfer: 15, side: 13 };
   const mono = `
     <defs>
       <linearGradient id="sc-lacia-mono-face" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0" class="mf0"/><stop offset="0.58" class="mf1"/><stop offset="1" class="mf2"/>
+        <stop offset="0" class="mf0"/><stop offset="0.55" class="mf1"/><stop offset="1" class="mf2"/>
       </linearGradient>
       <linearGradient id="sc-lacia-mono-side" x1="0" y1="0" x2="1" y2="0">
         <stop offset="0" class="ms0"/><stop offset="1" class="ms1"/>
       </linearGradient>
-      <linearGradient id="sc-lacia-mono-fade" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#fff" stop-opacity="0"/>
-        <stop offset="0.035" stop-color="#fff" stop-opacity="0.46"/>
-        <stop offset="0.08" stop-color="#fff" stop-opacity="0.9"/>
-        <stop offset="0.13" stop-color="#fff" stop-opacity="1"/>
-      </linearGradient>
-      <mask id="sc-lacia-mono-mask">
-        <rect x="812" y="-10" width="226" height="424" fill="url(#sc-lacia-mono-fade)"/>
-      </mask>
-      <filter id="sc-lacia-soft" x="-40%" y="-40%" width="180%" height="180%">
-        <feGaussianBlur stdDeviation="5"/>
+      <filter id="sc-lacia-soft" x="-60%" y="-60%" width="220%" height="220%">
+        <feGaussianBlur stdDeviation="4.2"/>
       </filter>
     </defs>
-    <g class="l-mono" mask="url(#sc-lacia-mono-mask)">
-      <path class="l-mono-side" d="M${MONO.xR} 400 L${MONO.xR - MONO.taperR} ${MONO.topY} L${MONO.sideR - MONO.taperR} ${MONO.topY} L${MONO.sideR} 400 Z" fill="url(#sc-lacia-mono-side)"/>
-      <path class="l-mono-body" d="M${MONO.xL} 400 L${MONO.xL + MONO.taper} ${MONO.topY} L${MONO.xR - MONO.taperR} ${MONO.topY} L${MONO.xR} 400 Z" fill="url(#sc-lacia-mono-face)"/>
-      ${seams}${arris}
-      <path class="l-mono-seam" d="M919 400 L917.6 ${MONO.topY}"/>
-      <path class="l-mono-glow" d="M919 400 L917.6 ${MONO.topY}"/>
-      <circle class="l-mono-core" cx="918" cy="232" r="3.4"/>
-      <circle class="l-mono-core-halo" cx="918" cy="232" r="13" filter="url(#sc-lacia-soft)"/>
-      <path class="l-mono-plinth" d="M${MONO.xL + 4} 352 L${MONO.xR - 4} 352 M${MONO.xL + 10} 362 L${MONO.xR - 10} 362"/>
-      <path class="l-mono-edge" d="M${MONO.xL + MONO.taper} ${MONO.topY} L${MONO.xR - MONO.taperR} ${MONO.topY} M${MONO.xR - MONO.taperR} ${MONO.topY} L${MONO.sideR - MONO.taperR} ${MONO.topY} L${MONO.sideR} 400 M${MONO.xR} 400 L${MONO.xR - MONO.taperR} ${MONO.topY}"/>
+    <g class="l-mono">
+      <path class="l-mono-side" d="M${MONO.xR} 400 L${MONO.xR} ${MONO.top + MONO.chamfer} L${MONO.xR + MONO.side} ${MONO.top + MONO.chamfer} L${MONO.xR + MONO.side} 400 Z" fill="url(#sc-lacia-mono-side)"/>
+      <path class="l-mono-body" d="M${MONO.xL} 400 L${MONO.xL} ${MONO.top + MONO.chamfer} L${MONO.xL + MONO.chamfer} ${MONO.top} L${MONO.xR - MONO.chamfer} ${MONO.top} L${MONO.xR} ${MONO.top + MONO.chamfer} L${MONO.xR} 400 Z" fill="url(#sc-lacia-mono-face)"/>
+      <path class="l-mono-joint" d="M${MONO.xL + 4} ${MONO.top + 96} L${MONO.xR - 4} ${MONO.top + 96} M${MONO.xL + 8} ${MONO.top + 206} L${MONO.xR - 8} ${MONO.top + 206}"/>
+      <path class="l-mono-seam" d="M${(MONO.xL + MONO.xR) / 2} ${MONO.top + 8} L${(MONO.xL + MONO.xR) / 2} 400"/>
+      <path class="l-mono-glow" d="M${(MONO.xL + MONO.xR) / 2} ${MONO.top + 8} L${(MONO.xL + MONO.xR) / 2} 400"/>
+      <circle class="l-mono-core" cx="${(MONO.xL + MONO.xR) / 2}" cy="${MONO.top + 58}" r="2.6"/>
+      <circle class="l-mono-core-halo" cx="${(MONO.xL + MONO.xR) / 2}" cy="${MONO.top + 58}" r="10" filter="url(#sc-lacia-soft)"/>
+      <path class="l-mono-cornice" d="M${MONO.xL} ${MONO.top + MONO.chamfer} L${MONO.xL + MONO.chamfer} ${MONO.top} L${MONO.xR - MONO.chamfer} ${MONO.top} L${MONO.xR} ${MONO.top + MONO.chamfer} L${MONO.xR + MONO.side} ${MONO.top + MONO.chamfer}"/>
+      <path class="l-mono-edge" d="M${MONO.xR} 400 L${MONO.xR} ${MONO.top + MONO.chamfer} L${MONO.xR + MONO.side} ${MONO.top + MONO.chamfer} M${MONO.xL} ${MONO.top + MONO.chamfer} L${MONO.xL + MONO.chamfer} ${MONO.top}"/>
     </g>`;
 
-  /* ---- atmosphere: the air between the camera and rank 3 ----
-   *
-   * Deliberately drawn *behind* the monolith and the near band. Painted last,
-   * as it used to be, it washed the monolith's base and the slab floated. */
-  const haze = `<rect class="l-haze" x="0" y="318" width="1440" height="82"/>`;
-
   /* ---- aircraft: three dashes and a trail. At this size that is all it takes
-   * to put something at a known distance in the sky, which is what stops the
-   * upper half of the frame from being empty paper. ---- */
+   * to put something at a known distance in the sky. ---- */
   const craft = (x: number, y: number, s: number) =>
     `<g class="l-craft" transform="translate(${x} ${y}) scale(${s})">
        <rect x="-30" y="1.1" width="28" height="0.9" class="l-trail"/>
        <path d="M0 0 L15 2.1 L15 3.1 L0 2.1 Z"/>
        <path d="M5.4 1.9 L8.6 -2.6 L9.8 -2.6 L7.4 1.9 Z"/>
      </g>`;
-  const craft_ = craft(560, 132, 1.5) + craft(1180, 96, 1.05) + craft(300, 214, 0.8);
+  const craft_ = craft(430, 118, 1.5) + craft(1180, 78, 1.05) + craft(268, 176, 0.8);
 
   /* ---- the parapet: the camera is on a roof ----
    *
-   * The single most effective depth cue in the picture, and the one thing the
-   * first two versions were missing entirely: a hard-edged foreground object
-   * that overlaps the ranks behind it. Two lamp posts give it a known height. */
+   * Kept from the previous version because it is right: it is the one hard
+   * foreground edge, and it is what tells the eye the city is *below*. */
   const lamp = (x: number, top: number, h: number) =>
     `<rect class="fg-post" x="${x}" y="${top}" width="3.4" height="${h}"/>
      <rect class="fg-arm" x="${x - 1}" y="${top}" width="15" height="2.6"/>
@@ -641,16 +636,51 @@ function lacia(): string {
   fg += lamp(176, 292, 80) + lamp(1252, 300, 72);
 
   // Floating hexagonal frames — the "analog hack" made visible. Kept out of the
-  // monolith's half of the frame: they are a texture, and a texture on top of
-  // the subject is just noise.
+  // device's half of the frame: they are a texture, and a texture on top of the
+  // subject is just noise.
   const hex = (i: number, x: number, y: number, s: number) =>
     `<g class="l-hex l-hex-${i}" transform="translate(${x} ${y}) scale(${(s / 22).toFixed(2)})"><path d="M0 -22 L19 -11 L19 11 L0 22 L-19 11 L-19 -11Z"/></g>`;
-  const rings = hex(1, 268, 158, 26) + hex(2, 430, 210, 15) + hex(3, 214, 232, 9);
+  const rings = hex(1, 244, 150, 26) + hex(2, 402, 202, 15) + hex(3, 196, 222, 9);
+
+  /* Curtain-wall patterns live in one <defs> block. Two axes, one pitch: the
+     horizontal is the material, the vertical is only there so the face is not
+     a barcode. Both are deliberately faint — at 45% veil they have to survive
+     as texture and disappear as pattern. */
+  /* ---- clouds ----
+   *
+   * The old plate had a *blank* sky over two thirds of the frame, which is why
+   * it read as empty paper rather than as weather. On a coastal city the sky
+   * is the subject as much as the buildings are: a few flat, very low-contrast
+   * bands at different heights do more for "this is a place" than any amount
+   * of extra window detail, and because they are horizontal and soft they cost
+   * nothing in readability.
+   *
+   * Drawn as blurred ellipses rather than paths on purpose: a hard cloud edge
+   * at this scale turns into a paper cut-out. */
+  const cloud = (x: number, y: number, w: number, h: number, o: number) =>
+    `<ellipse class="cl" cx="${x}" cy="${y}" rx="${w}" ry="${h}" opacity="${o}"/>`;
+  const clouds =
+    cloud(240, 196, 300, 26, 0.55) +
+    cloud(430, 176, 220, 20, 0.4) +
+    cloud(900, 232, 360, 24, 0.5) +
+    cloud(1180, 186, 250, 18, 0.35) +
+    cloud(620, 262, 480, 30, 0.45) +
+    cloud(120, 250, 260, 22, 0.3);
+
+  const cwDefs = `
+    <defs>
+      <pattern id="sc-lacia-cw" width="7" height="9.5" patternUnits="userSpaceOnUse">
+        <rect x="0" y="7.4" width="7" height="1.15" class="cw-h"/>
+      </pattern>
+      <pattern id="sc-lacia-cwv" width="13" height="9.5" patternUnits="userSpaceOnUse">
+        <rect x="11.4" y="0" width="0.9" height="9.5" class="cw-v"/>
+      </pattern>
+    </defs>`;
 
   return [
     '<div class="l-bloom"></div>',
-    svg('sc-far', `${glow}<g class="l-far2">${far2}</g><g class="l-far1">${far1}</g>${craft_}`),
-    svg('sc-mid', `<g class="l-mid">${mid}</g><g class="l-win">${win}</g>${haze}`),
+    svg('sc-far', `${cwDefs}<filter id="sc-lacia-cloud" x="-30%" y="-120%" width="160%" height="340%"><feGaussianBlur stdDeviation="9"/></filter><g class="l-clouds" filter="url(#sc-lacia-cloud)">${clouds}</g><ellipse class="l-hglow" cx="1008" cy="${HORIZON}" rx="520" ry="78"/><g class="l-shore">${shore}</g>${sea}${craft_}`),
+    svg('sc-mid', `<g class="l-mid">${towers}</g><g class="l-cw">${towerBands}</g><g class="l-xway">${xway}</g>`),
     svg('sc-mono', `${mono}`),
     svg('sc-near', `${rings}<g class="l-near">${near}</g>`),
     svg('sc-fg', fg),
