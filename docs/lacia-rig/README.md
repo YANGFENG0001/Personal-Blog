@@ -683,6 +683,80 @@ D:/Comfy-Desktop/ComfyUI-Installs/ComfyUI/ComfyUI/.venv/Scripts/python.exe \
 
 **人物本体一个像素都没改**，只是被切成了能独立变换的部件。
 
+### 6.1 第二套皮肤：蓝裙也要是骨架，不是一张图
+
+用户的要求是"同级别"——所以不能拿静态立绘糊过去（那样会丢掉关节、表情、口型和武器接触）。
+做法是**再造一副同构的 30 层**，让 `LaciaSkin` 二选一。
+
+流程五步，每一步都有一个能毁掉整件事的坑：
+
+1. **换装**：以 `lacia_idle.png`（原立绘）作为 img2img 的结构输入，prompt 只描述衣服。
+   用别的立绘当参考会让姿势漂移，枢轴就全废了。
+2. **对齐**：把生成图的 alpha bbox 缩放到与原立绘**完全相同的 bbox**。这一步之后，
+   两套画布是 493×1275 与 493×1276 —— 差 1px，所有手工枢轴（肩、髋、脖）直接通用。
+3. **拆层**：同一个 See-through 工作流（`.ref/seethrough_prompt.json`），只改输入图与前缀。
+   `.ref/` 是 gitignored 的草稿目录、不随仓库走；蓝裙那一次实际用的工作流已归档到
+   `docs/seethrough-dress/workflow.json`，可以直接 POST `/prompt` 复现。
+4. **后处理**：见下面的清单，四件事缺一不可。
+5. **导出**：`export_assets.py` 带 `--src/--meta/--out/--ts/--name`，写到独立目录和独立
+   `parts-dress.ts`，绝不覆盖原皮肤。转正后的素材在 `docs/seethrough-dress/`，
+   重跑一次 `parts-dress.ts` 与 30 张 webp 应当字节一致（见该目录的 README）。
+
+**坑一：裙摆会抢走整条手臂。** 第一版立绘是蓬 A 字裙，See-through 把**整条裙摆**
+判给了 `handwear-l`（左臂），三层全是裙子，左手彻底丢失，脸上还多了一块灰色。
+换 seed 不是解法——蓬裙和手臂在空间上重叠，模型只能二选一。真正的解法是**改图**：
+把裙摆画成贴腿的直筒，让手臂和裙子之间有可见间隙。第二版就干净了。
+
+**坑二：鞋子整层丢失。** 第二版 21 层里没有 `footwear`，脚是裸的。低跟鞋在模型眼里
+不像"鞋"（没有靴筒）。补法是几何的：鞋是膝以下唯一的近黑区域，从对齐图按
+`亮度 < 340` 取连通域、填洞，再按 `X = 388.6 + x·0.852` 映射回 1280 画布，作为
+`footwear` 层塞回 `layers.json`。
+
+**坑三：关节枢轴——复用和自动测量都不对，要用"自洽"的那组。**
+`cut_at` 找的是"层内最窄行"，而这个层被裙摆切掉了大腿，于是膝落在小腿肚（1018，真实约 843）。
+`--reuse-pivots` 看着能救，其实更糟：它只覆盖**输出的枢轴值**，`split_joint` 仍按测量值切分，
+结果小腿在 1018 被切开、却绕 843 旋转，页面上是一道水平断裂。
+**结论：枢轴与切分点必须来自同一次测量。** 自动测量偏低是"可接受的解剖误差"，
+不自洽是"腿断成两截"，两者不是一个量级。`--reuse-pivots` 保留在脚本里，但只在
+"新皮肤的服装没有改变轮廓"时才是对的。
+
+**坑四：抠图留下两样东西。** 一是**腿部深色补丁**（生成图的错误阴影，位置偏高、边缘锐利，
+在深色背景上像贴了两块胶布）；二是**边缘白边**（泛洪抠图后，半透明像素的 RGB 仍是白底，
+124px 显示时是一条亮线贯穿手臂）。两者都在原始层上修，修完再导出：
+
+```python
+# 补丁：向肤色中位数插值 75%，保留一点形状
+soft = gaussian_filter(mask.astype(float), 3); soft = clip(soft * 1.6, 0, 1)[..., None]
+rgb = rgb * (1 - 0.75 * soft) + skin_median * (0.75 * soft)
+
+# 白边：每个半透明像素借用最近的不透明像素的颜色（alpha 不动）
+ind = distance_transform_edt(~opaque, return_distances=False, return_indices=True)
+rgb[edge] = rgb[ind[0], ind[1]][edge]
+```
+
+**还有一处不是像素问题，是布局问题：`device lock` 压在了裙子上。**
+它是 z-index 8 的半透明浅色板，在战斗服上正好落在白色髋甲里，谁也看不出来；
+同一位置在蓝裙上就是裙摆中部，一块浅色四翼形状读作"裙子破了个洞"。
+锁扣的位置因此进了 `LaciaSkin`（`lock`），蓝裙把它挪到腰带（y 388）。
+
+### 6.2 接入：一个 `LaciaSkin` 装下全部差异
+
+```ts
+export interface LaciaSkin {
+  base: string;                    // 位图目录
+  parts: readonly LaciaPart[];     // 30 层坐标
+  knee / elbow / wrist / ankle;    // 关节（身体属性）
+  bone?: Record<string, LaciaBone>;// 新层名 → 骨骼（bottomwear → torso）
+  lock?: readonly [number, number];
+}
+export const LACIA_SKINS = { suit, dress } as const;
+```
+
+`rig.ts` 里 `PIVOT` 拆成 `FIXED_PIVOT`（手工，跨皮肤通用）+ `pivotTable(skin)`；
+`ARM_CHAIN` 变成 `armChain(skin)`；类里存 `this.pivot` / `this.limbs`。
+**五官变体（4 眉 × 2 + 6 嘴）跨皮肤共享**：那是同一个人的眉毛，而且两套的眉位差
+(2,1)、嘴位差 (1,1)，在 9px 的显示尺寸下不可见。为每套衣服重切 14 个文件没有收益。
+
 ## 7. 已知取舍
 
 - 上下身没有分开：`topwear` 在拆层里是整块装甲，腰部分不开，所以「弯腰」这类动作做不了，

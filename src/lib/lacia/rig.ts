@@ -25,6 +25,8 @@
  * so the offset is zero at rest and can never oppose the head.
  */
 import { LACIA_ANKLE, LACIA_CANVAS, LACIA_ELBOW, LACIA_KNEE, LACIA_PARTS, LACIA_WRIST } from './parts';
+import { DRESS_ANKLE, DRESS_ELBOW, DRESS_KNEE, DRESS_PARTS, DRESS_WRIST } from './parts-dress';
+import type { LaciaPart } from './parts';
 import { FACE_IDS, FACE_PAD, FORM_FACE, STATE_FACE, BLUSH_STATES, browParts, mouthParts, type BrowVariant, type MouthVariant } from './face';
 import { buildScript, type SayLine, type VisemeCue } from '../viseme';
 import { LACIA_FORM_ORDER, type LaciaForm } from './lines';
@@ -77,8 +79,83 @@ const BONE_OF: Record<string, LaciaBone> = {
   topwear: 'torso',
 };
 
+/* ── skins ────────────────────────────────────────────────────────────────
+ *
+ * A skin is one character in one outfit: the same 30 parts cut out of different
+ * artwork. Two properties make a second skin cheap.
+ *
+ * **Canvas and pose must match**, because the pivots below that are not joints —
+ * shoulder, hips, neck — are hand-placed in canvas coordinates. The blue-dress
+ * sheet was generated from the battle-suit sheet as a structural reference and
+ * then aligned to its alpha bbox, so its canvas is 493x1275 against 493x1276 and
+ * every hand-placed pivot transfers unchanged.
+ *
+ * **Joints are body properties, not garment properties**, so they transfer too.
+ * `export_assets.py` can measure them, but only through a silhouette that
+ * actually pinches at the joint — on this skin the skirt hides the thigh, so the
+ * narrowest row of the leg is the calf and the measured knee lands 175 px low.
+ * That is what `--reuse-pivots` exists for.
+ */
+export interface LaciaSkin {
+  /** Bitmap directory, with trailing slash. */
+  base: string;
+  parts: readonly LaciaPart[];
+  knee: { readonly r: readonly [number, number]; readonly l: readonly [number, number] };
+  elbow: { readonly r: readonly [number, number]; readonly l: readonly [number, number] };
+  wrist: { readonly r: readonly [number, number]; readonly l: readonly [number, number] };
+  ankle: { readonly r: readonly [number, number]; readonly l: readonly [number, number] };
+  /** Layer ids this skin introduces that the base bone map does not know. */
+  bone?: Readonly<Record<string, LaciaBone>>;
+  /**
+   * Where the device lock sits, in canvas px (top-left of its 200x90 box).
+   *
+   * It has to follow the outfit: the lock is a translucent pale plate at
+   * z-index 8, so it paints over the torso. On the battle suit it lands on the
+   * white hip armour and disappears into it; on the dress the same position is
+   * the middle of the skirt, where a pale four-blade shape reads as a hole torn
+   * in the fabric. Its real place is the waist, and the waist is the one thing
+   * about a body that clothing does move.
+   */
+  lock?: readonly [number, number];
+}
+
+const SUIT_SKIN: LaciaSkin = {
+  base: '/lacia-rig/parts/',
+  parts: LACIA_PARTS,
+  knee: LACIA_KNEE,
+  elbow: LACIA_ELBOW,
+  wrist: LACIA_WRIST,
+  ankle: LACIA_ANKLE,
+};
+
+/**
+ * The blue dress. See-through split it into `topwear` + `bottomwear` instead of
+ * welding the skirt to the bodice, which is the right call — a skirt hangs from
+ * the waist and a bodice from the chest. Both ride `torso` here, so they can
+ * never separate at the belt.
+ */
+const DRESS_SKIN: LaciaSkin = {
+  base: '/lacia-rig/dress/',
+  parts: DRESS_PARTS,
+  knee: DRESS_KNEE,
+  elbow: DRESS_ELBOW,
+  wrist: DRESS_WRIST,
+  ankle: DRESS_ANKLE,
+  bone: { bottomwear: 'torso' },
+  /* The belt sits at canvas y 420-446; the lock is 90 tall, so its box starts
+     388. x keeps the default 146 — the belt centre is ~250 and the box centres
+     at +100. */
+  lock: [150, 388],
+};
+
+export const LACIA_SKINS = { suit: SUIT_SKIN, dress: DRESS_SKIN } as const;
+export type LaciaSkinId = keyof typeof LACIA_SKINS;
+
 /** Joint positions, in canvas px. */
-const PIVOT: Record<LaciaBone, readonly [number, number]> = {
+type JointBone = 'kneeR' | 'kneeL' | 'elbowR' | 'elbowL' | 'wristR' | 'wristL' | 'ankleR' | 'ankleL';
+
+/** Pivots that do not move between skins: hand-placed, not measured. */
+const FIXED_PIVOT: Record<Exclude<LaciaBone, JointBone>, readonly [number, number]> = {
   root: [246, 700],
   hips: [246, 700],
   spine: [246, 700],
@@ -92,31 +169,29 @@ const PIVOT: Record<LaciaBone, readonly [number, number]> = {
   armL: [318, 250],
   legR: [200, 500],
   legL: [300, 500],
-  /* Measured by `export_assets.py` as the narrowest row of each leg's
-     silhouette, so it stays correct if the layers are ever re-split. */
-  kneeR: LACIA_KNEE.r,
-  kneeL: LACIA_KNEE.l,
-  elbowR: LACIA_ELBOW.r,
-  elbowL: LACIA_ELBOW.l,
-  /* The wrist is measured *inside the forearm crop* — searching the whole arm
-     for the narrowest row finds this same point, but searching it for "the
-     elbow" finds it too, which is how the first rig ended up with a hand that
-     swivelled on the elbow. */
-  wristR: LACIA_WRIST.r,
-  wristL: LACIA_WRIST.l,
-  /* The boot cuff. The boot is one piece, so this pivot is the only thing that
-     separates the ankle from the shin. */
-  ankleR: LACIA_ANKLE.r,
-  ankleL: LACIA_ANKLE.l,
 };
 
-const EYE = new Set(['eyewhite-r', 'eyewhite-l', 'irides-r', 'irides-l', 'eyelash-r', 'eyelash-l']);
+function pivotTable(skin: LaciaSkin): Record<LaciaBone, readonly [number, number]> {
+  return {
+    ...FIXED_PIVOT,
+    kneeR: skin.knee.r,
+    kneeL: skin.knee.l,
+    elbowR: skin.elbow.r,
+    elbowL: skin.elbow.l,
+    wristR: skin.wrist.r,
+    wristL: skin.wrist.l,
+    ankleR: skin.ankle.r,
+    ankleL: skin.ankle.l,
+  };
+}
 
-const DEFAULT_BASE = '/lacia-rig/parts/';
+const EYE = new Set(['eyewhite-r', 'eyewhite-l', 'irides-r', 'irides-l', 'eyelash-r', 'eyelash-l']);
 
 export interface LaciaRigOptions {
   /** Directory holding the part bitmaps. */
   base?: string;
+  /** Which outfit the figure wears. Defaults to the battle suit. */
+  skin?: LaciaSkinId;
   /** Namespace for the device's gradient ids; one per mounting variant. */
   uid?: string;
   /** Skip the animation loop (prefers-reduced-motion / 动效关闭). */
@@ -131,7 +206,7 @@ export interface LaciaRigOptions {
 
 /* ── markup ─────────────────────────────────────────────────────────────── */
 
-const deviceLock = `<svg class="lr-device-lock" viewBox="0 0 200 90" aria-hidden="true">
+const deviceLock = (pos?: readonly [number, number]) => `<svg class="lr-device-lock" viewBox="0 0 200 90" aria-hidden="true"${pos ? ` style="left:${pos[0]}px;top:${pos[1]}px"` : ''}>
             <g class="lr-dl-plate"><path d="M100 45 L58 31 L40 42 L60 54 Z"/></g>
             <g class="lr-dl-plate"><path d="M100 45 L58 59 L40 48 L60 36 Z"/></g>
             <g class="lr-dl-plate"><path d="M100 45 L142 31 L160 42 L140 54 Z"/></g>
@@ -139,15 +214,16 @@ const deviceLock = `<svg class="lr-device-lock" viewBox="0 0 200 90" aria-hidden
             <circle class="lr-dl-core" cx="100" cy="45" r="4.5"/>
           </svg>`;
 
-function partsFor(base: string): Record<string, string> {
+function partsFor(skin: LaciaSkin): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const p of LACIA_PARTS) {
+  const boneOf = skin.bone ? { ...BONE_OF, ...skin.bone } : BONE_OF;
+  for (const p of skin.parts) {
     /* Brows and mouth are replaced by the variant stack below — the raw
        exports would otherwise sit under it and show through the cross-fade. */
     if (FACE_IDS.has(p.id)) continue;
-    const bone = BONE_OF[p.id] ?? 'head';
+    const bone = boneOf[p.id] ?? 'head';
     const img =
-      `<img class="lr-part" src="${base}${p.file}" alt="" draggable="false" decoding="async"` +
+      `<img class="lr-part" src="${skin.base}${p.file}" alt="" draggable="false" decoding="async"` +
       ` width="${p.w}" height="${p.h}"` +
       ` style="left:${p.x}px;top:${p.y}px;width:${p.w}px;height:${p.h}px;z-index:${p.z}">`;
     out[bone] = (out[bone] ?? '') + img;
@@ -157,10 +233,23 @@ function partsFor(base: string): Record<string, string> {
 
 /** One stacked image per variant; `opacity` picks the shape, not `src`, so a
  *  change cross-fades instead of flashing an unloaded file. */
-function faceStack(base: string): string {
+/**
+ * The feature variants (4 brows x 2 sides, 6 mouths) are *character* assets, not
+ * costume ones: they are the same person's eyebrows in either outfit, and
+ * `face.ts` hard-codes their canvas positions from the battle-suit split. Every
+ * skin shares the original directory and coordinates.
+ *
+ * That works because the skins are pose- and canvas-aligned: on the blue dress
+ * the brow lands at (187,94) against (185,93) and the mouth at (231,163) against
+ * (230,162) — 1–2 px, invisible at the 9 px the feature is actually drawn at.
+ * Re-cutting 14 variant files per outfit would buy nothing.
+ */
+const FACE_BASE = '/lacia-rig/parts/';
+
+function faceStack(): string {
   const img = (p: { file: string; x: number; y: number; w: number; h: number; z: number }, v: string, group: string, on: boolean) =>
     `<img class="lr-part lr-face" data-face="${group}" data-v="${v}"${on ? ' data-on' : ''}` +
-    ` src="${base}${p.file}" alt="" draggable="false" decoding="async"` +
+    ` src="${FACE_BASE}${p.file}" alt="" draggable="false" decoding="async"` +
     ` width="${p.w}" height="${p.h}"` +
     ` style="left:${p.x}px;top:${p.y}px;width:${p.w}px;height:${p.h}px;z-index:${p.z}">`;
 
@@ -181,16 +270,17 @@ const blush = `<div class="lr-blush" style="left:188px;top:141px;width:34px;heig
  * Server-renderable skeleton. The island renders this string so the figure is
  * painted before any JavaScript runs; `LaciaRig` then adopts the same nodes.
  */
-export function laciaMarkup(opts: { base?: string; uid?: string } = {}): string {
-  const base = opts.base ?? DEFAULT_BASE;
+export function laciaMarkup(opts: { base?: string; uid?: string; skin?: LaciaSkinId } = {}): string {
+  const skin = opts.skin ? LACIA_SKINS[opts.skin] : SUIT_SKIN;
+  const base = opts.base ?? skin.base;
   const uid = opts.uid ?? 'lacia-mono';
-  const p = partsFor(base);
+  const p = partsFor({ ...skin, base });
   return `<div class="lr-stage">
       <div class="lr-bones">
         <div class="lr-bone lr-hairback" data-bone="hairBack">${p.hairBack ?? ''}</div>
         <div class="lr-bone lr-root" data-bone="root">
           <div class="lr-bone lr-hips" data-bone="hips">
-            ${deviceLock}
+            ${deviceLock(skin.lock)}
             <div class="lr-bone lr-leg" data-bone="legR">
               <div class="lr-bone lr-knee" data-bone="kneeR">
                 <div class="lr-bone lr-ankle" data-bone="ankleR">${p.ankleR ?? ''}</div>${p.kneeR ?? ''}
@@ -215,7 +305,7 @@ export function laciaMarkup(opts: { base?: string; uid?: string } = {}): string 
                 </div>
                 <div class="lr-bone lr-torso" data-bone="torso">${p.torso ?? ''}</div>
                 <div class="lr-bone lr-neck" data-bone="neck">${p.neck ?? ''}
-                  <div class="lr-bone lr-head" data-bone="head">${p.head ?? ''}${blush}${faceStack(base)}
+                  <div class="lr-bone lr-head" data-bone="head">${p.head ?? ''}${blush}${faceStack()}
                     <div class="lr-bone lr-hairfront" data-bone="hairFront">${p.hairFront ?? ''}</div>
                   </div>
                 </div>
@@ -328,20 +418,30 @@ const matInv = (m: Mat): Mat => {
  * chest, which is the only case this is used for, so the "elbow down" branch is
  * taken unconditionally.
  */
-const ARM_CHAIN = (() => {
+type ArmChain = Record<
+  'r' | 'l',
+  {
+    shoulder: readonly [number, number];
+    elbow: readonly [number, number];
+    palm: readonly [number, number];
+  }
+>;
+
+function armChain(skin: LaciaSkin): ArmChain {
+  const piv = pivotTable(skin);
   const palmOf = (id: string) => {
-    const p = LACIA_PARTS.find((q) => q.id === id);
+    const p = skin.parts.find((q) => q.id === id);
     if (!p) return [0, 0] as const;
     return [p.x + p.w / 2, p.y + p.h / 2] as const;
   };
   return {
-    r: { shoulder: PIVOT.armR, elbow: PIVOT.elbowR, palm: palmOf('handwear-r-hand') },
-    l: { shoulder: PIVOT.armL, elbow: PIVOT.elbowL, palm: palmOf('handwear-l-hand') },
+    r: { shoulder: piv.armR, elbow: piv.elbowR, palm: palmOf('handwear-r-hand') },
+    l: { shoulder: piv.armL, elbow: piv.elbowL, palm: palmOf('handwear-l-hand') },
   };
-})();
+}
 
-function armIk(side: 'r' | 'l', tx: number, ty: number): { arm: number; elbow: number } {
-  const { shoulder: S, elbow: E, palm: M } = ARM_CHAIN[side];
+function armIk(chain: ArmChain, side: 'r' | 'l', tx: number, ty: number): { arm: number; elbow: number } {
+  const { shoulder: S, elbow: E, palm: M } = chain[side];
   const ux = E[0] - S[0];
   const uy = E[1] - S[1];
   const wx = M[0] - E[0];
@@ -592,6 +692,10 @@ export class LaciaRig {
   private mouthVariant: MouthVariant = 'neutral';
   private readonly monolith: SVGElement;
   private readonly lock: SVGElement | null;
+  /** Joint table for this figure's outfit. Joints are body, not garment. */
+  private readonly pivot: Record<LaciaBone, readonly [number, number]>;
+  /** Shoulder / elbow / palm in canvas coords, for the two-bone IK. */
+  private readonly limbs: ArmChain;
 
   private form: LaciaForm = 'coffin';
   private state: LaciaState = 'idle';
@@ -724,18 +828,21 @@ export class LaciaRig {
   private readonly opts: Required<Pick<LaciaRigOptions, 'base' | 'uid' | 'autoForms'>> & LaciaRigOptions;
 
   constructor(host: HTMLElement, opts: LaciaRigOptions = {}) {
-    this.opts = { base: DEFAULT_BASE, uid: 'lacia-mono', autoForms: false, ...opts };
+    const skin = LACIA_SKINS[opts.skin ?? 'suit'];
+    this.pivot = pivotTable(skin);
+    this.limbs = armChain(skin);
+    this.opts = { base: skin.base, uid: 'lacia-mono', autoForms: false, ...opts };
     this.energy = opts.energy ?? 1;
     this.reduced = opts.reduced ?? false;
 
     host.classList.add('lr');
-    if (!host.querySelector('.lr-stage')) host.innerHTML = laciaMarkup({ base: this.opts.base, uid: this.opts.uid });
+    if (!host.querySelector('.lr-stage')) host.innerHTML = laciaMarkup({ base: this.opts.base, uid: this.opts.uid, skin: opts.skin });
     this.el = host;
 
     host.querySelectorAll<HTMLElement>('[data-bone]').forEach((el) => {
       const bone = el.dataset.bone as LaciaBone;
       this.bones.set(bone, el);
-      const p = PIVOT[bone];
+      const p = this.pivot[bone];
       // The back hair gets a composed matrix instead of a pivot rotation.
       if (bone === 'hairBack') el.style.transformOrigin = '0px 0px';
       else if (p) el.style.transformOrigin = `${p[0]}px ${p[1]}px`;
@@ -1155,7 +1262,7 @@ export class LaciaRig {
         const mon = plant.frame === 'device' ? this.monMatrix() : null;
         const [wx, wy] = matPt(mon ?? wHips, plant.at[0], plant.at[1]);
         const [tx, ty] = matPt(matInv(wChest), wx, wy);
-        const sol = armIk('l', tx, ty);
+        const sol = armIk(this.limbs, 'l', tx, ty);
         armLTarget = sol.arm;
         elbowLTarget = sol.elbow;
       }
@@ -1477,7 +1584,7 @@ export class LaciaRig {
 
     /* The back hair lives outside the body chain (it must paint behind it), so
        it gets the composed world matrix of the head instead. */
-    const hairB = matMul(worldHead, matAbout(matRot(S.hairBWorld.x - phi), PIVOT.hairBack[0], PIVOT.hairBack[1]));
+    const hairB = matMul(worldHead, matAbout(matRot(S.hairBWorld.x - phi), this.pivot.hairBack[0], this.pivot.hairBack[1]));
     put('hairBack', `matrix(${hairB.map((n) => f(n)).join(',')})`);
 
     put('armR', `rotate(${f(S.armRR.x)}deg)`);

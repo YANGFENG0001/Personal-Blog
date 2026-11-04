@@ -12,12 +12,14 @@
  * before hydration; the class then adopts the same nodes instead of rebuilding.
  */
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { LaciaRig, laciaMarkup, type LaciaForm } from '../../lib/lacia/rig';
+import { LaciaRig, laciaMarkup, type LaciaForm, type LaciaSkinId } from '../../lib/lacia/rig';
 import { LACIA_FORM_LABELS, LACIA_FORM_ORDER, LACIA_FORMS, LACIA_QUOTES } from '../../lib/lacia/lines';
 import '../../styles/lacia-rig.css';
 
 interface Props {
   variant?: 'mascot' | 'stage';
+  /** Which outfit she wears; both are the same rig. */
+  skin?: LaciaSkinId;
   /** Cycle the device through its forms while idle. */
   autoForms?: boolean;
 }
@@ -37,7 +39,7 @@ function Chars({ text, delay = 0, speed = 26 }: { text: string; delay?: number; 
   );
 }
 
-export default function LaciaRigIsland({ variant = 'mascot', autoForms = false }: Props) {
+export default function LaciaRigIsland({ variant = 'mascot', skin = 'suit', autoForms = false }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const rigRef = useRef<LaciaRig | null>(null);
   const nRef = useRef(0);
@@ -69,6 +71,7 @@ export default function LaciaRigIsland({ variant = 'mascot', autoForms = false }
 
     const rig = new LaciaRig(host, {
       uid: `lacia-${variant}`,
+      skin,
       autoForms,
       reduced,
       onForm: (f, manual) => {
@@ -106,9 +109,9 @@ export default function LaciaRigIsland({ variant = 'mascot', autoForms = false }
       rig.destroy();
       rigRef.current = null;
     };
-  }, [variant, autoForms]);
+  }, [variant, skin, autoForms]);
 
-  const markup = laciaMarkup({ uid: `lacia-${variant}` });
+  const markup = laciaMarkup({ uid: `lacia-${variant}`, skin });
 
   /* ── corner mascot ────────────────────────────────────────────────── */
   if (variant === 'mascot') {

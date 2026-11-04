@@ -290,6 +290,23 @@ function MascotPanel({ a, setA, uploads, packs, setPacks, studioUrl }: { a: AS; 
             </div>
           </div>
           <MascotPacks studioUrl={studioUrl} packs={packs} setPacks={setPacks} selected={m.character} onSelect={(c) => set({ character: c, imageUrl: '' })} />
+          {character === 'lacia' && (
+            <div class="field">
+              <span class="label">蕾西亚的服装</span>
+              <Segmented
+                label="蕾西亚的服装"
+                value={m.skin ?? 'suit'}
+                onChange={(v) => set({ skin: v })}
+                options={[
+                  ['suit', '战斗服'],
+                  ['dress', '蓝色连衣裙'],
+                ]}
+              />
+              <p class="hint">
+                两套是同一副 30 层骨架，关节、表情、口型、武器接触都在——换的只是衣服。素材包不一样：那是单张静态图，选中会丢掉全部分层动画。
+              </p>
+            </div>
+          )}
           <div class="grid-2">
             <div class="field">
               <span class="label">默认位置</span>

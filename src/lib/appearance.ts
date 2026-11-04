@@ -27,7 +27,21 @@ export interface AppearanceSettings {
   };
   iconMotion: boolean;
   cardMotion: boolean;
-  mascot: { mode: 'preset' | 'on' | 'off'; character: string; draggable: boolean; imageUrl: string; position: 'right' | 'left'; size: 'sm' | 'md' | 'lg' };
+  mascot: {
+    mode: 'preset' | 'on' | 'off';
+    character: string;
+    /**
+     * Outfit for the rigged character. Only 蕾西亚 has a rig, so this is the
+     * only place it applies: `suit` is the battle dress, `dress` the blue
+     * off-shoulder one. Both are the same 30-part skeleton, so neither is a
+     * downgrade — a pack, by contrast, is a single flat bitmap.
+     */
+    skin?: 'suit' | 'dress';
+    draggable: boolean;
+    imageUrl: string;
+    position: 'right' | 'left';
+    size: 'sm' | 'md' | 'lg';
+  };
 }
 
 export interface ResolvedAppearance {
@@ -43,7 +57,15 @@ export interface ResolvedAppearance {
    * presetPack carries the theme's preferred pack *name* while the owner is on
    * "跟随主题" — the layout swaps it for the real pack id when that pack exists.
    */
-  mascot: { character: string; presetPack?: string; draggable: boolean; imageUrl: string; position: 'right' | 'left'; size: 'sm' | 'md' | 'lg' } | null;
+  mascot: {
+    character: string;
+    presetPack?: string;
+    draggable: boolean;
+    imageUrl: string;
+    position: 'right' | 'left';
+    size: 'sm' | 'md' | 'lg';
+    skin?: 'suit' | 'dress';
+  } | null;
 }
 
 const DOT = '<circle cx="12" cy="12" r="3.5" fill="ACCENT"/>';
@@ -191,6 +213,7 @@ export function resolveAppearance(a: AppearanceSettings, theme: 'light' | 'dark'
           imageUrl: a.mascot.imageUrl,
           position: a.mascot.position,
           size: a.mascot.size,
+          skin: a.mascot.skin ?? 'suit',
         }
       : null,
   };
