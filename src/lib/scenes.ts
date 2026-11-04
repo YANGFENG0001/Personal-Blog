@@ -434,181 +434,223 @@ function tenki(): string {
  */
 function lacia(): string {
   const r = rng(307);
-  const tone = () => `t${Math.floor(r() * 3)}`;
 
   /* ══ 这座城市是什么 ══════════════════════════════════════════════════════
    *
-   * The previous version was a dark skyline with a 290-wide black tower in it.
-   * That is a *mood*, not the place: it could be any cyberpunk backdrop, and
-   * the tower was invented — canonically the Black Monolith is a device that
-   * **floats behind her at roughly her own height**, not a building.
+   * Third attempt, and the first one that starts from a frame instead of from
+   * an idea of "futuristic city".
    *
-   * What the source material actually shows, and what is drawn below:
+   * The two earlier versions both failed the same way — they were *moods*, not
+   * the place. A dark skyline with a black tower could be any cyberpunk
+   * backdrop; a harbour with twenty small boxes could be any harbour. What the
+   * source material actually looks like, read off the frames:
    *
-   *   · it is a **coastal** city — water, a horizon, and a lot of sky. That is
-   *     the single strongest "this is that city" cue, and the old plate had
-   *     none of it.
-   *   · the architecture is **glass, banded horizontally**. Curtain wall, not
-   *     punched windows: the dominant texture is a stack of thin even lines.
-   *     This is also the reason the new plate reads *better* behind text than
-   *     the old one did — horizontal bands are a lower spatial frequency than
-   *     a random window grid at the same contrast.
-   *   · an **elevated expressway** crosses the frame on tall piers. It is the
-   *     one object that puts the camera at a known height above the water.
-   *   · the palette is **high-key**: pale blue, white, a little lavender. The
-   *     dark accent in the whole picture is the device.
+   *   · **high key.** The daytime plates are almost white — pale blue sky with
+   *     a real blue in it, glass facades in the #dfe9f2 range, shadows that are
+   *     blue rather than grey. Nothing in the frame is darker than mid-grey
+   *     except the character's own hardware.
+   *   · **big volumes, few of them.** The buildings are masses, not a picket
+   *     fence. Two of them in the frame, both cropped by an edge, and the eye
+   *     reads "tall" from the crop, not from the height in the box.
+   *   · **water.** The city is on a bay. A horizon with a specular path is the
+   *     single strongest "this is that city" cue, and it costs almost nothing
+   *     in contrast, which is why it can sit in the middle of the frame.
+   *   · **cyan** as the only saturated colour — the core, the field, the
+   *     bracelet. Everything else is blue-grey.
+   *   · the **Black Monolith is not in the picture.** It is her device, it is
+   *     drawn by the rig, and putting a second one in the backdrop was the
+   *     mistake that made the first two versions read as "not canon". The
+   *     darkest thing in this plate is the cornice of the right-hand mass.
    *
-   * Readability is a constraint on top of that, not a compromise with it:
-   * everything except the device stays under the veil and inside a narrow
-   * value band, and the busy parts are kept out of the middle of the frame. */
+   * ## Composition: a proscenium, not a skyline
+   *
+   * The plate is a 1440×400 strip pinned to the bottom of the viewport, and
+   * body text runs across x 160–1280 of it. So the frame is built as two tall
+   * masses at the *edges* — outside the text column — running off the top of
+   * the box, with an open, bright middle: a bay, a far shore, a boat, a lot of
+   * air. The eye is pulled outward and the middle stays quiet for the words.
+   *
+   * Two things had to be deleted before this worked, and both are worth
+   * remembering because they looked reasonable in the code:
+   *
+   *   · **the masses must run past the top edge.** Stopping them at y≈92 made
+   *     them objects standing on the horizon, which left a strip of small
+   *     things under a large empty sky. Cropped by the top edge, the same
+   *     rectangles become walls, and the sky between them becomes air.
+   *   · **the expressway is gone.** The water is only 148 units deep; any
+   *     horizontal deck with piers fills it completely, and the bay stops
+   *     being a bay. A boat carries the scale cue for three rectangles.
+   *
+   * The sky above the strip — more than half the viewport — is the `.scene`
+   * gradient and nothing else, so anything meant to live up there has to be
+   * DOM. That is what `.l-bands` is for.
+   *
+   * Everything except the water is drawn from a narrow value band, so the veil
+   * has less to do. The veil is still there — it is the readability contract —
+   * but it is doing 6% of the work instead of 40%. */
 
-  const HORIZON = 214;
-  const SEA_BOTTOM = 268;
+  const HORIZON = 168;
+  const QUAY = 316;
+  const SUNX = 941;
 
-  /* ---- the bay ---- */
+  /* ---- the bay ----
+   *
+   * Second pass on the water, after looking at it on screen: a single bright
+   * wedge at 95% opacity is not a sun path, it is a white bedsheet laid on the
+   * bay. Real specular light on water is *horizontal* — a stack of glints that
+   * widens and fades as it comes toward the viewer, and it dies out before it
+   * reaches the quay rather than staying solid all the way down.
+   *
+   * So the wedge is now a gradient that fades to nothing at the bottom, and the
+   * ripple lines are drawn on top of it at 1.4–3.2 units thick. Outside the
+   * wedge the water is a flat mid-tone — that is what keeps the bay from
+   * competing with the body text above it. */
+  const glints = Array.from({ length: 10 }, (_, i) => {
+    const t = i / 9;
+    const y = HORIZON + 7 + i * 13.6;
+    const w = 84 + t * t * 470;
+    const x = SUNX - w / 2 + (r() - 0.5) * 34;
+    return `<rect class="l-rip" x="${x.toFixed(0)}" y="${y.toFixed(1)}" width="${w.toFixed(0)}" height="${(0.8 + t * 2.2).toFixed(2)}" opacity="${(0.72 - t * 0.5).toFixed(2)}"/>`;
+  }).join('');
+
   const sea = `
-    <rect class="l-sea" x="0" y="${HORIZON}" width="1440" height="${SEA_BOTTOM - HORIZON}"/>
-    <path class="l-sea-path" d="M958 ${HORIZON} L1058 ${HORIZON} L1128 ${SEA_BOTTOM} L888 ${SEA_BOTTOM} Z"/>
-    <rect class="l-sea-line" x="0" y="${HORIZON - 0.8}" width="1440" height="1.6"/>`;
+    <rect class="l-sea" x="0" y="${HORIZON}" width="1440" height="${QUAY - HORIZON}"/>
+    <path class="l-sea-path" d="M${SUNX - 74} ${HORIZON} L${SUNX + 62} ${HORIZON} L${SUNX + 196} ${QUAY} L${SUNX - 208} ${QUAY} Z" filter="url(#sc-lacia-soft)"/>
+    <rect class="l-sea-line" x="0" y="${HORIZON - 0.7}" width="1440" height="1.4"/>
+    ${glints}`;
 
-  /* ---- far shore: a thin band of blocks sitting on the waterline ---- */
-  let shore = '';
-  for (let x = -20; x < 1470; ) {
-    const w = 16 + r() * 46;
-    const h = 10 + r() * 34;
-    shore += `<rect class="${tone()}" x="${x.toFixed(0)}" y="${(HORIZON - h).toFixed(0)}" width="${w.toFixed(0)}" height="${(h + 3).toFixed(0)}"/>`;
-    x += w + r() * 10;
-  }
+  /* ---- the far shore: the city on the other side of the bay ----
+   *
+   * The first pass generated forty small boxes in a loop, and on screen that is
+   * exactly what it looked like: a picket fence. Distance is not made of many
+   * small things, it is made of *few big ones* that are low-contrast — so this
+   * is now eight masses with deliberately uneven widths and heights, one of
+   * them a tower, and the gaps between them are wide enough to read as air.
+   *
+   * Flat fill, no facade: at this distance a window grid would be a second,
+   * competing texture in the middle of the frame, which is the one thing the
+   * body text cannot afford. */
+  const shoreMass = [
+    [-40, 230, 22],
+    [198, 118, 38],
+    [326, 268, 16],
+    [606, 88, 54],
+    [706, 196, 26],
+    [916, 146, 32],
+    [1074, 322, 18],
+    [1410, 140, 44],
+  ]
+    .map(([x, w, h]) => `<rect class="sh" x="${x}" y="${HORIZON - h}" width="${w}" height="${h + 3}"/>`)
+    .join('');
 
-  /* ---- rank 2: the glass towers, with the curtain wall as a pattern ----
+  /* ---- glass ----
    *
-   * One `<pattern>` per axis rather than a few hundred `<rect>`s: the bands are
-   * what carry the material, and a pattern keeps the pitch exact across towers
-   * of different heights. The vertical mullions are a second, much fainter
-   * pattern so a tower face does not read as a barcode. */
-  let towers = '';
-  let towerBands = '';
-  /* Two clusters, with the bay left open between them — a skyline that spans
-     the whole frame has no distance in it, because nothing is in front. */
-  const clusters: Array<[number, number]> = [
-    [-30, 430],
-    [880, 1480],
-  ];
-  for (const [from, to] of clusters) {
-    for (let x = from; x < to; ) {
-      const w = 46 + r() * 74;
-      const h = 90 + r() * 150;
-      const top = 400 - h;
-      const t = tone();
-      towers += `<rect class="${t}" x="${x.toFixed(0)}" y="${top.toFixed(0)}" width="${w.toFixed(0)}" height="${(h + 6).toFixed(0)}"/>`;
-      /* Curtain wall. Two overlay rects per tower, both clipped to the tower's
-         own box so the pattern never spills onto the sky. */
-      const bandRect = (cls: string, x0: number, y0: number, w0: number, h0: number) =>
-        `<rect x="${x0.toFixed(0)}" y="${y0.toFixed(0)}" width="${w0.toFixed(0)}" height="${h0.toFixed(0)}" fill="url(#${cls})"/>`;
-      towerBands += bandRect('sc-lacia-cw', x, top, w, h + 6);
-      towerBands += bandRect('sc-lacia-cwv', x, top, w, h + 6);
-      /* One lit edge along the roof. Flat rectangles read as clip art no matter
-         how good the palette is; a single lighter line turns each block into a
-         volume under the same sky. */
-      towers += `<rect class="rim" x="${x.toFixed(0)}" y="${top.toFixed(0)}" width="${w.toFixed(0)}" height="1.2"/>`;
-      /* Setback. Without them the roofline is a comb of equal bars. */
-      if (r() > 0.5) {
-        const sw = w * (0.42 + r() * 0.28);
-        const sh = 16 + r() * 34;
-        towers += `<rect class="${t}" x="${(x + (w - sw) / 2).toFixed(0)}" y="${(top - sh).toFixed(0)}" width="${sw.toFixed(0)}" height="${sh.toFixed(0)}"/>`;
-        towerBands += bandRect('sc-lacia-cw', x + (w - sw) / 2, top - sh, sw, sh);
-        towerBands += bandRect('sc-lacia-cwv', x + (w - sw) / 2, top - sh, sw, sh);
-      }
-      x += w + 6 + r() * 16;
-    }
-  }
-
-  /* ---- the elevated expressway ----
-   *
-   * A shallow arc, not a straight bar: a straight deck at this angle reads as a
-   * drawn line, while a 44-unit sag across the frame reads as something 400 m
-   * long seen from the side. The piers are sampled off the same curve, so the
-   * deck can never detach from them. */
-  const DECK = { x0: -40, x1: 1480, y0: 332, y1: 314, cy: 288 };
-  const deckY = (x: number) => {
-    const t = (x - DECK.x0) / (DECK.x1 - DECK.x0);
-    const u = 1 - t;
-    return u * u * DECK.y0 + 2 * u * t * DECK.cy + t * t * DECK.y1;
-  };
-  const deckPath = `M${DECK.x0} ${DECK.y0} Q720 ${DECK.cy} ${DECK.x1} ${DECK.y1}`;
-  let piers = '';
-  for (let x = 90; x < 1440; x += 168) {
-    const y = deckY(x);
-    piers += `<rect class="xw-pier" x="${(x - 3.4).toFixed(1)}" y="${y.toFixed(1)}" width="6.8" height="${(400 - y).toFixed(1)}"/>`;
-    piers += `<rect class="xw-foot" x="${(x - 7).toFixed(1)}" y="${(y + 6).toFixed(1)}" width="14" height="2.4"/>`;
-  }
-  const xway = `
-    ${piers}
-    <path class="xw-deck" d="${deckPath}" fill="none" stroke-width="7.5"/>
-    <path class="xw-rail" d="${deckPath}" fill="none" stroke-width="1.5" transform="translate(0 -3.4)"/>
-    <path class="xw-under" d="${deckPath}" fill="none" stroke-width="2.2" transform="translate(0 5.2)"/>`;
-
-  /* ---- rank 3: near, low and wide, cropped by the parapet ---- */
-  let near = '';
-  for (let x = -40; x < 1500; ) {
-    const w = 130 + r() * 210;
-    const h = 30 + r() * 52;
-    near += `<rect class="${tone()}" x="${x.toFixed(0)}" y="${(400 - h).toFixed(0)}" width="${w.toFixed(0)}" height="${h.toFixed(0)}"/>`;
-    near += `<rect class="nrim" x="${x.toFixed(0)}" y="${(400 - h).toFixed(0)}" width="${w.toFixed(0)}" height="1.8"/>`;
-    x += w + r() * 40;
-  }
-
-  /* ══ the black landmark ═════════════════════════════════════════════════
-   *
-   * This is the correction that matters most. The previous version put the
-   * Black Monolith in the *sky* as a 290-wide slab running off the top of the
-   * frame. Two things were wrong with that, and only one of them was scale:
-   *
-   *   · canonically the monolith is a **device that floats behind her at about
-   *     her own height**, not a building. A second one hanging in the city
-   *     backdrop is a duplicate of a thing the character already carries, and
-   *     at 62 x 96 against a pale sky it read as a bug, not as a monument.
-   *   · a slab with neither end visible only reads as monumental when there is
-   *     a city around it to give it scale. Alone in the sky it reads as an
-   *     unfinished rectangle.
-   *
-   * So it is now **architecture**: one black glass tower standing in the
-   * right-hand cluster, cropped by the frame at the bottom, taller than
-   * everything around it. It keeps the black accent the palette needs, it has
-   * a roofline so the eye can measure it, and it belongs to the picture.
-   *
-   * Still unlit — no windows, no service lights. Every lit window on a black
-   * slab turns it back into an office block, because windows are what
-   * buildings have. Structure is carried by two cast joints and one seam. */
-  /* Coffin plan, not a rectangle: the silhouette of the device the character
-     carries, stood up as a building. A plain tapered slab at this width read as
-     a scrollbar no matter how it was shaded — the chamfered shoulders are what
-     make the shape recognisable in one glance, and they are the one thing that
-     connects the backdrop to the character. */
-  const MONO = { xL: 1288, xR: 1396, top: 206, chamfer: 15, side: 13 };
-  const mono = `
+   * One pattern per axis, both faint. The vertical mullion is the material
+   * (the reference frames show a facade that is read as *columns* of glass);
+   * the horizontal floor line is what stops a tall column from reading as a
+   * barcode. Neither is a window grid — a grid is high-frequency noise and it
+   * is the thing that used to fight the body text. */
+  const glassDefs = `
     <defs>
-      <linearGradient id="sc-lacia-mono-face" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0" class="mf0"/><stop offset="0.55" class="mf1"/><stop offset="1" class="mf2"/>
+      <linearGradient id="sc-lacia-vol" x1="0" y1="0" x2="1" y2="0.25">
+        <stop offset="0" class="v0"/><stop offset="0.62" class="v1"/><stop offset="1" class="v2"/>
       </linearGradient>
-      <linearGradient id="sc-lacia-mono-side" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0" class="ms0"/><stop offset="1" class="ms1"/>
+      <linearGradient id="sc-lacia-vol2" x1="0" y1="0" x2="0.2" y2="1">
+        <stop offset="0" class="v1"/><stop offset="1" class="v2"/>
       </linearGradient>
-      <filter id="sc-lacia-soft" x="-60%" y="-60%" width="220%" height="220%">
-        <feGaussianBlur stdDeviation="4.2"/>
+      <linearGradient id="sc-lacia-glint" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" class="g0"/><stop offset="0.45" class="g1"/><stop offset="1" class="g2"/>
+      </linearGradient>
+      <pattern id="sc-lacia-mull" width="26" height="26" patternUnits="userSpaceOnUse">
+        <rect x="24.9" y="0" width="1.1" height="26" class="mull"/>
+      </pattern>
+      <pattern id="sc-lacia-floor" width="26" height="26" patternUnits="userSpaceOnUse">
+        <rect x="0" y="24.1" width="26" height="1.5" class="flr"/>
+      </pattern>
+      <!-- Softens the edges of the sun path. A hard-edged trapezoid reads as a
+           sheet of paper laid on the bay; water has no edges. -->
+      <filter id="sc-lacia-soft" x="-25%" y="-25%" width="150%" height="150%">
+        <feGaussianBlur stdDeviation="9"/>
       </filter>
-    </defs>
-    <g class="l-mono">
-      <path class="l-mono-side" d="M${MONO.xR} 400 L${MONO.xR} ${MONO.top + MONO.chamfer} L${MONO.xR + MONO.side} ${MONO.top + MONO.chamfer} L${MONO.xR + MONO.side} 400 Z" fill="url(#sc-lacia-mono-side)"/>
-      <path class="l-mono-body" d="M${MONO.xL} 400 L${MONO.xL} ${MONO.top + MONO.chamfer} L${MONO.xL + MONO.chamfer} ${MONO.top} L${MONO.xR - MONO.chamfer} ${MONO.top} L${MONO.xR} ${MONO.top + MONO.chamfer} L${MONO.xR} 400 Z" fill="url(#sc-lacia-mono-face)"/>
-      <path class="l-mono-joint" d="M${MONO.xL + 4} ${MONO.top + 96} L${MONO.xR - 4} ${MONO.top + 96} M${MONO.xL + 8} ${MONO.top + 206} L${MONO.xR - 8} ${MONO.top + 206}"/>
-      <path class="l-mono-seam" d="M${(MONO.xL + MONO.xR) / 2} ${MONO.top + 8} L${(MONO.xL + MONO.xR) / 2} 400"/>
-      <path class="l-mono-glow" d="M${(MONO.xL + MONO.xR) / 2} ${MONO.top + 8} L${(MONO.xL + MONO.xR) / 2} 400"/>
-      <circle class="l-mono-core" cx="${(MONO.xL + MONO.xR) / 2}" cy="${MONO.top + 58}" r="2.6"/>
-      <circle class="l-mono-core-halo" cx="${(MONO.xL + MONO.xR) / 2}" cy="${MONO.top + 58}" r="10" filter="url(#sc-lacia-soft)"/>
-      <path class="l-mono-cornice" d="M${MONO.xL} ${MONO.top + MONO.chamfer} L${MONO.xL + MONO.chamfer} ${MONO.top} L${MONO.xR - MONO.chamfer} ${MONO.top} L${MONO.xR} ${MONO.top + MONO.chamfer} L${MONO.xR + MONO.side} ${MONO.top + MONO.chamfer}"/>
-      <path class="l-mono-edge" d="M${MONO.xR} 400 L${MONO.xR} ${MONO.top + MONO.chamfer} L${MONO.xR + MONO.side} ${MONO.top + MONO.chamfer} M${MONO.xL} ${MONO.top + MONO.chamfer} L${MONO.xL + MONO.chamfer} ${MONO.top}"/>
+    </defs>`;
+
+  /** One glass volume: face, mullions, floor lines, a lit edge and a shade side. */
+  const volume = (x: number, y: number, w: number, h: number, opts: { shade?: 'l' | 'r'; crown?: boolean } = {}) => {
+    const shade = opts.shade === 'l' ? 'v-shade-l' : 'v-shade-r';
+    return `<g class="g-vol">
+      <rect class="v-face" x="${x}" y="${y}" width="${w}" height="${h}"/>
+      <rect class="v-mull" x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#sc-lacia-mull)"/>
+      <rect class="v-floor" x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#sc-lacia-floor)"/>
+      <rect class="${shade}" x="${opts.shade === 'l' ? x : x + w - w * 0.13}" y="${y}" width="${w * 0.13}" height="${h}"/>
+      <rect class="v-rim" x="${x}" y="${y}" width="${w}" height="1.6"/>
+      ${opts.crown ? `<rect class="v-crown" x="${x - 4}" y="${y - 7}" width="${w + 8}" height="7"/>` : ''}
     </g>`;
+  };
+
+  /* Two gateposts, both cropped by an edge, both running past the top of the
+     box. That last part is the change that made this read as a place: when the
+     masses stopped at y≈92 they were objects standing on the horizon, and the
+     frame was a strip of small things under a large empty sky. Running them off
+     the top edge turns the frame into a proscenium — the eye reads height from
+     the crop, and the sky between them becomes air rather than blank paper.
+     Left is two volumes so its silhouette steps; right is one tall face,
+     because the mascot stands in front of it and a step would cut her. */
+  const leftMass =
+    volume(-140, 20, 300, 380, { shade: 'r', crown: true }) +
+    volume(96, 168, 168, 232, { shade: 'r' }) +
+    volume(232, 250, 118, 150, { shade: 'r' });
+  const rightMass =
+    volume(1244, 20, 316, 380, { shade: 'l', crown: true }) +
+    volume(1150, 196, 110, 204, { shade: 'l' });
+
+  /* ---- a boat, and why the bridge is gone ----
+   *
+   * The bridge was drawn three times: hugging the quay (read as a curb),
+   * crossing at y≈300 (read as a bar), and crossing at y≈230 (read as a
+   * platform). The reason none of them worked is structural, not stylistic —
+   * the water is only 148 units deep, so any horizontal deck with piers fills
+   * it completely and the bay stops being a bay.
+   *
+   * So it is gone. What puts a known height on the water instead is a boat:
+   * 28 units of hull at the middle distance, with a wake drawn as a single
+   * horizontal line. It speaks the same vocabulary as the glints, it leaves
+   * the water visible on both sides of it, and it is the one thing on the
+   * plate that implies scale without adding a second horizon. */
+  const boat = `<g class="l-boat" transform="translate(688 258)">
+    <rect class="l-trail" x="-58" y="2.4" width="56" height="0.9"/>
+    <path class="l-craft" d="M-15 0 L15 0 L10 5.4 L-10 5.4 Z"/>
+    <rect class="l-craft" x="-3.6" y="-5" width="9" height="5"/>
+  </g>`;
+
+  /* ---- the quay the camera is standing on ----
+   *
+   * A deck, a coping stone and a railing. Kept because it is the one hard
+   * foreground edge: it is what tells the eye the water is *below* and how far
+   * below, and without it the whole plate floats. */
+  const lamp = (x: number, top: number, h: number) =>
+    `<rect class="fg-post" x="${x}" y="${top}" width="3" height="${h}"/>
+     <rect class="fg-arm" x="${x - 1}" y="${top}" width="13" height="2.4"/>
+     <circle class="fg-lamp-glow" cx="${x + 11}" cy="${top + 1}" r="9"/>
+     <circle class="fg-lamp" cx="${x + 11}" cy="${top + 1}" r="2.2"/>`;
+  let fg = `<rect class="fg-deck" x="0" y="${QUAY}" width="1440" height="${400 - QUAY}"/>`;
+  fg += `<rect class="fg-cap" x="0" y="${QUAY}" width="1440" height="2.6"/>`;
+  fg += `<rect class="fg-rail" x="0" y="${QUAY + 58}" width="1440" height="1.6"/>`;
+  for (let x = 6; x < 1440; x += 26) fg += `<rect class="fg-post" x="${x}" y="${QUAY + 58}" width="2" height="13"/>`;
+  fg += lamp(148, QUAY - 62, 62) + lamp(1300, QUAY - 56, 56);
+
+  /* ---- cloud bands ----
+   *
+   * These are DOM, not SVG, and that is the whole point. The plate is a 46vh
+   * strip pinned to the bottom, so everything inside the viewBox below y≈20 is
+   * already under the buildings — which is why nine blurred ellipses in the SVG
+   * contributed nothing visible: they were painted behind the glass, not in the
+   * sky. The upper half of the screen is the `.scene` gradient and nothing else.
+   *
+   * Three very wide, very soft bands at 6–35% of the viewport fill that air
+   * without touching the SVG coordinate system. They are white on white, so the
+   * hero heading in front of them stays dark-on-light and gains contrast rather
+   * than losing it. */
+  const bands = '<div class="l-bands"><i></i><i></i><i></i></div>';
 
   /* ---- aircraft: three dashes and a trail. At this size that is all it takes
    * to put something at a known distance in the sky. ---- */
@@ -618,72 +660,24 @@ function lacia(): string {
        <path d="M0 0 L15 2.1 L15 3.1 L0 2.1 Z"/>
        <path d="M5.4 1.9 L8.6 -2.6 L9.8 -2.6 L7.4 1.9 Z"/>
      </g>`;
-  const craft_ = craft(430, 118, 1.5) + craft(1180, 78, 1.05) + craft(268, 176, 0.8);
+  const craft_ = craft(560, 74, 1.5) + craft(1180, 128, 1.0);
 
-  /* ---- the parapet: the camera is on a roof ----
-   *
-   * Kept from the previous version because it is right: it is the one hard
-   * foreground edge, and it is what tells the eye the city is *below*. */
-  const lamp = (x: number, top: number, h: number) =>
-    `<rect class="fg-post" x="${x}" y="${top}" width="3.4" height="${h}"/>
-     <rect class="fg-arm" x="${x - 1}" y="${top}" width="15" height="2.6"/>
-     <circle class="fg-lamp-glow" cx="${x + 13}" cy="${top + 1}" r="11"/>
-     <circle class="fg-lamp" cx="${x + 13}" cy="${top + 1}" r="2.6"/>`;
-  let fg = `<path class="fg-deck" d="M0 374 H1440 V400 H0Z"/>`;
-  fg += `<rect class="fg-cap" x="0" y="371.5" width="1440" height="2.5"/>`;
-  fg += `<rect class="fg-rail" x="0" y="352" width="1440" height="2"/>`;
-  for (let x = 6; x < 1440; x += 26) fg += `<rect class="fg-post" x="${x}" y="352" width="2.2" height="22"/>`;
-  fg += lamp(176, 292, 80) + lamp(1252, 300, 72);
-
-  // Floating hexagonal frames — the "analog hack" made visible. Kept out of the
-  // device's half of the frame: they are a texture, and a texture on top of the
-  // subject is just noise.
+  /* The interface motif: two open hexes, large and very faint, low on the left.
+     The source art uses them as an overlay graphic; at 26 px on a 1440 plate
+     they were dust, so they are 74 and 44 now and only on the side with no
+     content in front of them — pushed down to the quay so they do not sit on
+     top of the "分站索引" cards. */
   const hex = (i: number, x: number, y: number, s: number) =>
     `<g class="l-hex l-hex-${i}" transform="translate(${x} ${y}) scale(${(s / 22).toFixed(2)})"><path d="M0 -22 L19 -11 L19 11 L0 22 L-19 11 L-19 -11Z"/></g>`;
-  const rings = hex(1, 244, 150, 26) + hex(2, 402, 202, 15) + hex(3, 196, 222, 9);
-
-  /* Curtain-wall patterns live in one <defs> block. Two axes, one pitch: the
-     horizontal is the material, the vertical is only there so the face is not
-     a barcode. Both are deliberately faint — at 45% veil they have to survive
-     as texture and disappear as pattern. */
-  /* ---- clouds ----
-   *
-   * The old plate had a *blank* sky over two thirds of the frame, which is why
-   * it read as empty paper rather than as weather. On a coastal city the sky
-   * is the subject as much as the buildings are: a few flat, very low-contrast
-   * bands at different heights do more for "this is a place" than any amount
-   * of extra window detail, and because they are horizontal and soft they cost
-   * nothing in readability.
-   *
-   * Drawn as blurred ellipses rather than paths on purpose: a hard cloud edge
-   * at this scale turns into a paper cut-out. */
-  const cloud = (x: number, y: number, w: number, h: number, o: number) =>
-    `<ellipse class="cl" cx="${x}" cy="${y}" rx="${w}" ry="${h}" opacity="${o}"/>`;
-  const clouds =
-    cloud(240, 196, 300, 26, 0.55) +
-    cloud(430, 176, 220, 20, 0.4) +
-    cloud(900, 232, 360, 24, 0.5) +
-    cloud(1180, 186, 250, 18, 0.35) +
-    cloud(620, 262, 480, 30, 0.45) +
-    cloud(120, 250, 260, 22, 0.3);
-
-  const cwDefs = `
-    <defs>
-      <pattern id="sc-lacia-cw" width="7" height="9.5" patternUnits="userSpaceOnUse">
-        <rect x="0" y="7.4" width="7" height="1.15" class="cw-h"/>
-      </pattern>
-      <pattern id="sc-lacia-cwv" width="13" height="9.5" patternUnits="userSpaceOnUse">
-        <rect x="11.4" y="0" width="0.9" height="9.5" class="cw-v"/>
-      </pattern>
-    </defs>`;
+  const rings = hex(1, 58, 292, 74) + hex(2, 182, 338, 44);
 
   return [
     '<div class="l-bloom"></div>',
-    svg('sc-far', `${cwDefs}<filter id="sc-lacia-cloud" x="-30%" y="-120%" width="160%" height="340%"><feGaussianBlur stdDeviation="9"/></filter><g class="l-clouds" filter="url(#sc-lacia-cloud)">${clouds}</g><ellipse class="l-hglow" cx="1008" cy="${HORIZON}" rx="520" ry="78"/><g class="l-shore">${shore}</g>${sea}${craft_}`),
-    svg('sc-mid', `<g class="l-mid">${towers}</g><g class="l-cw">${towerBands}</g><g class="l-xway">${xway}</g>`),
-    svg('sc-mono', `${mono}`),
-    svg('sc-near', `${rings}<g class="l-near">${near}</g>`),
+    svg('sc-far', `${glassDefs}<ellipse class="l-hglow" cx="${SUNX}" cy="${HORIZON}" rx="470" ry="62"/><g class="l-shore">${shoreMass}</g>${sea}${boat}${craft_}`),
+    svg('sc-mid', `<g class="l-mass">${leftMass}${rightMass}</g>`),
+    svg('sc-near', `${rings}`),
     svg('sc-fg', fg),
+    bands,
     '<div class="l-shaft"></div>',
   ].join('');
 }

@@ -179,8 +179,15 @@
   overflow: visible;
   z-index: 0;
   pointer-events: none;
-  /* the rig writes a canvas-space matrix here, so the origin must be 0 0 */
-  transform-origin: 0 0;
+  /* The rig writes a **canvas-space** matrix here, so the origin has to be the
+     point of this box that sits at canvas (0,0) — which is (1500 − hub) on each
+     axis, i.e. the box's own top-left corner expressed back in canvas units.
+     `0 0` was the first attempt and it is subtly wrong: the box starts at
+     (−1254, −800), so a rotation was being applied 2121 units away from the hub
+     instead of at it. At 2° of aim that is a 74-unit lateral swing of the whole
+     device — it read as the device sliding sideways rather than turning, and it
+     is also why a hand resting on the rail could never stay on it. */
+  transform-origin: calc((1500 - var(--lr-mon-x, 246)) * 1px) calc((1500 - var(--lr-mon-y, 700)) * 1px);
   filter: drop-shadow(0 20px 44px rgba(0, 0, 0, 0.5));
 }
 /* The <svg> root must never be a hit target: as a replaced element it covers

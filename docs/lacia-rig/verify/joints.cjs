@@ -135,16 +135,22 @@ function corr(a, b) {
   report.corr.legs = +corr(S.legR ?? [], S.legL ?? []).toFixed(3);
   if (report.corr.legs > 0.9) errs.push(`legs move as one piece: r=${report.corr.legs}`);
 
-  /* 3. Sole level. The boot's world angle is knee + ankle; it has to stay near
-        zero or she is standing on stilts. */
+  /* 3. Sole level. The boot's world angle is **thigh + shin + ankle** — all
+        three bones are nested, so all three contribute. This used to sum only
+        the last two, which was close enough while every form stood on the same
+        vertical legs and wrong the moment the forms got stances: a 5° stance
+        angle is invisible in `knee + ankle` and tilts the sole by the full 5°.
+        Measuring the wrong sum is worse than measuring nothing, because it
+        reports a green light for the exact case it was written to catch. */
   for (const side of ['R', 'L']) {
+    const l = S[`leg${side}`] ?? [];
     const k = S[`knee${side}`] ?? [];
     const a = S[`ankle${side}`] ?? [];
-    const n = Math.min(k.length, a.length);
+    const n = Math.min(l.length, k.length, a.length);
     let peak = 0;
-    for (let i = 0; i < n; i++) peak = Math.max(peak, Math.abs(k[i] + a[i]));
+    for (let i = 0; i < n; i++) peak = Math.max(peak, Math.abs(l[i] + k[i] + a[i]));
     report.sole[side] = +peak.toFixed(2);
-    if (peak > 3.2) errs.push(`ankle${side} does not hold the sole: peak |knee+ankle| ${peak.toFixed(2)}°`);
+    if (peak > 3.2) errs.push(`ankle${side} does not hold the sole: peak |thigh+shin+ankle| ${peak.toFixed(2)}°`);
   }
 
   /* 4. The hand counter-rotates the forearm. Positive correlation means the

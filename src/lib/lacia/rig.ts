@@ -295,8 +295,103 @@ const matRot = (deg: number): Mat => {
 };
 /** Rotate/scale about a pivot: T(p) · m · T(-p). */
 const matAbout = (m: Mat, px: number, py: number): Mat => matMul(matMul(matMove(px, py), m), matMove(-px, -py));
+/** Apply a matrix to a point. */
+const matPt = (m: Mat, x: number, y: number): readonly [number, number] => [
+  m[0] * x + m[2] * y + m[4],
+  m[1] * x + m[3] * y + m[5],
+];
+/** Inverse of an affine matrix. Used to bring a world-space contact target into
+ *  the frame the arm actually lives in — see `armIk`'s call site. */
+const matInv = (m: Mat): Mat => {
+  const det = m[0] * m[3] - m[1] * m[2] || 1e-9;
+  const a = m[3] / det;
+  const b = -m[1] / det;
+  const c = -m[2] / det;
+  const d = m[0] / det;
+  return [a, b, c, d, -(a * m[4] + c * m[5]), -(b * m[4] + d * m[5])];
+};
+
+/* ── two-bone IK for the arm that is holding something ──────────────────────
+ *
+ * The arm is shoulder → elbow → palm, three pivots and two rigid lengths, so
+ * "put the palm there" is the textbook two-link problem and has a closed-form
+ * answer. Solving it is the difference between a pose that *points at* the
+ * device and a pose that *rests on* it: with fixed angles the palm drifts a
+ * few pixels every breath, because the shoulder it hangs from is moving and
+ * the arm is not compensating. That drift is small but it is exactly what the
+ * eye uses to decide whether two objects are touching.
+ *
+ * The palm is taken from the hand bitmap's own box rather than hand-typed, so
+ * it stays correct if the layers are ever re-split — same rule as the joint
+ * pivots. The two solutions are the elbow up and the elbow down; a human elbow
+ * drops below the shoulder-to-palm line when the hand is raised in front of the
+ * chest, which is the only case this is used for, so the "elbow down" branch is
+ * taken unconditionally.
+ */
+const ARM_CHAIN = (() => {
+  const palmOf = (id: string) => {
+    const p = LACIA_PARTS.find((q) => q.id === id);
+    if (!p) return [0, 0] as const;
+    return [p.x + p.w / 2, p.y + p.h / 2] as const;
+  };
+  return {
+    r: { shoulder: PIVOT.armR, elbow: PIVOT.elbowR, palm: palmOf('handwear-r-hand') },
+    l: { shoulder: PIVOT.armL, elbow: PIVOT.elbowL, palm: palmOf('handwear-l-hand') },
+  };
+})();
+
+function armIk(side: 'r' | 'l', tx: number, ty: number): { arm: number; elbow: number } {
+  const { shoulder: S, elbow: E, palm: M } = ARM_CHAIN[side];
+  const ux = E[0] - S[0];
+  const uy = E[1] - S[1];
+  const wx = M[0] - E[0];
+  const wy = M[1] - E[1];
+  const L1 = Math.hypot(ux, uy);
+  const L2 = Math.hypot(wx, wy);
+  const a0 = Math.atan2(uy, ux);
+  const g0 = Math.atan2(wy, wx);
+  const dx = tx - S[0];
+  const dy = ty - S[1];
+  /* Clamped 1 unit inside full extension. At exactly L1+L2 the law of cosines
+     divides by zero and the spring gets NaN, which silently kills the whole
+     bone for the rest of the session. */
+  const d = Math.min(L1 + L2 - 1, Math.max(Math.abs(L1 - L2) + 1, Math.hypot(dx, dy)));
+  const phi = Math.atan2(dy, dx);
+  const cosA = (L1 * L1 + d * d - L2 * L2) / (2 * L1 * d);
+  const A = Math.acos(Math.max(-1, Math.min(1, cosA)));
+  /* Two solutions, mirrored about the shoulder-to-palm line: elbow above it or
+     elbow below it. Picking by *sign* is how this ended up with her elbow up
+     near her ear. A human elbow hangs, so the branch is chosen by geometry —
+     whichever solution puts the elbow lower on screen — and that stays correct
+     for any target without a special case per form. */
+  const cand = [phi - A, phi + A].map((ang) => ({
+    ang,
+    ey: S[1] + Math.sin(ang) * L1,
+  }));
+  const absArm = cand[0].ey >= cand[1].ey ? cand[0].ang : cand[1].ang;
+  const ex = S[0] + Math.cos(absArm) * L1;
+  const ey = S[1] + Math.sin(absArm) * L1;
+  const fore = Math.atan2(ty - ey, tx - ex);
+  const arm = ((absArm - a0) * 180) / Math.PI;
+  const elbow = ((fore - g0) * 180) / Math.PI - arm;
+  return { arm, elbow };
+}
 
 const ENERGY: Record<LaciaState, number> = { idle: 1, talk: 1.15, happy: 1.3, held: 1.7, sleep: 0.4 };
+
+/**
+ * Idle motion budget.
+ *
+ * The whole-body sway was tuned up in the same pass that added the secondary
+ * motion (chest lag, neck drift, wrist settle), and that double-counted: the
+ * pelvis rocking and the chest lagging behind it add up, so the figure ended up
+ * visibly rolling from foot to foot while standing still. The fix is not to
+ * remove the sway — a figure that holds perfectly still is worse — but to spend
+ * the budget on the *late* motion and take it out of the *early* motion. The
+ * pelvis and legs get 0.6; everything downstream (chest, neck, head) keeps its
+ * amplitude, so what is left reads as breathing and weight rather than rocking.
+ */
+const IDLE = 0.6;
 
 /**
  * How her body answers each device form, in degrees (and canvas px for rootY).
@@ -325,26 +420,107 @@ const ENERGY: Record<LaciaState, number> = { idle: 1, talk: 1.15, happy: 1.3, he
  *
  * The head values are *rolls*, not nods — a 2D rig has no pitch axis, so "head
  * lowered along the barrel" can only be a tilt.
+ *
+ * ## Why there are legs in here now
+ *
+ * This table used to describe the body from the waist up, and every form stood
+ * on exactly the same pair of legs. That is the actual source of "摆动作的时候
+ * 身体僵硬": the arms and chest moved to a new pose, the legs did not, so the
+ * silhouette changed above the waist and stayed a mannequin below it. Worse,
+ * `railgun` sets `rootY: 9` — it lowered the pelvis 9 px without bending a knee,
+ * which does not read as "dropping her weight", it reads as sinking into the
+ * floor (measured: her soles sat 10 px lower in that form than in `coffin`).
+ *
+ * A knee bend is also the *only* thing that can absorb `rootY` in this rig,
+ * because the chain is rooted at the hips: the legs hang off the pelvis, so
+ * lowering the pelvis drags the feet down with it. Bending the knee shortens the
+ * hip-to-sole distance by `L1·L2·(1−cos φ)/L`, which is ~2.6 px per 10° on
+ * these proportions — so `rootY` and `knee` have to be chosen together, and
+ * `verify/stance.cjs` asserts the soles stay put.
+ *
+ * Sign of `legR` / `legL` (both positive = both feet travel screen-left, which
+ * is why the shared `sway` term can drive them with the same expression):
+ * a **wider** stance is `legR > 0, legL < 0`.
  */
 const FORM_POSE: Record<
   LaciaForm,
   {
     rootY: number; hipsX: number; spine: number; chest: number; head: number;
     armR: number; armL: number; elbowR: number; elbowL: number; wristR: number; wristL: number;
+    legR: number; legL: number; shinR: number; shinL: number;
   }
 > = {
-  coffin: { rootY: 0, hipsX: 0, spine: 0, chest: 0, head: 0, armR: 0, armL: 0, elbowR: 0, elbowL: 0, wristR: 0, wristL: 0 },
-  /* `elbowL` is what finally makes "扶导轨" possible: the upper arm swings out
-     to the device and the forearm comes back to meet the rail. With one rigid
-     arm the hand stopped ~15px short of it and the pose read as reaching. */
-  /* `wristL` closes the grip: the rail runs under her palm, so the hand turns
-     in toward the device while the forearm comes back to meet it. Without this
-     the fingers stay parallel to the forearm and the pose reads as "hand near
-     rail", not "hand on rail". */
-  railgun: { rootY: 9, hipsX: 6, spine: 3, chest: 8, head: -4, armR: 8, armL: -16, elbowR: 4, elbowL: 6, wristR: 0, wristL: -20 },
-  /* Forearm across the body — the one pose that is impossible without an elbow. */
-  shield: { rootY: 3, hipsX: -5, spine: -2, chest: -7, head: 6, armR: -6, armL: 8, elbowR: -4, elbowL: 30, wristR: 0, wristL: 9 },
-  unfold: { rootY: -5, hipsX: 0, spine: 1, chest: 3, head: -3, armR: 17, armL: -17, elbowR: 8, elbowL: -8, wristR: 0, wristL: 0 },
+  /* Resting. Not zero on the legs: a figure standing with both feet exactly
+     symmetric is the one silhouette nobody ever stands in. 1.4° of thigh and
+     half a degree of knee is enough to say "she is standing on one hip a
+     little" without becoming a pose. */
+  coffin: {
+    rootY: 0, hipsX: 0, spine: 0, chest: 0, head: 0,
+    armR: 0, armL: 0, elbowR: 0, elbowL: 0, wristR: 0, wristL: 0,
+    legR: 1.4, legL: -1.4, shinR: 0.4, shinL: -0.4,
+  },
+  /* Mass projection. This is the pose from the official figure: she is not
+     "standing near the weapon", she is **resting on it** — hip cocked toward
+     the casket, weight through the near leg, far leg soft and turned out, near
+     hand lying on the rail at chest height. The near arm's angles are not in
+     this table at all: they come from the two-bone IK in `armIk`, which is the
+     only way the palm stays on the rail while the body moves under it. */
+  railgun: {
+    rootY: 2, hipsX: 7, spine: -2, chest: -5, head: 5,
+    armR: 2, armL: 0, elbowR: 4, elbowL: 0, wristR: 0, wristL: 0,
+    legR: 5.0, legL: -1.0, shinR: 2.6, shinL: 0.4,
+  },
+  /* Barrier. Weight forward and down, feet wide, near forearm across the chest
+     with the palm pressed to the plate — again solved, not posed. */
+  shield: {
+    rootY: 2.5, hipsX: -4, spine: -2, chest: -6, head: 4,
+    armR: -6, armL: 0, elbowR: -4, elbowL: 0, wristR: 0, wristL: 0,
+    legR: 6.2, legL: -6.2, shinR: 1.8, shinL: -1.8,
+  },
+  /* Escort claw deployed. Chest open, arms away from the body, feet planted
+     apart — she is holding the fan up, so the stance has to be a base rather
+     than a stance. `rootY: -5` is gone: lifting the pelvis off straight legs
+     just levitates her 5 px. */
+  unfold: {
+    rootY: 2, hipsX: 2, spine: 1, chest: -4, head: -3,
+    armR: 10, armL: -19, elbowR: 6, elbowL: -13, wristR: 0, wristL: 0,
+    legR: 5.4, legL: -5.4, shinR: 1.4, shinL: -1.4,
+  },
+};
+
+/**
+ * Where the near hand is planted, in canvas units, per form.
+ *
+ * The point is expressed **in the hips' frame**, not in screen space, because
+ * the device is socketed at her waist: the rail is rigidly bolted to the pelvis,
+ * so a point on the rail travels with the pelvis and not with the chest. Feeding
+ * that through `armIk` is what makes the contact survive the idle motion — the
+ * chest breathes, the shoulder moves, and the arm re-solves so the palm stays
+ * on the rail. Without it the hand slides a few pixels every breath, which is
+ * the single clearest tell that two things are being animated independently.
+ *
+ * `wrist` is the hand's own angle *after* the IK: the rail runs roughly
+ * vertically past her palm, so the hand keeps close to its rest orientation
+ * (`0`) and only rolls a little to lie along the edge.
+ */
+const HAND_PLANT: Partial<
+  Record<LaciaForm, { side: 'r' | 'l'; at: readonly [number, number]; wrist: number; frame: 'device' | 'hips' }>
+> = {
+  /* On the near rail's face. The height is not "chest height because the
+     reference art has it there" — it is wherever a **hanging elbow** puts the
+     palm, which on this rig is hip height. The upper arm here is only 105 units
+     long against a 260-unit forearm-plus-hand, so reaching up to the sternum
+     forces the elbow either across her chest or up by her ear; both read as
+     broken. Asking for the point the arm can actually rest on gives an elbow
+     directly below the shoulder and a palm flat on the rail — which is the
+     pose the reference is actually showing, one hand's width lower. */
+  railgun: { side: 'l', at: [515, 492], wrist: -8, frame: 'device' },
+  /* Palm flat on the barrier, in front of the sternum. `hips`, not `device`:
+     the barrier is a projected plane, and its plates carry their own unfolding
+     choreography — a hand locked to a plate would ride that animation instead
+     of holding still against the field. The field is fixed relative to her, so
+     the pelvis is the right parent. */
+  shield: { side: 'l', at: [330, 450], wrist: 10, frame: 'hips' },
 };
 
 /** Gaze bias per form. */
@@ -822,12 +998,12 @@ export class LaciaRig {
     while (this.acc >= FIXED && n++ < 24) {
       this.acc -= FIXED;
       const S = this.S;
-      S.rootY.step(breath * 1.0 * e + P.rootY, FIXED);
-      S.hipsX.step(sway * 2.3 * e + P.hipsX, FIXED);
-      S.hipsR.step(sway * 0.42 * e, FIXED);
+      S.rootY.step(breath * 0.7 * e + P.rootY, FIXED);
+      S.hipsX.step(sway * IDLE * 2.3 * e + P.hipsX, FIXED);
+      S.hipsR.step(sway * IDLE * 0.42 * e, FIXED);
       /* `spineR` is stepped *below*, after `monAim`, because the device's
          reaction feeds into it. */
-      S.chestR.step((breath * 1.5 + micro * 0.45 + sway * 0.5) * e + P.chest, FIXED);
+      S.chestR.step((breath * 1.5 + micro * 0.45 + sway * IDLE * 0.5) * e + P.chest, FIXED);
       S.torsoY.step(1 + breath * 0.018 * e, FIXED);
       S.torsoX.step(1 - breath * 0.007 * e, FIXED);
       /* ── bust ───────────────────────────────────────────────────────────
@@ -862,7 +1038,7 @@ export class LaciaRig {
          form's own offset (railgun leans 6 px), and a pose is not a reaction —
          feeding the raw value would tilt the bust permanently by 2 px in that
          form only. Same reason `monAim` refuses `headR`. */
-      S.torsoShift.step(weight * 1.6 * e - (S.hipsX.x - P.hipsX) * 0.35, FIXED);
+      S.torsoShift.step(weight * IDLE * 1.6 * e - (S.hipsX.x - P.hipsX) * 0.35, FIXED);
       /* ── neck ───────────────────────────────────────────────────────────
        *
        * This used to be `look × 1.1 + micro × 0.22` — i.e. the neck only moved
@@ -875,8 +1051,8 @@ export class LaciaRig {
        * faster micro-tremor. `neckX` is what makes that read — pure rotation
        * pivots the head on an arc, which still looks like a stick; a lateral
        * offset makes the head *float* over the shoulders. */
-      S.neckR.step((look * 1.1 + micro * 0.5 + breath * 0.9 + sway * 0.55) * e, FIXED);
-      S.neckX.step(weight * 1.5 * e - (S.chestR.x - P.chest) * 0.18, FIXED);
+      S.neckR.step((look * 1.1 + micro * 0.5 + breath * 0.9 + sway * IDLE * 0.55) * e, FIXED);
+      S.neckX.step(weight * IDLE * 1.5 * e - (S.chestR.x - P.chest) * 0.18, FIXED);
       S.neckY.step((-breath * 2.4 + weight * 1.2) * e, FIXED);
       S.headTurn.step(this.turnTarget * e, FIXED);
       /* ── head stabilisation ─────────────────────────────────────────────
@@ -898,7 +1074,7 @@ export class LaciaRig {
        * which is the right way round. */
       const torsoWorld = S.hipsR.x + S.spineR.x + S.chestR.x + S.neckR.x;
       S.headR.step(
-        (sway * 0.42 + micro * 0.42 + look * 2.9 + S.headTurn.x) * e + P.head - torsoWorld * 0.68,
+        (sway * IDLE * 0.42 + micro * 0.42 + look * 2.9 + S.headTurn.x) * e + P.head - torsoWorld * 0.68,
         FIXED,
       );
       S.headX.step(look * 1.9 * e, FIXED);
@@ -939,15 +1115,60 @@ export class LaciaRig {
        * The two sides take the same torso term with opposite signs, because the
        * weight shift is what makes one arm hang closer to the hip than the
        * other. */
-      S.armRR.step((micro * 0.55 + weight * 0.55) * e + P.armR - torsoWorld * 0.45, FIXED);
-      S.armLR.step((-micro * 0.55 - weight * 0.55) * e + P.armL - torsoWorld * 0.45, FIXED);
+      /* ── the planted hand ───────────────────────────────────────────────
+       *
+       * Two of the four forms are not "she stands next to the device", they are
+       * "she is leaning on it" — the official figure has her palm flat on the
+       * casket's edge with her hip cocked into it. Reaching that with fixed
+       * angles was the earlier attempt and it is wrong in a way that is easy to
+       * miss: the arm is correct at rest, but the shoulder it hangs from moves
+       * with the chest, so the palm slides a few pixels on every breath. The eye
+       * reads that slide as "not touching", no matter how close the numbers are.
+       *
+       * So the arm is solved instead of posed. The rail is bolted to the pelvis,
+       * so the target is a point in the **hips' frame** pushed through
+       * `worldHips`; the chest can breathe all it likes and the palm stays on
+       * the rail because the shoulder-to-palm distance is re-solved each frame.
+       * The spring is kept on top of the solution — a hand that tracks its
+       * contact with zero lag reads as welded, not as resting. */
+      const plant = HAND_PLANT[this.form];
+      let armLTarget = (-micro * 0.55 - weight * IDLE * 0.55) * e + P.armL - torsoWorld * 0.45;
+      let elbowLTarget = -S.armLR.x * 0.35 + (1.1 + 0.8 * Math.sin(t * TAU * 0.059 + 2.4)) * e + P.elbowL;
+      if (plant && plant.side === 'l') {
+        /* Three transforms, and the last two are the ones that make it read.
+         *
+         * 1. **The device's own matrix.** The rail is not a point in the hips'
+         *    frame — it is a point on a thing that rolls, aims and takes recoil
+         *    impulses. Reading the same matrix `pose` writes means the hand
+         *    rides the rail through all of it, including the jolt when the rails
+         *    throw.
+         * 2. **Into the chest frame.** The arm hangs off the chest, not the
+         *    hips, so its shoulder travels with the ribcage. Solving against the
+         *    rest shoulder while the real shoulder has moved 3 px puts the palm
+         *    3 px off the rail — and since the chest is what breathes, that
+         *    error oscillates with the breath. That slide is the single clearest
+         *    tell that two objects are on independent clocks. Measured at 16 px
+         *    before this correction. */
+        const wHips = matMul(matMove(0, S.rootY.x), matAbout(matMul(matMove(S.hipsX.x, 0), matRot(S.hipsR.x)), 246, 700));
+        const wSpine = matMul(wHips, matAbout(matRot(S.spineR.x), 246, 700));
+        const wChest = matMul(wSpine, matAbout(matRot(S.chestR.x), 246, 660));
+        const mon = plant.frame === 'device' ? this.monMatrix() : null;
+        const [wx, wy] = matPt(mon ?? wHips, plant.at[0], plant.at[1]);
+        const [tx, ty] = matPt(matInv(wChest), wx, wy);
+        const sol = armIk('l', tx, ty);
+        armLTarget = sol.arm;
+        elbowLTarget = sol.elbow;
+      }
+
+      S.armRR.step((micro * 0.55 + weight * IDLE * 0.55) * e + P.armR - torsoWorld * 0.45, FIXED);
+      S.armLR.step(armLTarget, FIXED);
       /* Elbows carry the arm's swing a little late and a little less, so the
          forearm trails the upper arm instead of moving as one rod. The slow
          independent term is what keeps the arms from looking pinned — an arm
          held at exactly one angle reads as a mannequin even when the shoulder
          is moving. */
       S.elbowRR.step(-S.armRR.x * 0.35 + (1.1 + 0.8 * Math.sin(t * TAU * 0.071 + 0.6)) * e + P.elbowR, FIXED);
-      S.elbowLR.step(-S.armLR.x * 0.35 + (1.1 + 0.8 * Math.sin(t * TAU * 0.059 + 2.4)) * e + P.elbowL, FIXED);
+      S.elbowLR.step(elbowLTarget, FIXED);
       /* ── wrists ─────────────────────────────────────────────────────────
        *
        * A hand is not welded to a forearm. It hangs: it lags the forearm,
@@ -977,10 +1198,20 @@ export class LaciaRig {
         FIXED,
       );
       S.wristLR.step(
-        -S.elbowLR.x * 0.34 +
+        /* A *relaxed* hand hangs; it does not stay square to the forearm. So the
+           hand's own angle is driven by the forearm's angle in the world, not by
+           the elbow joint alone — `−(arm + elbow)`, not `−elbow`. At rest the two
+           are the same thing (arm is 0), which is why this only showed up in the
+           posed forms: with the forearm swung out to the rail, keeping the wrist
+           square to it made the hand point at the device instead of lying on it. */
+        (plant ? -(S.armLR.x + S.elbowLR.x) * 0.55 : -S.elbowLR.x * 0.34) +
           (1.5 + 1.25 * Math.sin(t * TAU * 0.077 + 4.1) + 0.6 * Math.sin(t * TAU * 0.131 + 2.8)) * e +
-          P.wristL +
-          S.monAim.x * 0.55 * grip,
+          (plant ? plant.wrist : P.wristL) +
+          /* A planted hand follows the *pelvis*, not the bore. The rail is
+             bolted to her waist, so letting the aim spring drag her wrist
+             around would slide the palm along the rail every time she looked
+             somewhere. */
+          (plant ? 0 : S.monAim.x * 0.55 * grip),
         FIXED,
       );
       /* ── hips and legs ──────────────────────────────────────────────────
@@ -990,8 +1221,8 @@ export class LaciaRig {
        * the weight transfer (the legs lean opposite ways, which is what a body
        * does when it shifts from one foot to the other). Keeping them separate
        * is why this reads as standing rather than as swaying. */
-      S.legRR.step((sway * 1.15 + weight * 0.85) * e, FIXED);
-      S.legLR.step((sway * 1.15 - weight * 0.85) * e, FIXED);
+      S.legRR.step((sway * IDLE * 1.15 + weight * IDLE * 0.85) * e + P.legR, FIXED);
+      S.legLR.step((sway * IDLE * 1.15 - weight * IDLE * 0.85) * e + P.legL, FIXED);
       /* Knees do two jobs, and neither one is a sagittal bend.
        *
        *  This art is a **front view**, so a real knee bend (heel toward the hip)
@@ -1018,15 +1249,24 @@ export class LaciaRig {
          cue that the two legs are not the same object: the thigh angles already
          disagree, and now their knees do too, in the opposite direction. The
          factor is a *range* (0.55× to 1.45×), not an offset, so `held` and
-         `sleep` keep their much larger soft values. */
+         `sleep` keep their much larger soft values.
+
+         Only the **dynamic** part of the thigh is countered. Feeding the raw
+         `legRR.x` here (which is what this did before the forms had legs) meant
+         every stance angle was immediately cancelled by 85%: the thigh swung
+         out to plant the foot wide and the knee swung it straight back, so a
+         pose with `legR: 4.6` produced a 0.7° stance and the legs never actually
+         moved. Same mistake as feeding a pose constant into `monAim`. */
       S.kneeRR.step(
-        -S.legRR.x * 0.85 +
-          (kneeSoft * (1.45 - 0.9 * loadR) + 1.5 * Math.sin(t * TAU * 0.107) + 0.8 * Math.sin(t * TAU * 0.043 + 1.3)) * e,
+        P.shinR - P.legR -
+          (S.legRR.x - P.legR) * 0.85 +
+          (kneeSoft * (1.45 - 0.9 * loadR) + IDLE * (1.5 * Math.sin(t * TAU * 0.107) + 0.8 * Math.sin(t * TAU * 0.043 + 1.3))) * e,
         FIXED,
       );
       S.kneeLR.step(
-        -S.legLR.x * 0.85 +
-          (kneeSoft * (1.45 - 0.9 * loadL) + 1.5 * Math.sin(t * TAU * 0.089 + 2.1) + 0.8 * Math.sin(t * TAU * 0.051 + 0.4)) * e,
+        P.shinL - P.legL -
+          (S.legLR.x - P.legL) * 0.85 +
+          (kneeSoft * (1.45 - 0.9 * loadL) + IDLE * (1.5 * Math.sin(t * TAU * 0.089 + 2.1) + 0.8 * Math.sin(t * TAU * 0.051 + 0.4))) * e,
         FIXED,
       );
       /* ── ankles ─────────────────────────────────────────────────────────
@@ -1036,20 +1276,31 @@ export class LaciaRig {
        * that tilts with the shin is the single clearest sign that a rig has no
        * ankle at all: she reads as standing on two stilts hinged at the knee.
        *
-       * Cancelling ~80% of the shin's angle keeps the sole level; the leftover
-       * 20% is what gives the ankle something to do. As with the knee, this is
-       * a front view, so a real dorsiflexion (toes up) would be invisible —
-       * what reads from the front is the *sole's* angle, which is exactly what
-       * this term controls.
+       * The boot's angle in the world is `thigh + shin + ankle` (all three are
+       * nested), so *that* is the quantity that has to stay near zero, not the
+       * ankle alone. `P.ankle` is derived from the pose above as
+       * `−(leg + knee)` for exactly this reason: a stance angle that is not
+       * cancelled here tilts the sole by the full stance angle, which is how a
+       * wide stance turns into standing on two slanted blocks.
+       *
+       * Cancelling ~80% of the shin's *dynamic* angle keeps the sole level; the
+       * leftover 20% is what gives the ankle something to do. As with the knee,
+       * this is a front view, so a real dorsiflexion (toes up) would be
+       * invisible — what reads from the front is the *sole's* angle, which is
+       * exactly what this term controls.
        *
        * The independent terms run on different periods per side, and the loaded
        * foot is the stiller one: it is the one carrying her. */
       S.ankleRR.step(
-        -S.kneeRR.x * 0.8 + (0.7 + 0.55 * Math.sin(t * TAU * 0.13 + 2.2)) * (1.3 - 0.6 * loadR) * e,
+        -P.shinR -
+          (S.kneeRR.x - (P.shinR - P.legR)) * 0.8 +
+          (0.7 + 0.55 * Math.sin(t * TAU * 0.13 + 2.2)) * (1.3 - 0.6 * loadR) * IDLE * e,
         FIXED,
       );
       S.ankleLR.step(
-        -S.kneeLR.x * 0.8 + (0.7 + 0.55 * Math.sin(t * TAU * 0.111 + 0.5)) * (1.3 - 0.6 * loadL) * e,
+        -P.shinL -
+          (S.kneeLR.x - (P.shinL - P.legL)) * 0.8 +
+          (0.7 + 0.55 * Math.sin(t * TAU * 0.111 + 0.5)) * (1.3 - 0.6 * loadL) * IDLE * e,
         FIXED,
       );
       S.monY.step(Math.sin((t * TAU) / 6.4) * 3.4 - S.rootY.x * 0.12, FIXED);
@@ -1073,7 +1324,7 @@ export class LaciaRig {
          `S.monAim.v` is in degrees/second and the aim spring is soft, so the
          coefficient stays small. */
       S.spineR.step(
-        (-sway * 0.85 + weight * 0.5 + breath * 0.6 + look * 0.45) * e + P.spine - S.monAim.v * 0.045,
+        (-sway * IDLE * 0.85 + weight * IDLE * 0.5 + breath * 0.6 + look * 0.45) * e + P.spine - S.monAim.v * 0.045,
         FIXED,
       );
       /* Only the *dynamic* part of her head goes into the aim: the idle
@@ -1173,6 +1424,32 @@ export class LaciaRig {
   }
 
   /** Write the current spring state to the DOM. */
+  /**
+   * The device's transform, in canvas space.
+   *
+   * Read twice per frame — once by `pose` to write it, once by the planted-hand
+   * IK to find where the rail has got to — so it lives in one place. Two copies
+   * of this expression would drift apart the moment either one is tuned.
+   *
+   * ## The pivot
+   *
+   * `matAbout(…, 246, 700)` is not decoration. The device is socketed at her
+   * waist, so its own roll, aim and recoil have to happen **about the socket**.
+   * Rotating about the canvas origin instead — which is what `matRot` alone
+   * does — puts the pivot 2121 units away: 2° of aim swung the whole 1150-unit
+   * housing 74 units sideways, which reads as the device sliding across the
+   * floor rather than turning to look at something. It also made a hand resting
+   * on the rail impossible, because the rail was not where the socket said it
+   * was.
+   */
+  private monMatrix(): Mat | null {
+    if (!this.monolith) return null;
+    const S = this.S;
+    const worldHips = matMul(matMove(0, S.rootY.x), matAbout(matMul(matMove(S.hipsX.x, 0), matRot(S.hipsR.x)), 246, 700));
+    const monLocal = S.monWorld.x - S.hipsR.x + S.monR.x + S.monAim.x + S.monHit.x;
+    return matMul(worldHips, matAbout(matMul(matMove(0, S.monY.x + S.monRecoil.x), matRot(monLocal)), 246, 700));
+  }
+
   private pose() {
     const S = this.S;
     const f = (v: number) => v.toFixed(3);
@@ -1232,13 +1509,8 @@ export class LaciaRig {
     for (const img of this.mouths.values()) img.style.transform = mouthT;
 
     if (this.monolith) {
-      /* Socket attachment. `worldHips` already carries her rotation and lift, so
-         the device inherits those for free; what is added here is its own lag
-         (`monWorld − hipsR`, the local part of the spring-bone pair), its idle
-         roll, its aim, and the recoil impulse. */
-      const monLocal = S.monWorld.x - S.hipsR.x + S.monR.x + S.monAim.x + S.monHit.x;
-      const m = matMul(worldHips, matMul(matMove(0, S.monY.x + S.monRecoil.x), matRot(monLocal)));
-      this.monolith.style.transform = `matrix(${m.map((n) => f(n)).join(',')})`;
+      const m = this.monMatrix();
+      if (m) this.monolith.style.transform = `matrix(${m.map((n) => f(n)).join(',')})`;
     }
   }
 

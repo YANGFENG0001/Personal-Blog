@@ -2,234 +2,172 @@
    Same rules as the other scene sheets: light-dark() colours so one markup
    serves day and night, and only transform/opacity ever animate.
 
-   ## What this plate is, and what it used to be
+   ## What this plate is
 
-   The first version was a dark skyline with a 290-wide black tower running off
-   the top of the frame. That is a *mood*, not the place — it could be any
-   cyberpunk backdrop — and the tower was invented: canonically the Black
-   Monolith is a device that floats behind her at about her own height, not a
-   building. So the plate was rebuilt around the four things the source
-   material actually shows:
+   A bay at mid-morning, seen from a quay. Two glass masses crop the frame at
+   the left and right edges and run past the top of the strip; a far shore
+   closes the horizon; a boat sits at the middle distance; and the middle is
+   open water and air. Read the long comment in `lacia()` for why each of those
+   is there — this sheet only decides how light they are.
 
-     1. it is a **coastal** city — water, a horizon, a lot of sky;
-     2. the architecture is **glass, banded horizontally** (curtain wall, not
-        punched windows);
-     3. an **elevated expressway** crosses the frame on tall piers;
-     4. the palette is **high-key** — pale blue, white, a little lavender —
-        and the only dark accent in the whole picture is the device.
-
-   Point 2 is also why this reads *better* behind text than the old plate: a
-   regular horizontal band is a lower spatial frequency than a random window
-   grid at the same contrast, so it competes with the text far less.
+   The upper half of the viewport is *not* part of this sheet's SVG: the strip
+   is pinned to the bottom, so anything above y≈20 in the viewBox is already
+   behind the buildings. The air up there is `.l-bands`, which is DOM.
 
    ## The value ladder
 
-   Four ranks step from the horizon down to the parapet, and every block inside
-   a rank picks one of three neighbouring tones (`t0`..`t2`). That ladder *is*
-   the depth; one flat fill per rank puts the whole city on a single plane and
-   it reads as a silhouette sticker.
+   Everything is drawn from a narrow band of blue-greys, and the band is
+   deliberately *narrow*: the scene sits under `--veil`, and a wide ladder in
+   here turns into mud on screen. Depth comes from four ranks stepping by about
+   10% each — far shore → water → glass masses → quay — plus the one bright
+   exception, the specular path on the water, which is the only thing on the
+   plate allowed to be near-white.
 
    Two notes for anyone editing this:
 
-   - The scene sits under `--veil` (see below), so a 12% step in here is only a
-     6% step on screen. The near rank is as dark as it is because it has to
-     survive the wash and still read as a separate plane.
-   - Nothing here is decorative. Remove a rank, the expressway or the parapet
-     and the picture flattens — that is the test. */
+   - The scene is 46vh tall and sliced from the bottom. Anything above y≈40 in
+     the 400-unit viewBox is cropped on short viewports, so no detail lives up
+     there except sky.
+   - Nothing here is decorative. Remove the specular path, the expressway or
+     the railing and the picture flattens — that is the test. */
 
 [data-scene-id='lacia'] {
-  --sky-1: light-dark(#a9c2e0, #05070d); --sky-2: light-dark(#cfdfef, #0a1018); --sky-3: light-dark(#e9f2fa, #14202e);
-  /* Heavier veil than the previous version, and it can afford to be: the
-     device is the only thing lifted above it, so the wash no longer has to be
-     weak to keep a black slab black. 58% is where the city still reads as a
-     city and body text clears AA with room to spare.
-     The night value is not simply "the same but dark": at 85% opaque the scene
-     contributes 15% of the final pixel and a night city disappears. */
-  --veil: light-dark(#f7f8fc94, #0a0c12b8);
+  --sky-1: light-dark(#86bce8, #071120); --sky-2: light-dark(#c2dcf2, #0d1d33); --sky-3: light-dark(#ecf5fd, #1b3552);
+  /* 50% by day, 66% by night. The plate itself is inside a narrow value band,
+     so the veil is a contract with the body text rather than a fix for a badly
+     exposed background — which is why it can be lighter than the 58% the
+     black-tower version needed and still clear AA everywhere.
+     Night was 72% over a near-black sky, and the result was a black rectangle
+     with a mascot in it: at that point the scene contributes almost nothing and
+     the whole "night harbour" idea is invisible. 66% over a sky that actually
+     has a horizon glow keeps it a place. */
+  --veil: light-dark(#f7f8fc80, #080b14a8);
   background:
-    radial-gradient(58% 40% at 70% 64%, light-dark(#eef4ff, #2a4a7020) 0%, transparent 74%),
-    linear-gradient(180deg, var(--sky-1) 0%, var(--sky-2) 46%, var(--sky-3) 100%);
+    radial-gradient(58% 46% at 63% 72%, light-dark(#ffffff73, #1d3a5c33) 0%, transparent 74%),
+    radial-gradient(70% 16% at 64% 74%, light-dark(transparent, #2a55804d) 0%, transparent 72%),
+    linear-gradient(180deg, var(--sky-1) 0%, var(--sky-2) 44%, var(--sky-3) 100%);
 }
 
-/* A pale bloom low and to the right — light without a sun. It sits near the
-   horizon rather than in the upper corner, because on a coastal plate the
-   brightest part of the sky is always the water. */
+/* Cloud bands for the upper half of the viewport.
+   They have to be DOM: the plate is a 46vh strip pinned to the bottom, so an
+   SVG ellipse at y=40 is already behind the buildings. Three very wide, very
+   soft bands — white on white, so the hero heading in front of them stays
+   dark-on-light. Nothing here is ever above 0.55 opacity; the moment it is,
+   the sky reads as weather instead of as air. */
+.l-bands { position: absolute; inset: 0; pointer-events: none; }
+.l-bands i {
+  position: absolute; display: block; border-radius: 50%;
+  background: radial-gradient(closest-side, light-dark(#ffffffa6, #4a6f9e3d), transparent 100%);
+  filter: blur(24px);
+}
+.l-bands i:nth-child(1) { left: -10%; top: 4%; width: 62%; height: 12%; }
+.l-bands i:nth-child(2) { left: 28%; top: 15%; width: 78%; height: 9%; opacity: 0.78; }
+.l-bands i:nth-child(3) { left: -16%; top: 26%; width: 56%; height: 8%; opacity: 0.55; }
+
+/* A pale bloom over the water — light without a sun. It sits at the horizon
+   rather than in a corner, because on a coastal plate the brightest part of the
+   sky is always where it meets the sea.
+   Kept low and kept weak: at top 30% / 0.9 opacity it washed out the middle of
+   the frame and made the sky read as empty paper rather than as air. */
 .l-bloom {
-  position: absolute; right: 8%; top: 34%; width: 52vw; height: 52vw; border-radius: 50%;
-  background: radial-gradient(circle, light-dark(#ffffff8c, #7fa6d040) 0%, transparent 62%);
-  filter: blur(30px); opacity: 0.9; pointer-events: none;
+  position: absolute; right: 14%; top: 44%; width: 52vw; height: 34vw; border-radius: 50%;
+  background: radial-gradient(circle, light-dark(#ffffff85, #7fa6d03a) 0%, transparent 62%);
+  filter: blur(30px); opacity: 0.68; pointer-events: none;
 }
 
-/* One soft beam falling through the air. Without it the bands read as stacked
-   paper. */
+/* ---------- sky ---------- */
+/* No `.cl` rule any more: the SVG cloud ellipses were removed. They sat at
+   y=40–168 in the viewBox, which is behind the buildings, so they contributed
+   nothing. The sky is `.l-bands` now — see the note at the top. */
+
+[data-scene-id='lacia'] .l-hglow {
+  fill: light-dark(#ffffff, #3f6f9e); opacity: 0.55; filter: blur(18px);
+}
+
+/* ---------- the far shore: a rank, not a skyline ----------
+   A shade darker than the water and much darker than the sky, so the eight
+   masses read as distance rather than as paper cut-outs on the horizon. */
+[data-scene-id='lacia'] .sh { fill: light-dark(#b3c7db, #16283c); }
+
+/* ---------- water ----------
+   Flat mid-tone outside the specular wedge, near-white inside it. The glints
+   are only drawn inside the wedge, which is why they can be bright without
+   turning the whole bay into a texture. The wedge itself is a gradient that
+   fades out before it reaches the quay — a solid one read as a white sheet. */
+[data-scene-id='lacia'] .l-sea { fill: light-dark(#8fb6d8, #0b1a2a); }
+[data-scene-id='lacia'] .l-sea-path { fill: url(#sc-lacia-glint); }
+[data-scene-id='lacia'] .g0 { stop-color: light-dark(#ffffff, #6f9dc4); stop-opacity: 0.5; }
+[data-scene-id='lacia'] .g1 { stop-color: light-dark(#f2fbff, #5586ad); stop-opacity: 0.2; }
+[data-scene-id='lacia'] .g2 { stop-color: light-dark(#dceefb, #2c4a68); stop-opacity: 0; }
+[data-scene-id='lacia'] .l-sea-line { fill: light-dark(#eaf4ff, #2c4a68); opacity: 0.9; }
+[data-scene-id='lacia'] .l-rip { fill: light-dark(#ffffff, #6fa8d4); }
+
+[data-scene-id='lacia'] .l-craft { fill: light-dark(#8ea6bf, #223247); }
+[data-scene-id='lacia'] .l-trail { fill: light-dark(#ffffff, #2c3f57); opacity: 0.7; }
+
+/* ---------- glass ----------
+   The mullion is the material; the floor line is only there so a tall column
+   does not read as a barcode. Both are faint enough that at 56% veil they
+   survive as texture and vanish as pattern — which is the whole point, because
+   a window *grid* is the one thing that fights body text. */
+[data-scene-id='lacia'] .v0 { stop-color: light-dark(#f4f8fd, #16273a); }
+[data-scene-id='lacia'] .v1 { stop-color: light-dark(#dbe7f3, #101d2c); }
+[data-scene-id='lacia'] .v2 { stop-color: light-dark(#a6bcd4, #0a1420); }
+[data-scene-id='lacia'] .v-face { fill: url(#sc-lacia-vol); }
+[data-scene-id='lacia'] .mull { fill: light-dark(#93a9c0, #2a3b4f); opacity: 0.3; }
+[data-scene-id='lacia'] .flr { fill: light-dark(#a9bfd3, #223144); opacity: 0.56; }
+[data-scene-id='lacia'] .v-mull, [data-scene-id='lacia'] .v-floor { pointer-events: none; }
+[data-scene-id='lacia'] .v-shade-l { fill: light-dark(#8ea3b9, #03060b); opacity: 0.4; }
+[data-scene-id='lacia'] .v-shade-r { fill: light-dark(#8ea3b9, #03060b); opacity: 0.4; }
+/* The lit edge. One bright line on the roof and the sun side is what turns a
+   flat block into a volume under the same sky; without it every mass is a
+   sticker. */
+[data-scene-id='lacia'] .v-rim { fill: light-dark(#ffffff, #3d5a78); opacity: 0.95; }
+/* The cornice. A dark band cantilevered past both edges of the volume — it is
+   the one dark value on the glass, and it is what stops a tall pale column from
+   reading as a blank panel. */
+[data-scene-id='lacia'] .v-crown {
+  fill: light-dark(#c2d4e4, #0a121b);
+  stroke: light-dark(#ffffff, #2f4a68); stroke-width: 0.8; stroke-opacity: 0.55;
+}
+
+/* ---------- the boat ----------
+   The expressway is gone: the water is only 148 units deep, so any deck with
+   piers fills it and the bay stops reading as a bay (see the note in
+   `lacia()`). The scale cue is a boat instead — hull in `.l-craft`, wake in
+   `.l-trail` — which is three rectangles and leaves the water visible on both
+   sides of it. */
+
+/* ---------- the interface motif ---------- */
+[data-scene-id='lacia'] .l-hex path {
+  fill: none; stroke: light-dark(#7ea9cc, #3d6f9c); stroke-width: 0.9; opacity: 0.3;
+}
+[data-scene-id='lacia'] .l-hex-1 { animation: l-hex-drift 26s ease-in-out infinite; }
+[data-scene-id='lacia'] .l-hex-2 { animation: l-hex-drift 19s ease-in-out infinite reverse; }
+
+/* ---------- the quay ----------
+   The one hard foreground edge, and the reason the bay has a distance. Kept
+   slightly darker than the water so it separates from it even under the veil. */
+[data-scene-id='lacia'] .fg-deck { fill: light-dark(#b6c6d6, #0a1119); }
+[data-scene-id='lacia'] .fg-cap { fill: light-dark(#e8f1f9, #223142); }
+[data-scene-id='lacia'] .fg-rail { fill: light-dark(#c3d2e0, #1a2531); }
+[data-scene-id='lacia'] .fg-post { fill: light-dark(#b3c2d1, #16202b); }
+[data-scene-id='lacia'] .fg-arm { fill: light-dark(#a9b8c7, #131c26); }
+[data-scene-id='lacia'] .fg-lamp { fill: light-dark(#ffffff, #cfeeff); }
+[data-scene-id='lacia'] .fg-lamp-glow {
+  fill: light-dark(#ffffff, #7fd8ff); opacity: light-dark(0.4, 0.5); filter: blur(5px);
+}
+
+/* ---------- atmosphere ---------- */
 .l-shaft {
-  position: absolute; right: 4%; top: -10%; width: 54vw; height: 104vh;
-  background: linear-gradient(
-    196deg,
-    transparent 24%,
-    light-dark(#ffffff4d, #8fd0ff1a) 40%,
-    light-dark(#ffffff24, #8fd0ff0f) 56%,
-    transparent 72%
-  );
-  transform: skewX(-7deg);
-  filter: blur(18px);
-  opacity: 0.7;
-  pointer-events: none;
+  position: absolute; inset: 0; pointer-events: none; mix-blend-mode: soft-light;
+  background: linear-gradient(104deg, transparent 34%, light-dark(#ffffff73, #8fc4f01f) 52%, transparent 66%);
 }
 
-/* ---------- the bay ----------
-   The horizon is the brightest line in the plate, which is what a hazy day
-   actually looks like: the air near the water scatters everything. */
-[data-scene-id='lacia'] .l-hglow { fill: light-dark(#ffffffd9, #7fc8ff4d); filter: blur(30px); }
-[data-scene-id='lacia'] .l-sea { fill: light-dark(#a8c3dd, #0e1c2c); }
-/* The sun path on the water. A trapezoid, not a gradient: at this size a hard
-   specular edge is what makes water read as water rather than as a pale band. */
-[data-scene-id='lacia'] .l-sea-path { fill: light-dark(#ffffff, #5b8cbb); opacity: 0.95; }
-[data-scene-id='lacia'] .l-sea-line { fill: light-dark(#e2ecf9, #35557a); opacity: 0.9; }
-
-/* Cloud bands. White on a pale sky, so they lift the plate instead of dirtying
-   it — and because they are horizontal and blurred they add depth without
-   adding anything for the eye to read. */
-[data-scene-id='lacia'] .cl { fill: light-dark(#ffffff, #1b2740); }
-
-/* ---------- the far shore: barely a rank ---------- */
-[data-scene-id='lacia'] .l-shore rect { fill: light-dark(#c9d5e6, #131c28); }
-[data-scene-id='lacia'] .l-shore .t1 { fill: light-dark(#c3d0e2, #111a25); }
-[data-scene-id='lacia'] .l-shore .t2 { fill: light-dark(#bdcadd, #0f1722); }
-
-/* ---------- rank 2: the glass towers ---------- */
-[data-scene-id='lacia'] .l-mid rect { fill: light-dark(#8e9db4, #18222f); }
-[data-scene-id='lacia'] .l-mid .t1 { fill: light-dark(#8796ae, #151e2a); }
-[data-scene-id='lacia'] .l-mid .t2 { fill: light-dark(#8090a9, #121a25); }
-
-/* Curtain wall. The horizontal band is the material; the vertical mullion is
-   only there so the face is not a barcode, and it is half the contrast. Both
-   are drawn as patterns so the pitch stays exact across towers of different
-   heights — a hand-drawn band list always drifts and starts to read as a
-   ladder. */
-/* Lighter than the tower fill, not darker: a curtain wall reflects the sky, so
-   each band is a bright line. Darker bands read as a ladder, which is the
-   "drawn texture" look this is trying to avoid. */
-[data-scene-id='lacia'] .cw-h { fill: light-dark(#bac8db, #33445c); opacity: 0.9; }
-[data-scene-id='lacia'] .cw-v { fill: light-dark(#6f7e95, #1d2836); opacity: 0.5; }
-
-/* Lit top edges. The cheapest fix for "flat vector skyline": one lighter line
-   along every roof turns the rank into volumes under one sky. */
-[data-scene-id='lacia'] .rim { fill: light-dark(#b7c5d9, #3b4f68); opacity: 0.85; }
-[data-scene-id='lacia'] .nrim { fill: light-dark(#8b93a8, #1e2637); opacity: 0.85; }
-
-/* ---------- the elevated expressway ----------
-   Drawn as a stroke on a quadratic curve, with the piers sampled off the same
-   curve. A straight deck at this angle reads as a drawn line; a 44-unit sag
-   across the frame reads as something 400 m long seen from the side. */
-[data-scene-id='lacia'] .xw-deck { stroke: light-dark(#7d8899, #22303f); }
-[data-scene-id='lacia'] .xw-under { stroke: light-dark(#68738a, #18232f); opacity: 0.9; }
-[data-scene-id='lacia'] .xw-rail { stroke: light-dark(#aab6c8, #40566f); opacity: 0.9; }
-[data-scene-id='lacia'] .xw-pier { fill: light-dark(#77839a, #1b2634); }
-[data-scene-id='lacia'] .xw-foot { fill: light-dark(#8e9aae, #2a3a4d); }
-
-/* ---------- rank 3: near ---------- */
-[data-scene-id='lacia'] .l-near rect { fill: light-dark(#55606f, #0b121b); }
-[data-scene-id='lacia'] .l-near .t1 { fill: light-dark(#4e5968, #091019); }
-[data-scene-id='lacia'] .l-near .t2 { fill: light-dark(#47515f, #080e16); }
-
-/* ---------- the device ----------
-   This layer is lifted **above the readability veil** (`.scene::after`), and
-   that is the whole reason it reads as a black mass. The veil is 58% opaque
-   white in light mode: a #05060a face arrives on screen as a light grey, and
-   every value on the body collapses into the same one, taking the gradient,
-   the joint lines and the rim with it. Keeping the city under the veil and the
-   device above it is also the right picture: the ranks stay soft and
-   atmospheric, the subject does not.
-
-   The gap under it is the whole trick. It hovers 40 units clear of the
-   expressway with a faint down-wash beneath and **no ground shadow** — a
-   shadow would say "standing", which is exactly what the old tower version
-   said. */
-[data-scene-id='lacia'] .sc-mono { z-index: 2; }
-/* The parapet is the nearest object in the picture, so it has to occlude the
-   landmark's base. Without this the black tower paints over the railing and
-   the whole depth order inverts: the thing that is 300 m away would be drawn
-   in front of the thing you are leaning on. */
-[data-scene-id='lacia'] .sc-fg { z-index: 3; }
-[data-scene-id='lacia'] .l-mono-body { stroke: none; }
-[data-scene-id='lacia'] .mf0 { stop-color: light-dark(#151a22, #020306); }
-[data-scene-id='lacia'] .mf1 { stop-color: light-dark(#1c222c, #03050a); }
-[data-scene-id='lacia'] .mf2 { stop-color: light-dark(#28303c, #080b12); }
-[data-scene-id='lacia'] .ms0 { stop-color: light-dark(#0a0e14, #010102); }
-[data-scene-id='lacia'] .ms1 { stop-color: light-dark(#141922, #020307); }
-
-/* Two cast joints. They say "manufactured", not "decorated" — the moment one
-   of them competes with the rim, the body stops being a mass. */
-/* A cornice, not a highlight: the top of a tower is a *width change*, and one
-   2.5-unit step either side is all it takes to stop the silhouette from being a
-   bar. Without it the black tower reads as a scrollbar. */
-[data-scene-id='lacia'] .l-mono-cornice {
-  fill: none; stroke: light-dark(#77849d, #46566f); stroke-width: 1.6; opacity: 0.95;
-}
-[data-scene-id='lacia'] .l-mono-joint {
-  fill: none; stroke: light-dark(#2a3140, #0a0f16); stroke-width: 1.1; opacity: 0.9;
+@keyframes l-hex-drift {
+  50% { transform: translate(6px, -5px); }
 }
 
-/* At night the body and the sky are both near-black, so this rim is the only
-   thing separating the subject from the background. It has to be *brighter*
-   in dark mode, not dimmer — the usual reflex is wrong here. */
-[data-scene-id='lacia'] .l-mono-edge {
-  fill: none; stroke: light-dark(#8b97b2, #6a7d9f); stroke-width: 1; opacity: 0.9;
-}
-/* The seam is a hairline, not a light bar. At 1.5 units on a 68-wide face it
-   was the brightest thing in the whole plate and the tower read as a scrollbar
-   with a scroll thumb. */
-[data-scene-id='lacia'] .l-mono-seam { fill: none; stroke: light-dark(#4aa8e0, #b6e4ff); stroke-width: 0.9; opacity: 0.75; }
-[data-scene-id='lacia'] .l-mono-glow {
-  fill: none; stroke: light-dark(#6fc4f0, #9ed8ff); stroke-width: 4.5; opacity: 0.3; filter: blur(4px);
-}
-[data-scene-id='lacia'] .l-mono-core { fill: light-dark(#dff2ff, #eaf8ff); opacity: 0.85; }
-[data-scene-id='lacia'] .l-mono-core-halo { fill: light-dark(#8fd0ff, #bfe8ff); opacity: 0.5; }
-
-/* ---------- aircraft: a dash and a trail, and that is enough ---------- */
-[data-scene-id='lacia'] .l-craft { fill: light-dark(#7f8799, #3d4a66); opacity: 0.6; }
-[data-scene-id='lacia'] .l-trail { fill: light-dark(#a7aec1, #47566f); opacity: 0.45; }
-
-/* ---------- the parapet: the camera is on a roof ---------- */
-[data-scene-id='lacia'] .fg-deck { fill: light-dark(#4b5163, #010204); }
-[data-scene-id='lacia'] .fg-cap { fill: light-dark(#9aa2b6, #2b3550); }
-[data-scene-id='lacia'] .fg-rail { fill: light-dark(#7d8598, #141a24); }
-[data-scene-id='lacia'] .fg-post { fill: light-dark(#6a7285, #0d1219); }
-[data-scene-id='lacia'] .fg-arm { fill: light-dark(#6a7285, #0d1219); }
-[data-scene-id='lacia'] .fg-lamp { fill: light-dark(#f6faff, #cfeaff); }
-[data-scene-id='lacia'] .fg-lamp-glow { fill: light-dark(#ffffff, #8fd0ff); opacity: 0.4; filter: blur(5px); }
-
-/* ---------- the analog-hack frames ---------- */
-[data-scene-id='lacia'] .l-hex path { fill: none; stroke: light-dark(#8fa8cc88, #8fd0ff55); stroke-width: 1.4; }
-
-/* Night: the city goes quiet, the seam stays lit. */
-:root[data-theme='dark'] [data-scene-id='lacia'] .l-mono-glow { opacity: 0.55; }
-@media (prefers-color-scheme: dark) {
-  :root[data-theme='auto'] [data-scene-id='lacia'] .l-mono-glow { opacity: 0.55; }
-}
-
-/* ---------- motion ---------- */
-@media (prefers-reduced-motion: no-preference) {
-  :root:not([data-motion='off']) [data-scene-id='lacia'] .l-mono-seam,
-  :root:not([data-motion='off']) [data-scene-id='lacia'] .l-mono-glow { animation: l-seam 6.5s ease-in-out infinite; }
-  :root:not([data-motion='off']) [data-scene-id='lacia'] .l-mono-core-halo { animation: l-core 4.2s ease-in-out infinite; }
-  /* The device is floating, so it gets a drift rather than a sway: 3px of rise
-     over 9s, out of phase with the seam. A hovering object that is perfectly
-     still reads as a sticker on the sky. */
-  :root:not([data-motion='off']) [data-scene-id='lacia'] .l-hex { animation: l-float 14s ease-in-out infinite; }
-  :root:not([data-motion='off']) [data-scene-id='lacia'] .l-hex-2 { animation-duration: 18s; animation-delay: -4s; }
-  :root:not([data-motion='off']) [data-scene-id='lacia'] .l-hex-3 { animation-duration: 11s; animation-delay: -7s; }
-  :root:not([data-motion='off']) [data-scene-id='lacia'] .l-bloom { animation: l-breathe 12s ease-in-out infinite; }
-  :root:not([data-motion='off']) [data-scene-id='lacia'] .l-shaft { animation: l-drift 23s ease-in-out infinite; }
-  :root:not([data-motion='off']) [data-scene-id='lacia'] .fg-lamp-glow { animation: l-lamp 7.5s ease-in-out infinite; }
-}
-@keyframes l-seam { 50% { opacity: 0.4; } }
-@keyframes l-core { 50% { opacity: 0.28; } }
-@keyframes l-float { 50% { transform: translateY(-9px); } }
-@keyframes l-breathe { 50% { opacity: 0.62; } }
-@keyframes l-lamp { 50% { opacity: 0.26; } }
-@keyframes l-drift {
-  0%, 100% { transform: skewX(-7deg) translateX(0); }
-  50% { transform: skewX(-7deg) translateX(-3vw); }
+@media (prefers-reduced-motion: reduce) {
+  [data-scene-id='lacia'] .l-hex-1, [data-scene-id='lacia'] .l-hex-2 { animation: none; }
 }
