@@ -54,6 +54,11 @@ const schemas = {
     mascot: z.object({
       mode: z.enum(['preset', 'on', 'off']),
       character: z.union([z.enum(['preset', 'haru', 'sora', 'chibi', 'lacia']), z.string().regex(/^pack:[a-f0-9]{16}$/)]),
+      /* Which outfit the rigged character wears. Both skins are the same
+         30-part skeleton, so this is a costume change, not a capability one.
+         Optional because settings saved before the second skin have no key;
+         `deepMerge` leaves it absent and the reader falls back to 'suit'. */
+      skin: z.enum(['suit', 'dress']).optional(),
       draggable: z.boolean(),
       imageUrl: z.union([z.literal(''), imageUrl]),
       position: z.enum(['right', 'left']),
