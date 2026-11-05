@@ -15,7 +15,12 @@ export const MASCOTS: { id: MascotId; name: string; desc: string; thumb?: string
     desc: '樱色发卡、长发、水手服。分层骨架立绘：30 个语义图层挂在关节上，会转头、眨眼、摆臂、呼吸。',
     thumb: '/lacia-rig/haru/thumb.webp',
   },
-  { id: 'sora', name: '小晴', desc: '短发侧辫、太阳发夹，撑着透明雨伞的晴天少女。' },
+  {
+    id: 'sora',
+    name: '小晴',
+    desc: '短发侧辫、太阳发夹、晴雨两用的防风外套。同样是分层骨架立绘，会转头、眨眼、摆臂、呼吸。',
+    thumb: '/lacia-rig/sora/thumb.webp',
+  },
   {
     id: 'lacia',
     name: '蕾西亚',

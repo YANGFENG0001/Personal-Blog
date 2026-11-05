@@ -27,6 +27,7 @@
 import { LACIA_ANKLE, LACIA_CANVAS, LACIA_ELBOW, LACIA_KNEE, LACIA_PARTS, LACIA_WRIST } from './parts';
 import { DRESS_ANKLE, DRESS_ELBOW, DRESS_KNEE, DRESS_PARTS, DRESS_WRIST } from './parts-dress';
 import { HARU_ANKLE, HARU_CANVAS, HARU_ELBOW, HARU_FRAME, HARU_KNEE, HARU_PARTS, HARU_WRIST } from './parts-haru';
+import { SORA_ANKLE, SORA_CANVAS, SORA_ELBOW, SORA_FRAME, SORA_KNEE, SORA_PARTS, SORA_WRIST } from './parts-sora';
 import type { LaciaPart } from './parts';
 import {
   FACE_IDS,
@@ -240,19 +241,50 @@ export const HARU_SKIN: LaciaSkin = {
   /* See-through cut her skirt as its own `bottomwear` layer instead of welding
      it to the blouse, exactly as it did on the blue dress. A skirt hangs from
      the waist, so it rides the torso — unlisted ids default to the head, which
-     would make the pleats turn with her chin. */
-  bone: { bottomwear: 'torso' },
+     would make the pleats turn with her chin. The flower clip is pinned to her
+     hair, so it rides the fringe rather than the skull. */
+  bone: { bottomwear: 'torso', headwear: 'hairFront' },
   components: [],
   noOverride: true,
 };
 
-export const LACIA_SKINS = { suit: SUIT_SKIN, dress: DRESS_SKIN, haru: HARU_SKIN } as const;
+/**
+ * The third character, and the one whose design was chosen *for* the pipeline.
+ *
+ * 小晴's first two drafts had a hooded rain jacket, and the split put both
+ * sleeves and the hood into a single `handwear` layer — one connected blob of
+ * garment that no connected-component split can separate, because the hood is
+ * physically joined to the sleeves. Choosing a stand collar instead of a hood
+ * is not a costume preference here; it is what makes the layer split come back
+ * as two arms.
+ */
+export const SORA_SKIN: LaciaSkin = {
+  base: '/lacia-rig/sora/',
+  parts: SORA_PARTS,
+  knee: SORA_KNEE,
+  elbow: SORA_ELBOW,
+  wrist: SORA_WRIST,
+  ankle: SORA_ANKLE,
+  canvas: SORA_CANVAS,
+  frame: SORA_FRAME,
+  faceBase: '/lacia-rig/sora/',
+  /* `orphan` is the braid the split dropped (see the recovery step in
+     `export_assets.py`). It hangs off the back hair so it lags the head the way
+     a braid does, and so the end that was tucked behind her hair stays tucked —
+     `hairBack` paints behind the whole body. */
+  bone: { bottomwear: 'torso', headwear: 'hairFront', orphan: 'hairBack' },
+  components: [],
+  noOverride: true,
+};
+
+export const LACIA_SKINS = { suit: SUIT_SKIN, dress: DRESS_SKIN, haru: HARU_SKIN, sora: SORA_SKIN } as const;
 export type LaciaSkinId = keyof typeof LACIA_SKINS;
 
 /** Which skin a corner mascot should wear. A character with only one outfit
  *  ignores the outfit setting rather than silently wearing someone else's. */
 export function skinForCharacter(character: string, outfit: string): LaciaSkinId {
   if (character === 'haru') return 'haru';
+  if (character === 'sora') return 'sora';
   return outfit === 'dress' ? 'dress' : 'suit';
 }
 

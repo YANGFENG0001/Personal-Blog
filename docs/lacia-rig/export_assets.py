@@ -41,6 +41,11 @@ _ap.add_argument(
     default="",
     help="read joint pivots from an existing parts.ts instead of measuring them",
 )
+_ap.add_argument(
+    "--source",
+    default="",
+    help="the aligned full figure (e.g. docs/seethrough-x/source.png); enables orphan recovery",
+)
 _args = _ap.parse_args()
 
 SRC, META, OUT, TS = _args.src, _args.meta, _args.out, _args.ts
@@ -208,8 +213,24 @@ def split_arm(nm, out, ox, oy, z):
     print(f"    elbow {ELBOWS[nm[-1]]} / wrist {WRISTS[nm[-1]]}")
 
 
-def split_lr(name, img, ox, oy, z, knee=False):
-    """Split a merged two-leg layer into left / right halves by connected components."""
+def big_components(img, share=0.05):
+    """How many *substantial* connected blobs a layer's alpha contains.
+
+    Erosion first so anti-aliasing does not bridge two limbs into one blob, and
+    a 5% size floor so a speck of stray paint does not count as an arm.
+    """
+    a = np.array(img)[:, :, 3]
+    mask = a > 24
+    mask = ndimage.binary_erosion(mask, iterations=2)
+    if not mask.any():
+        return 0
+    lab, n = ndimage.label(mask)
+    sizes = ndimage.sum(mask, lab, range(1, n + 1))
+    return sum(1 for s in sizes if s > mask.sum() * share)
+
+
+def split_lr(name, img, ox, oy, z, knee=False, arm=False):
+    """Split a merged two-limb layer into left / right halves by connected components."""
     a = np.array(img)[:, :, 3]
     mask = a > 24
     # erode a touch so the two legs are not bridged by anti-aliasing
@@ -236,6 +257,8 @@ def split_lr(name, img, ox, oy, z, knee=False):
         out[~m] = 0
         if knee:
             split_joint(nm, out, ox, oy, z, "knee")
+        elif arm:
+            split_arm(nm, out, ox, oy, z)
         elif name == "footwear":
             # Boots stay whole — an ankle is not a place you cut a boot in half.
             # What the split is for here is the *pivot*: the boot becomes its own
@@ -253,14 +276,90 @@ for layer in meta["layers"]:
     name = layer["name"]
     img = loaded[name]
     ox, oy = layer["left"], layer["top"]
+    # A layer with a handful of opaque pixels is the empty half of a pair the
+    # split failed to merge — measuring a joint in it finds no silhouette and
+    # crashes on an empty row list. Skipping is the honest reading: there is no
+    # limb in there to rig.
+    if np.array(img)[:, :, 3].astype(bool).sum() < 64:
+        print(f"  -- {name}: effectively empty, skipped")
+        continue
     Z += 1
     if name in ("legwear", "footwear"):
         split_lr(name, img, ox, oy, Z, knee=(name == "legwear"))
     elif name in ("handwear-l", "handwear-r"):
-        # Already one layer per arm, so no L/R split — just the two cuts.
-        split_arm(name, np.array(img), ox, oy, Z)
+        # Which arm the *name* claims is not evidence. See-through groups by
+        # semantic part, and on the 小晴 run it put both sleeves into one layer
+        # called `handwear-l` — a 476x666 crop spanning the whole figure — while
+        # `handwear-r` came back as a two-pixel sliver. Splitting on the count
+        # of connected blobs instead handles both shapes of the data: two blobs
+        # means two arms and they have to be separated first, one blob means
+        # this layer already is one arm and only needs the two cuts.
+        if big_components(img) >= 2:
+            split_lr("handwear", img, ox, oy, Z, arm=True)
+        else:
+            split_arm(name, np.array(img), ox, oy, Z)
     else:
         add(name, img, ox, oy, Z)
+
+# 2b. orphans — the thin things the split dropped.
+#
+# The splitter assigns *semantic parts*, so it has no slot for a loose braid, a
+# dangling strap, a single strand of hair. Those come back in no layer at all
+# and the figure is quietly missing a piece of its own design: 小晴's side braid
+# was a 178x66 strand that vanished, leaving a plain bob.
+#
+# Guessing it back would be inventing art. Subtracting does not: whatever is in
+# the source and in no layer is, by definition, the part that was lost. So the
+# recovered pixels become one extra layer with its own id, painted last. That
+# ordering is the one assumption here — a dropped element that belonged *behind*
+# something would come back in front — but a dropped element is thin and mostly
+# at the silhouette edge, where nothing covers it anyway.
+if _args.source:
+    _src = Image.open(_args.source).convert("RGBA")
+    _sb = _src.getbbox()
+    if not _sb:
+        raise SystemExit(f"orphans: {_args.source} is empty")
+    _ref = _src.crop(_sb).resize((CW, CH), Image.LANCZOS)
+    _covered = np.zeros((CH, CW), np.float32)
+    for _p in parts:
+        _a = np.array(Image.open(os.path.join(OUT, _p["file"])).convert("RGBA"))[:, :, 3] / 255.0
+        _win = _covered[_p["y"] : _p["y"] + _p["h"], _p["x"] : _p["x"] + _p["w"]]
+        np.maximum(_win, _a[: _win.shape[0], : _win.shape[1]], out=_win)
+    _ink = np.array(_ref)[:, :, 3] / 255.0
+    _lost = (_ink > 0.35) & (_covered < 0.35)
+    _lab, _n = ndimage.label(_lost)
+    if _n:
+        _sizes = ndimage.sum(_lost, _lab, range(1, _n + 1))
+        # 200 px floor: below that it is anti-aliasing along a seam between two
+        # segments, not a missing element.
+        _keep = [i + 1 for i, s in enumerate(_sizes) if s > 200]
+        if _keep:
+            _m = np.isin(_lab, _keep)
+            _out = np.array(_ref)
+            _out[~ndimage.binary_dilation(_m, iterations=1)] = 0
+            _ys, _xs = np.where(_m)
+            _box = (
+                max(0, int(_xs.min()) - 2),
+                max(0, int(_ys.min()) - 2),
+                min(CW, int(_xs.max()) + 3),
+                min(CH, int(_ys.max()) + 3),
+            )
+            _fn = "orphan.webp"
+            Image.fromarray(_out).crop(_box).save(os.path.join(OUT, _fn), "WEBP", quality=92, method=6)
+            parts.append(
+                {
+                    "id": "orphan",
+                    "file": _fn,
+                    "x": _box[0],
+                    "y": _box[1],
+                    "w": _box[2] - _box[0],
+                    "h": _box[3] - _box[1],
+                    "z": max(p["z"] for p in parts) + 1,
+                }
+            )
+            print(f"  orphan           {_box[2]-_box[0]}x{_box[3]-_box[1]} at ({_box[0]},{_box[1]}) — recovered {int(_m.sum())} px")
+        else:
+            print("  orphan           none (split lost nothing significant)")
 
 parts.sort(key=lambda p: p["z"])
 
