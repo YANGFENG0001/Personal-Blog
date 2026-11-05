@@ -8,6 +8,8 @@ import { MASCOTS, mascotSvg, isMascotId } from '../../lib/mascot';
 import type { StoredMascotPack } from '../../lib/mascot-pack';
 import type { StoredTheme } from '../../lib/custom-theme';
 import { mergeCustom } from '../../lib/appearance';
+import { COMPONENT_IDS, LACIA_COMPONENTS, SKIN_COMPONENT_DEFAULTS } from '../../lib/lacia/registry';
+import { SLOT_LABELS } from '../../lib/lacia/components';
 import { MascotPacks } from './MascotPacks';
 import '../../styles/scenes.css';
 import '../../styles/scenes-anime.css';
@@ -245,6 +247,14 @@ function MascotPanel({ a, setA, uploads, packs, setPacks, studioUrl }: { a: AS; 
   const thumb = MASCOTS.find((c) => c.id === character)?.thumb;
   const withMascot = PRESETS.filter((p) => p.mascot).map((p) => `“${p.name}”`).join('、');
   const images = uploads.filter((u) => /\.(png|webp|gif|svg)$/i.test(u.filename));
+  /* Components: the stored list wins, otherwise the outfit's own default. The
+     two are different states on purpose — "unset" keeps following the outfit,
+     an explicit list survives an outfit change. */
+  const picked = m.components ?? SKIN_COMPONENT_DEFAULTS[m.skin ?? 'suit'] ?? [];
+  const toggleComponent = (list: readonly string[], id: string) =>
+    list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
+  const countActions = (list: readonly string[]) =>
+    1 + list.reduce((n, id) => n + (LACIA_COMPONENTS[id]?.actions?.length ?? 0), 0);
   return (
     <section class="panel">
       <div class="panel-head">
@@ -296,7 +306,7 @@ function MascotPanel({ a, setA, uploads, packs, setPacks, studioUrl }: { a: AS; 
               <Segmented
                 label="蕾西亚的服装"
                 value={m.skin ?? 'suit'}
-                onChange={(v) => set({ skin: v })}
+                onChange={(v) => set({ skin: v, components: undefined })}
                 options={[
                   ['suit', '战斗服'],
                   ['dress', '蓝色连衣裙'],
@@ -305,6 +315,30 @@ function MascotPanel({ a, setA, uploads, packs, setPacks, studioUrl }: { a: AS; 
               <p class="hint">
                 两套是同一副 30 层骨架，关节、表情、口型、武器接触都在——换的只是衣服。素材包不一样：那是单张静态图，选中会丢掉全部分层动画。
               </p>
+              <span class="label" style={{ marginTop: '14px', display: 'block' }}>
+                挂载组件
+              </span>
+              {COMPONENT_IDS.map((id) => {
+                const c = LACIA_COMPONENTS[id];
+                return (
+                  <Switch
+                    key={id}
+                    checked={picked.includes(id)}
+                    onChange={() => set({ components: toggleComponent(picked, id) })}
+                    label={`${c.label.name}（${SLOT_LABELS[c.slot]}）${c.label.note ? ` — ${c.label.note}` : ''}`}
+                  />
+                );
+              })}
+              <p class="hint">
+                组件是可选的：不带组件就不渲染它的画面，它的动作也不进动作表。每个组件自带一套动作模组（这套里共 {picked.length} 件、{countActions(picked)} 个动作），同一时刻只跑一个；动作可以临时隐藏别的槽位，规则写在动作自己身上。
+              </p>
+              {m.components && (
+                <p class="hint">
+                  <button type="button" class="btn" onClick={() => set({ components: undefined })}>
+                    恢复这套衣服的默认挂载
+                  </button>
+                </p>
+              )}
             </div>
           )}
           <div class="grid-2">

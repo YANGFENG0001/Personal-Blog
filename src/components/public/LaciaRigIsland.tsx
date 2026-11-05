@@ -12,14 +12,20 @@
  * before hydration; the class then adopts the same nodes instead of rebuilding.
  */
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { LaciaRig, laciaMarkup, type LaciaForm, type LaciaSkinId } from '../../lib/lacia/rig';
-import { LACIA_FORM_LABELS, LACIA_FORM_ORDER, LACIA_FORMS, LACIA_QUOTES } from '../../lib/lacia/lines';
+import { LaciaRig, laciaActions, laciaMarkup, type LaciaForm, type LaciaSkinId } from '../../lib/lacia/rig';
+import { LACIA_FORMS, LACIA_QUOTES } from '../../lib/lacia/lines';
 import '../../styles/lacia-rig.css';
 
 interface Props {
   variant?: 'mascot' | 'stage';
   /** Which outfit she wears; both are the same rig. */
   skin?: LaciaSkinId;
+  /**
+   * Optional components to mount, overriding the outfit's own set. Undefined
+   * means "whatever this outfit ships with" — the dress ships nothing, which is
+   * why the console and the device panel disappear on it.
+   */
+  components?: readonly string[];
   /** Cycle the device through its forms while idle. */
   autoForms?: boolean;
 }
@@ -39,12 +45,18 @@ function Chars({ text, delay = 0, speed = 26 }: { text: string; delay?: number; 
   );
 }
 
-export default function LaciaRigIsland({ variant = 'mascot', skin = 'suit', autoForms = false }: Props) {
+export default function LaciaRigIsland({ variant = 'mascot', skin = 'suit', components, autoForms = false }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const rigRef = useRef<LaciaRig | null>(null);
   const nRef = useRef(0);
   const [form, setForm] = useState<LaciaForm>('coffin');
   const [panel, setPanel] = useState<Panel | null>(null);
+
+  /* The console is built from the mounted components' actions, not from a
+     hard-coded form list — an outfit with no device has no device actions, so
+     the buttons simply do not exist. */
+  const deviceActions = laciaActions(skin, components).filter((a) => a.owner === 'monolith');
+  const hasDevice = deviceActions.length > 0;
 
   /**
    * Show a line and let the rig move her mouth with it.
@@ -72,6 +84,7 @@ export default function LaciaRigIsland({ variant = 'mascot', skin = 'suit', auto
     const rig = new LaciaRig(host, {
       uid: `lacia-${variant}`,
       skin,
+      components,
       autoForms,
       reduced,
       onForm: (f, manual) => {
@@ -109,9 +122,9 @@ export default function LaciaRigIsland({ variant = 'mascot', skin = 'suit', auto
       rig.destroy();
       rigRef.current = null;
     };
-  }, [variant, skin, autoForms]);
+  }, [variant, skin, components, autoForms]);
 
-  const markup = laciaMarkup({ uid: `lacia-${variant}`, skin });
+  const markup = laciaMarkup({ uid: `lacia-${variant}`, skin, components });
 
   /* ── corner mascot ────────────────────────────────────────────────── */
   if (variant === 'mascot') {
@@ -129,7 +142,7 @@ export default function LaciaRigIsland({ variant = 'mascot', skin = 'suit', auto
   /* ── display stage ────────────────────────────────────────────────── */
   const pickForm = (f: LaciaForm) => {
     rigRef.current?.setAutoForms(false);
-    rigRef.current?.setForm(f, true);
+    rigRef.current?.runAction(`monolith:${f}`, true);
   };
   const nextQuote = () => {
     const q = LACIA_QUOTES[nRef.current % LACIA_QUOTES.length];
@@ -158,7 +171,9 @@ export default function LaciaRigIsland({ variant = 'mascot', skin = 'suit', auto
         ) : (
           <div class="ls-say is-idle">
             <div class="ls-say-tag">STANDBY</div>
-            <p class="ls-cn">点击她的身体，听她说话；点击 BLACK MONOLITH，切换形态。</p>
+            <p class="ls-cn">
+              {hasDevice ? '点击她的身体，听她说话；点击 BLACK MONOLITH，切换形态。' : '点击她的身体，听她说话。这套衣服没有装置。'}
+            </p>
           </div>
         )}
 
@@ -180,29 +195,42 @@ export default function LaciaRigIsland({ variant = 'mascot', skin = 'suit', auto
           </ol>
         </section>
 
-        <nav class="ls-console" aria-label="BLACK MONOLITH 形态">
-          <span class="ls-console-label">
-            DEVICE
-            <br />
-            LOCK
-          </span>
-          {LACIA_FORM_ORDER.map((f) => (
-            <button type="button" class={form === f ? 'is-on' : ''} onClick={() => pickForm(f)} aria-pressed={form === f}>
-              <b>{LACIA_FORM_LABELS[f].name}</b>
-              <i>{LACIA_FORM_LABELS[f].code}</i>
-            </button>
-          ))}
-        </nav>
+        {hasDevice && (
+          <nav class="ls-console" aria-label="BLACK MONOLITH 形态">
+            <span class="ls-console-label">
+              DEVICE
+              <br />
+              LOCK
+            </span>
+            {deviceActions.map((a) => {
+              const f = a.id.slice(a.id.indexOf(':') + 1) as LaciaForm;
+              return (
+                <button type="button" class={form === f ? 'is-on' : ''} onClick={() => pickForm(f)} aria-pressed={form === f}>
+                  <b>{a.label.name}</b>
+                  <i>{a.label.code}</i>
+                </button>
+              );
+            })}
+          </nav>
+        )}
 
         <dl class="ls-spec">
-          <dt>装置</dt>
-          <dd>BLACK MONOLITH（黑色秘棺）— 超硬晶体板涂层装甲，内置量子计算机</dd>
-          <dt>形态</dt>
-          <dd>收束棺体 / 轨道炮（质量投射）/ 障壁 / 八爪展开</dd>
-          <dt>解锁</dt>
-          <dd>腰间银色 device lock 四片翼状板，需物主同意</dd>
-          <dt>护卫</dt>
-          <dd>八爪可分离，其中一支共享感官，作目标护卫</dd>
+          {hasDevice && (
+            <>
+              <dt>装置</dt>
+              <dd>BLACK MONOLITH（黑色秘棺）— 超硬晶体板涂层装甲，内置量子计算机</dd>
+              <dt>形态</dt>
+              <dd>{deviceActions.map((a) => a.label.name).join(' / ')}</dd>
+              <dt>解锁</dt>
+              <dd>腰间银色 device lock 四片翼状板，需物主同意</dd>
+              <dt>护卫</dt>
+              <dd>八爪可分离，其中一支共享感官，作目标护卫</dd>
+            </>
+          )}
+          <dt>组件</dt>
+          <dd>
+            {hasDevice ? '秘棺 · 锁扣（均可拆下，换装即变）' : '无。这套衣服不带装置，也不带武器'}
+          </dd>
           <dt>能力</dt>
           <dd>电子战干扰 · 光学迷彩（超材料）· 分布式演算</dd>
           <dt>表情</dt>
@@ -221,7 +249,7 @@ export default function LaciaRigIsland({ variant = 'mascot', skin = 'suit', auto
             data-clickable
             role="button"
             tabindex={0}
-            aria-label="蕾西亚 · 24 层刚体骨架立绘。点击换一句台词，点击身后的 BLACK MONOLITH 切换形态。"
+            aria-label={hasDevice ? '蕾西亚 · 24 层刚体骨架立绘。点击换一句台词，点击身后的 BLACK MONOLITH 切换形态。' : '蕾西亚 · 24 层刚体骨架立绘。点击换一句台词。'}
             ref={hostRef}
             onClick={nextQuote}
             onKeyDown={(e) => {
@@ -236,7 +264,7 @@ export default function LaciaRigIsland({ variant = 'mascot', skin = 'suit', auto
         <p class="ls-hint">
           <span>24 层刚体骨架 · 关节旋转 + 弹簧驱动</span>
           <span>点击人物 → 台词</span>
-          <span>点击秘棺 → 形态</span>
+          {hasDevice && <span>点击秘棺 → 形态</span>}
         </p>
       </div>
     </div>

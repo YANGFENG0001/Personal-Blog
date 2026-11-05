@@ -21,6 +21,8 @@ interface Props {
   character: string;
   /** Outfit for the rigged character; ignored by flat packs. */
   skin?: 'suit' | 'dress';
+  /** Optional components to mount; undefined = whatever the outfit ships with. */
+  components?: readonly string[];
   pack?: StoredMascotPack | null;
   draggable: boolean;
   imageUrl: string;
@@ -28,7 +30,7 @@ interface Props {
   size: 'sm' | 'md' | 'lg';
   page: 'home' | 'article' | 'notFound' | 'other';
 }
-const { character, skin = 'suit', pack = null, draggable, imageUrl, position, size, page } = Astro.props;
+const { character, skin = 'suit', components, pack = null, draggable, imageUrl, position, size, page } = Astro.props;
 const builtin = isMascotId(character) ? character : 'haru';
 // 蕾西亚 is the only built-in with a rigged skeleton; everything else is a
 // flat image, so the renderer forks here and nowhere else.
@@ -104,7 +106,7 @@ const payload = JSON.stringify({
         ) : rigged ? (
           // The island server-renders the whole skeleton, so the figure is
           // painted before hydration and stays readable with JS off.
-          <LaciaRigIsland client:visible variant="mascot" skin={skin} autoForms />
+          <LaciaRigIsland client:visible variant="mascot" skin={skin} components={components} autoForms />
         ) : (
           <Fragment set:html={mascotSvg(builtin)} />
         )

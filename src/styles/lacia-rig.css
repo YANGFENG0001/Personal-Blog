@@ -163,6 +163,24 @@
   filter: drop-shadow(0 0 8px var(--lr-ice));
 }
 
+/* ── optional components ────────────────────────────────────────────────
+   A component that is off screen keeps its DOM. `visibility: hidden` stops the
+   subtree painting without discarding decoded bitmaps or SVG gradient defs, so
+   re-showing it is one attribute write instead of a re-decode. `display: none`
+   would be cheaper still but would reflow and lose the fade; the device is
+   absolutely positioned, so there is no layout to lose.
+
+   The visibility delay is what lets opacity finish first — without it the
+   element blinks out on frame 1 and the fade never happens. */
+.lr [data-comp][data-on='0'] {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.24s ease, visibility 0s linear 0.24s;
+}
+.lr [data-comp][data-on='1'] {
+  transition: opacity 0.24s ease, visibility 0s;
+}
+
 /* ── BLACK MONOLITH ─────────────────────────────────────────────────────
    One 3000×3000 user space whose centre is the hub. `--lr-mon-x/y` are the
    hub's position in canvas units (her waist), and the element is offset so

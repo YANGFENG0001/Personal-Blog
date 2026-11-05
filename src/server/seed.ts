@@ -53,6 +53,10 @@ export const DEFAULT_SETTINGS = {
       /* Outfit for the rigged character only; both skins are the same 30-part
          skeleton, so this is a costume change, not a capability change. */
       skin: 'suit' as 'suit' | 'dress',
+      /* Which optional components are mounted. Undefined means "the outfit's
+         own set", which is what keeps a weaponless outfit weaponless after the
+         owner switches outfits in the admin panel. */
+      components: undefined as string[] | undefined,
       draggable: true,
       imageUrl: '' as string,
       position: 'right' as 'right' | 'left',

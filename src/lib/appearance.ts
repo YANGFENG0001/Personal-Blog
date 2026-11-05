@@ -37,6 +37,14 @@ export interface AppearanceSettings {
      * downgrade — a pack, by contrast, is a single flat bitmap.
      */
     skin?: 'suit' | 'dress';
+    /**
+     * Optional components to mount on the rig, overriding the outfit's own set.
+     * Absent means "whatever the outfit ships with" — the dress ships nothing,
+     * so an empty array and an absent key differ only for outfits that do have
+     * defaults. See lib/lacia/components.ts for why this is a list of ids and
+     * not a per-component matrix.
+     */
+    components?: string[];
     draggable: boolean;
     imageUrl: string;
     position: 'right' | 'left';
@@ -65,6 +73,7 @@ export interface ResolvedAppearance {
     position: 'right' | 'left';
     size: 'sm' | 'md' | 'lg';
     skin?: 'suit' | 'dress';
+    components?: string[];
   } | null;
 }
 
@@ -214,6 +223,9 @@ export function resolveAppearance(a: AppearanceSettings, theme: 'light' | 'dark'
           position: a.mascot.position,
           size: a.mascot.size,
           skin: a.mascot.skin ?? 'suit',
+          /* Passed through only when set, so the rig falls back to the outfit's
+             own component set instead of mounting nothing. */
+          ...(a.mascot.components ? { components: a.mascot.components } : {}),
         }
       : null,
   };

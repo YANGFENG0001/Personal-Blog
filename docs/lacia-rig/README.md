@@ -608,8 +608,10 @@ src/lib/lacia/
 ├── face.ts         表情变体的几何与"哪个状态用哪个形状"
 ├── viseme.ts       字形 → 元音 → (张口度, 宽窄)；打字日程展开成嘴部 cue
 ├── lines.ts        ← 台词与装置读数，改这里
+├── components.ts   槽位 / 组件 / 动作的类型 + 可见性解析 + 派生矩阵（纯逻辑，可单测）
+├── registry.ts     ← 实际挂载的组件（秘棺 / 锁扣）与角色自带的动作模组，加组件改这里
 ├── monolith.ts     装置 SVG（四形态共用一套 3000×3000 viewBox）
-└── rig.ts          LaciaRig 类：骨骼层级 / 弹簧 / 眼动 / 表情 / 形态状态机
+└── rig.ts          LaciaRig 类：骨骼层级 / 弹簧 / 眼动 / 表情 / 动作状态机
 
 src/components/public/LaciaRigIsland.tsx   Preact 岛，两个 variant
 src/styles/lacia-rig.css                   骨架与装置样式（.lr / .lr-*）
@@ -628,9 +630,10 @@ docs/lacia-rig/verify/transition.cjs       过渡实测：CSS 三组关键帧是
 docs/lacia-rig/verify/joints.cjs           关节实测：行程 / 两腿反相 / 鞋底角度 / 腕不跟随前臂
 docs/lacia-rig/verify/secondary.cjs        躯干链实测：行程 / 胸廓滞后 / 耦合增益 / 脖子的横向漂移
 docs/lacia-rig/verify/stance.cjs           站姿与接触实测：鞋底一致 / 站距不同 / 掌心钉在装置上 / 不僵
+docs/lacia-rig/verify/components.mjs       组件实测：解析顺序 / 派生矩阵 / 蓝裙无装置 / 动作独占
 ```
 
-八个验证脚本都要求 dev server 在跑，且都用 playwright（站点已有 devDependency）。
+九个验证脚本都要求 dev server 在跑，且都用 playwright（站点已有 devDependency）。
 改过弹簧参数、表情映射、口型幅度、装置几何、姿态表或断点之后重跑，比肉眼看可靠；
 `states.cjs` / `linkage.cjs` / `transition.cjs` / `joints.cjs` / `secondary.cjs` / `stance.cjs`
 失败时退出码非 0，可以直接挂到 CI 或 pre-push（`lip.cjs` / `bleed.cjs` 只打印读数，
@@ -650,9 +653,12 @@ new LaciaRig(host, { uid, autoForms, reduced, onForm })
 rig.start() / stop() / destroy()
 rig.setState('idle' | 'talk' | 'happy' | 'held' | 'sleep')
 rig.say([{ text, delay, speed }])   // 打字日程 → 口型；rig 自己负责收尾
-rig.poke()                      // 点击反应：头部回弹 + 头发甩
-rig.setForm('railgun', true)    // manual = 用户触发（会触发台词）
+rig.poke()                      // = runAction('self:poke')
+rig.runAction('monolith:railgun')  // 任何组件的动作；返回 false 表示这件没挂载
+rig.endAction() / get runningAction() / get actionIds()
+rig.setForm('railgun', true)    // 旧入口，等价于跑那个形态的动作；manual = 用户触发（会出台词）
 rig.nextForm() / setAutoForms(false) / setEnergy(n)
+rig.visibility()                // 派生的 动作 × 组件 表，给设置面板和验证用
 ```
 
 骨架的 DOM 由 `laciaMarkup()` 生成字符串，**服务端就渲染出完整人物**——
@@ -747,7 +753,8 @@ export interface LaciaSkin {
   parts: readonly LaciaPart[];     // 30 层坐标
   knee / elbow / wrist / ankle;    // 关节（身体属性）
   bone?: Record<string, LaciaBone>;// 新层名 → 骨骼（bottomwear → torso）
-  lock?: readonly [number, number];
+  components?: readonly string[];  // 这套衣服挂哪些可选组件（蓝裙 = []）
+  lock?: readonly [number, number];// 只在挂了 lock 组件时才用到
 }
 export const LACIA_SKINS = { suit, dress } as const;
 ```
@@ -756,6 +763,89 @@ export const LACIA_SKINS = { suit, dress } as const;
 `ARM_CHAIN` 变成 `armChain(skin)`；类里存 `this.pivot` / `this.limbs`。
 **五官变体（4 眉 × 2 + 6 嘴）跨皮肤共享**：那是同一个人的眉毛，而且两套的眉位差
 (2,1)、嘴位差 (1,1)，在 9px 的显示尺寸下不可见。为每套衣服重切 14 个文件没有收益。
+
+### 6.3 可选组件与动作模组（为什么不是 N×N 可见性表）
+
+用户的要求原话：**"其他服装是没有武器的，应该把组件做成可选，每个组件带一套动作模组，
+动作要能设置其他组件的显示"**。最后他自己也对 N×N 矩阵存疑，让先调研再定。
+
+调研结论与引擎通行做法一致：**按身体部位寻址（Unity 的 AvatarMask、蒙皮骨骼遮罩），
+可见性用稀疏的、有时长的通知（UE 的 AnimNotifyState），而不是一张稠密的布尔表。**
+
+#### 结论
+
+三条一起用：
+
+1. **动作对「槽位」广播，不对「组件实例」。** 列数是身体部位的个数（13），不是组件的个数。
+   一条 `aura: false` 的规则对现在和将来所有 aura 类组件都成立。
+2. **缺省可见，只写要隐藏的。** 动作的 `visibility` 是稀疏的 `Partial<Record<Slot, boolean>>`。
+   角色自带的模组不写这个字段 —— 这就是"默认其他组件都显示"，不需要额外声明。
+3. **两个方向各写一半。** 动作说"我播放时这个槽位让开"；组件说"我遇到这些动作自己让开"
+   （`hideIn`，可以写动作 id，也可以写 owner 当标签用）。解析顺序：**动作显式 > 组件自声明 > 可见**。
+
+#### 为什么不做那张 N×N 表
+
+| | 稠密表 | 稀疏双向 |
+|---|---|---|
+| 要写的格子 | 动作数 × 组件数（实测规则只占 5/30） | 5 个条目 |
+| 加一个组件 | 改**每一行**动作 | 只改新组件一个文件 |
+| 表达"后半段才隐藏" | 不行，格子是快照 | 行，动作有时长 |
+| 真相份数 | 2（动作 + 表，会漂） | 1 |
+
+最关键的是第二行：用户要的"一键加入"和稠密表在结构上矛盾 —— 表要求每个新组件回头去改所有
+已有动作，而"新组件自己声明可见性"恰恰是"改一个文件"。二者只能选一个。
+
+**矩阵没有取消，只是从"写"变成"算"。** `visibilityMatrix()` 从上面两半稀疏声明推导出来，
+给设置面板看、给 `verify/components.mjs` 断言。它没有独立存在，所以不可能和规则漂移。
+
+#### 数据结构
+
+```ts
+type LaciaSlot = 'head'|'face'|'neck'|'torso'|'back'|'waist'|'arm'|'hand'
+               |'leg'|'foot'|'weapon'|'aura'|'device';
+
+interface LaciaAction {
+  id: string;                 // 'monolith:unfold' / 'self:poke'
+  owner: string;              // 组件 id，或 'self'
+  visibility?: Partial<Record<LaciaSlot, boolean>>;  // 稀疏行，缺省可见
+  duration?: number;          // ms，0 = 保持到被下一个动作替换
+  onStart?: (h: RigHandle) => void;
+  onEnd?: (h: RigHandle) => void;
+}
+
+interface LaciaComponent {
+  id: string;
+  slot: LaciaSlot;
+  parts: (ctx) => { mount: LaciaMount; html: string }[];  // 可多部位（秘棺 + 锁扣）
+  actions?: LaciaAction[];
+  hideIn?: readonly string[];  // 动作 id 或 owner 标签
+}
+```
+
+动作只能通过 `RigHandle` 碰骨架（`impulse` / `kick` / `setDeviceForm` / `say` / `after`），
+拿不到 rig 本身。`after` 由 rig 持有，动作被打断时它的延迟回调一并清掉 —— 否则 `railgun`
+那个 260ms 的甩头会在你已经切到别的动作之后再打一次。
+
+#### 运行时开销
+
+- 解析只在**动作开始和结束**各做一次，`O(组件数)` 次属性写。帧循环零成本，没有新分配。
+- 隐藏用 `visibility:hidden` + `opacity:0`（不是 `display:none`）：子树不绘制，但 DOM 和
+  已解码的位图、SVG 渐变 defs 都还在，重新显示只花一次属性写。`visibility` 的过渡延迟
+  0.24s 让不透明度先走完，否则第一帧就闪没。
+- 矩阵不进运行时。
+
+#### 加一个组件
+
+写一个对象、注册进 `LACIA_COMPONENTS`、在皮肤的 `components` 里列上。不用碰任何已有动作。
+现在只有两件：`monolith`（槽位 `device`，挂 `stage`，带四个形态动作）和 `lock`
+（槽位 `waist`，挂 `hips`）。蓝裙两件都不挂，所以它没有武器、没有锁扣、没有装置控制台 ——
+这句话写在 `SKIN_COMPONENT_DEFAULTS.dress = []` 一行里，引擎里没有任何地方判断"是哪套衣服"。
+
+#### 一个跨组件的规则，和它的代价
+
+`monolith:unfold` 声明 `visibility: { waist: false }`：八片晶体板锁出铰座时，锁扣的四片
+压板是那个铰座的固定件，让开 1.6 秒再回来。这是目前唯一一条跨组件规则，也是唯一需要
+解释的取舍 —— 动作结束时全槽位自动恢复，所以它不需要在别处写一条配对的"显示"。
 
 ## 7. 已知取舍
 

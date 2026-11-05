@@ -59,6 +59,11 @@ const schemas = {
          Optional because settings saved before the second skin have no key;
          `deepMerge` leaves it absent and the reader falls back to 'suit'. */
       skin: z.enum(['suit', 'dress']).optional(),
+      /* Same trap as `skin` above: `setSetting` runs `schemas[key].parse()`, and
+         a zod object drops keys it does not declare. Without this line the admin
+         panel's component checkboxes would save, silently disappear, and come
+         back unticked on reload — with no error anywhere. */
+      components: z.array(z.string()).optional(),
       draggable: z.boolean(),
       imageUrl: z.union([z.literal(''), imageUrl]),
       position: z.enum(['right', 'left']),

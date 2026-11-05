@@ -30,7 +30,21 @@ import type { LaciaPart } from './parts';
 import { FACE_IDS, FACE_PAD, FORM_FACE, STATE_FACE, BLUSH_STATES, browParts, mouthParts, type BrowVariant, type MouthVariant } from './face';
 import { buildScript, type SayLine, type VisemeCue } from '../viseme';
 import { LACIA_FORM_ORDER, type LaciaForm } from './lines';
-import { monolithSvg } from './monolith';
+import {
+  actionList,
+  actionVisible,
+  visibilityMatrix,
+  type LaciaAction,
+  type LaciaComponent,
+  type LaciaMount,
+  type LaciaSpring,
+  type RigHandle,
+  type VisibilityMatrix,
+} from './components';
+import { resolveComponents, SELF_ACTIONS, SKIN_COMPONENT_DEFAULTS } from './registry';
+export { LACIA_COMPONENTS, COMPONENT_IDS, type LaciaComponentId } from './registry';
+export type { LaciaAction, LaciaComponent, LaciaSlot, VisibilityMatrix } from './components';
+export { LACIA_SLOTS, SLOT_LABELS } from './components';
 
 export type { LaciaForm };
 
@@ -107,14 +121,22 @@ export interface LaciaSkin {
   /** Layer ids this skin introduces that the base bone map does not know. */
   bone?: Readonly<Record<string, LaciaBone>>;
   /**
+   * Which optional components this outfit ships with.
+   *
+   * The battle suit mounts the device and the lock; the blue dress mounts
+   * neither, which is the whole point of the split — a component that is not
+   * enabled contributes no markup and no actions, so "this outfit has no
+   * weapon" needs no special case anywhere in the engine.
+   */
+  components?: readonly string[];
+  /**
    * Where the device lock sits, in canvas px (top-left of its 200x90 box).
    *
-   * It has to follow the outfit: the lock is a translucent pale plate at
-   * z-index 8, so it paints over the torso. On the battle suit it lands on the
-   * white hip armour and disappears into it; on the dress the same position is
-   * the middle of the skirt, where a pale four-blade shape reads as a hole torn
-   * in the fabric. Its real place is the waist, and the waist is the one thing
-   * about a body that clothing does move.
+   * Only consulted when the `lock` component is mounted. It is a skin property
+   * because the lock is a waist-mounted plate at z-index 8: on the battle suit
+   * it lands on the white hip armour, while the same coordinates on a different
+   * outfit could land on fabric, where a pale four-blade shape reads as a hole
+   * torn in the cloth. An outfit that mounts no lock ignores this.
    */
   lock?: readonly [number, number];
 }
@@ -126,6 +148,7 @@ const SUIT_SKIN: LaciaSkin = {
   elbow: LACIA_ELBOW,
   wrist: LACIA_WRIST,
   ankle: LACIA_ANKLE,
+  components: SKIN_COMPONENT_DEFAULTS.suit,
 };
 
 /**
@@ -142,10 +165,10 @@ const DRESS_SKIN: LaciaSkin = {
   wrist: DRESS_WRIST,
   ankle: DRESS_ANKLE,
   bone: { bottomwear: 'torso' },
-  /* The belt sits at canvas y 420-446; the lock is 90 tall, so its box starts
-     388. x keeps the default 146 — the belt centre is ~250 and the box centres
-     at +100. */
-  lock: [150, 388],
+  /* No device and no lock. Both are optional components now, so this is the
+     entire statement of "this outfit carries no weapon" — there is no branch
+     anywhere in the rig that asks which outfit it is. */
+  components: SKIN_COMPONENT_DEFAULTS.dress,
 };
 
 export const LACIA_SKINS = { suit: SUIT_SKIN, dress: DRESS_SKIN } as const;
@@ -192,6 +215,12 @@ export interface LaciaRigOptions {
   base?: string;
   /** Which outfit the figure wears. Defaults to the battle suit. */
   skin?: LaciaSkinId;
+  /**
+   * Optional components to mount. Defaults to the skin's own set, which is how
+   * an outfit with no weapon stays weaponless without the engine branching on
+   * the outfit id.
+   */
+  components?: readonly string[];
   /** Namespace for the device's gradient ids; one per mounting variant. */
   uid?: string;
   /** Skip the animation loop (prefers-reduced-motion / 动效关闭). */
@@ -206,13 +235,19 @@ export interface LaciaRigOptions {
 
 /* ── markup ─────────────────────────────────────────────────────────────── */
 
-const deviceLock = (pos?: readonly [number, number]) => `<svg class="lr-device-lock" viewBox="0 0 200 90" aria-hidden="true"${pos ? ` style="left:${pos[0]}px;top:${pos[1]}px"` : ''}>
-            <g class="lr-dl-plate"><path d="M100 45 L58 31 L40 42 L60 54 Z"/></g>
-            <g class="lr-dl-plate"><path d="M100 45 L58 59 L40 48 L60 36 Z"/></g>
-            <g class="lr-dl-plate"><path d="M100 45 L142 31 L160 42 L140 54 Z"/></g>
-            <g class="lr-dl-plate"><path d="M100 45 L142 59 L160 48 L140 36 Z"/></g>
-            <circle class="lr-dl-core" cx="100" cy="45" r="4.5"/>
-          </svg>`;
+/**
+ * Which components an outfit mounts: the caller's list if it gave one,
+ * otherwise the skin's own.
+ */
+export function skinComponents(skin: LaciaSkinId, override?: readonly string[]): LaciaComponent[] {
+  return resolveComponents(override ?? LACIA_SKINS[skin].components ?? []);
+}
+
+/** The action list for an outfit — what the device console and any settings
+ *  panel should offer. Character modules come first, then each component's. */
+export function laciaActions(skin: LaciaSkinId, override?: readonly string[]): LaciaAction[] {
+  return [...SELF_ACTIONS, ...actionList(skinComponents(skin, override))];
+}
 
 function partsFor(skin: LaciaSkin): Record<string, string> {
   const out: Record<string, string> = {};
@@ -270,17 +305,31 @@ const blush = `<div class="lr-blush" style="left:188px;top:141px;width:34px;heig
  * Server-renderable skeleton. The island renders this string so the figure is
  * painted before any JavaScript runs; `LaciaRig` then adopts the same nodes.
  */
-export function laciaMarkup(opts: { base?: string; uid?: string; skin?: LaciaSkinId } = {}): string {
-  const skin = opts.skin ? LACIA_SKINS[opts.skin] : SUIT_SKIN;
+export function laciaMarkup(
+  opts: { base?: string; uid?: string; skin?: LaciaSkinId; components?: readonly string[] } = {},
+): string {
+  const skinId = opts.skin ?? 'suit';
+  const skin = LACIA_SKINS[skinId];
   const base = opts.base ?? skin.base;
   const uid = opts.uid ?? 'lacia-mono';
   const p = partsFor({ ...skin, base });
+
+  /* Components are rendered into their mount points. Nothing here knows what a
+     component is — an outfit with no device simply contributes no markup. */
+  const byMount = new Map<LaciaMount, string>();
+  for (const comp of skinComponents(skinId, opts.components)) {
+    for (const part of comp.parts({ uid, skin })) {
+      byMount.set(part.mount, (byMount.get(part.mount) ?? '') + part.html);
+    }
+  }
+  const at = (m: LaciaMount) => byMount.get(m) ?? '';
+
   return `<div class="lr-stage">
       <div class="lr-bones">
         <div class="lr-bone lr-hairback" data-bone="hairBack">${p.hairBack ?? ''}</div>
         <div class="lr-bone lr-root" data-bone="root">
           <div class="lr-bone lr-hips" data-bone="hips">
-            ${deviceLock(skin.lock)}
+            ${at('hips')}
             <div class="lr-bone lr-leg" data-bone="legR">
               <div class="lr-bone lr-knee" data-bone="kneeR">
                 <div class="lr-bone lr-ankle" data-bone="ankleR">${p.ankleR ?? ''}</div>${p.kneeR ?? ''}
@@ -293,19 +342,20 @@ export function laciaMarkup(opts: { base?: string; uid?: string; skin?: LaciaSki
             </div>
             <div class="lr-bone lr-spine" data-bone="spine">
               <div class="lr-bone lr-chest" data-bone="chest">
+                ${at('chest')}
                 <div class="lr-bone lr-arm" data-bone="armR">
                   <div class="lr-bone lr-elbow" data-bone="elbowR">
-                    <div class="lr-bone lr-wrist" data-bone="wristR">${p.wristR ?? ''}</div>${p.elbowR ?? ''}
+                    <div class="lr-bone lr-wrist" data-bone="wristR">${p.wristR ?? ''}${at('wristR')}</div>${p.elbowR ?? ''}
                   </div>${p.armR ?? ''}
                 </div>
                 <div class="lr-bone lr-arm" data-bone="armL">
                   <div class="lr-bone lr-elbow" data-bone="elbowL">
-                    <div class="lr-bone lr-wrist" data-bone="wristL">${p.wristL ?? ''}</div>${p.elbowL ?? ''}
+                    <div class="lr-bone lr-wrist" data-bone="wristL">${p.wristL ?? ''}${at('wristL')}</div>${p.elbowL ?? ''}
                   </div>${p.armL ?? ''}
                 </div>
                 <div class="lr-bone lr-torso" data-bone="torso">${p.torso ?? ''}</div>
                 <div class="lr-bone lr-neck" data-bone="neck">${p.neck ?? ''}
-                  <div class="lr-bone lr-head" data-bone="head">${p.head ?? ''}${blush}${faceStack()}
+                  <div class="lr-bone lr-head" data-bone="head">${p.head ?? ''}${blush}${faceStack()}${at('head')}
                     <div class="lr-bone lr-hairfront" data-bone="hairFront">${p.hairFront ?? ''}</div>
                   </div>
                 </div>
@@ -314,7 +364,7 @@ export function laciaMarkup(opts: { base?: string; uid?: string; skin?: LaciaSki
           </div>
         </div>
       </div>
-      ${monolithSvg(uid)}
+      ${at('stage')}
     </div>`;
 }
 
@@ -680,7 +730,7 @@ const EXPR_FORM: Record<LaciaForm, Expr> = {
 
 /* ── the rig ────────────────────────────────────────────────────────────── */
 
-export class LaciaRig {
+export class LaciaRig implements RigHandle {
   readonly el: HTMLElement;
   private readonly bones = new Map<LaciaBone, HTMLElement>();
   private readonly eyes: HTMLImageElement[] = [];
@@ -690,8 +740,18 @@ export class LaciaRig {
   private readonly mouths = new Map<MouthVariant, HTMLImageElement>();
   private browVariant: BrowVariant = 'neutral';
   private mouthVariant: MouthVariant = 'neutral';
-  private readonly monolith: SVGElement;
+  private readonly monolith: SVGElement | null;
   private readonly lock: SVGElement | null;
+  /** Mounted components, each with the elements that make it up. */
+  private readonly comps: { def: LaciaComponent; els: Element[]; on: boolean }[] = [];
+  /** Every action the mounted components bring, plus her own modules. */
+  private readonly actions: readonly LaciaAction[];
+  /** Id of the action currently playing; only one may run at a time. */
+  private activeAction: LaciaAction | null = null;
+  private actionTimer = 0;
+  /** Delayed callbacks owned by the running action, cancelled with it. */
+  private actionPending: number[] = [];
+  private actionManual = false;
   /** Joint table for this figure's outfit. Joints are body, not garment. */
   private readonly pivot: Record<LaciaBone, readonly [number, number]>;
   /** Shoulder / elbow / palm in canvas coords, for the two-bone IK. */
@@ -728,7 +788,11 @@ export class LaciaRig {
   private scriptIdx = 0;
   private blush = false;
 
-  private readonly S = {
+  /* Annotated rather than inferred: `Record<LaciaSpring, Spring>` makes this
+     table and the vocabulary in components.ts a two-way compile-time check, so
+     an action module cannot name a spring that does not exist (nor a spring be
+     added without becoming addressable). */
+  private readonly S: Record<LaciaSpring, Spring> = {
     rootY: new Spring(1.6, 1.0),
     hipsX: new Spring(0.7, 0.9),
     hipsR: new Spring(0.7, 0.9),
@@ -835,8 +899,13 @@ export class LaciaRig {
     this.energy = opts.energy ?? 1;
     this.reduced = opts.reduced ?? false;
 
+    const mounted = skinComponents(opts.skin ?? 'suit', opts.components);
+    this.actions = [...SELF_ACTIONS, ...actionList(mounted)];
+
     host.classList.add('lr');
-    if (!host.querySelector('.lr-stage')) host.innerHTML = laciaMarkup({ base: this.opts.base, uid: this.opts.uid, skin: opts.skin });
+    if (!host.querySelector('.lr-stage')) {
+      host.innerHTML = laciaMarkup({ base: this.opts.base, uid: this.opts.uid, skin: opts.skin, components: opts.components });
+    }
     this.el = host;
 
     host.querySelectorAll<HTMLElement>('[data-bone]').forEach((el) => {
@@ -873,7 +942,16 @@ export class LaciaRig {
       }
     });
 
-    this.monolith = host.querySelector<SVGElement>('.lr-monolith')!;
+    /* Component elements, grouped by `data-comp`. A component may own several
+       parts (the device has its own SVG plus a mount on her waist), so they are
+       toggled together — that is what makes "hide the waist slot" a single
+       decision rather than one per element. */
+    for (const def of mounted) {
+      const els = Array.from(host.querySelectorAll(`[data-comp="${def.id}"]`));
+      if (els.length) this.comps.push({ def, els, on: true });
+    }
+
+    this.monolith = host.querySelector<SVGElement>('.lr-monolith');
     this.lock = host.querySelector<SVGElement>('.lr-device-lock');
     if (this.monolith) this.monolith.dataset.form = this.form;
     this.el.dataset.form = this.form;
@@ -919,6 +997,7 @@ export class LaciaRig {
 
   destroy() {
     this.stop();
+    this.endAction();
     this.monolith?.removeEventListener('click', this.onDeviceClick);
     removeEventListener('pointermove', this.onPointer);
     removeEventListener('resize', this.onResize);
@@ -955,66 +1034,134 @@ export class LaciaRig {
     this.setState('talk');
   }
 
-  /** One-off reaction to a click. */
-  poke() {
-    this.S.headR.kick(-11);
-    this.S.headY.kick(4);
-    /* A poke used to move only her head, which is the whole reason she read as
-       a bobblehead on a stick. Weight drops into one knee, the hips take a
-       small shove, and the knees take it unevenly — she catches herself. */
-    this.S.kneeRR.impulse(2.8);
-    this.S.kneeLR.impulse(-1.5);
-    this.S.hipsX.kick(1.6);
-    // The device is socketed to her, so a jolt through her body reaches it too.
-    // Without this she flinches and the hardware does not, which is the fastest
-    // way to make an attachment look fake. 2.6° is ~50 units at the muzzle,
-    // which is the smallest swing that reads at the corner-mascot size.
-    this.S.monHit.impulse(-2.6);
+  /* ── actions ────────────────────────────────────────────────────────── */
+
+  /** Every action currently available — her own modules plus each component's. */
+  get actionIds(): readonly string[] {
+    return this.actions.map((a) => a.id);
   }
 
-  setForm(form: LaciaForm, manual = true) {
-    if (form === this.form) return;
+  get runningAction(): string | null {
+    return this.activeAction?.id ?? null;
+  }
+
+  /**
+   * Derive the action × component table for this figure.
+   *
+   * Never authored, never stored: it is computed from the sparse rules on each
+   * action and each component, which is why it cannot drift from them. The
+   * settings panel reads it; `verify/components.mjs` asserts against it.
+   */
+  visibility(): VisibilityMatrix {
+    return visibilityMatrix(this.comps.map((c) => c.def));
+  }
+
+  /**
+   * Play one action. Only one runs at a time — starting one ends whatever was
+   * playing, which is what "no two motion modules at once" means in practice.
+   *
+   * Returns false if the id is not available on this figure, which is the
+   * normal case for a device action on an outfit that mounts no device.
+   */
+  runAction(id: string, manual = true): boolean {
+    const action = this.actions.find((a) => a.id === id);
+    if (!action) return false;
+    this.endAction();
+    this.activeAction = action;
+    this.actionManual = manual;
+    this.el.dataset.action = action.id;
+    this.applyVisibility(action);
+    action.onStart?.(this);
+    if (action.duration && action.duration > 0) {
+      this.actionTimer = window.setTimeout(() => this.endAction(), action.duration);
+    }
+    return true;
+  }
+
+  /** Stop the running action and put every component back on screen. */
+  endAction() {
+    const prev = this.activeAction;
+    if (!prev) return;
+    this.activeAction = null;
+    if (this.actionTimer) {
+      clearTimeout(this.actionTimer);
+      this.actionTimer = 0;
+    }
+    /* Delayed callbacks belong to the action that scheduled them. Without this
+       a 260 ms head snap from `railgun` would still fire after the player had
+       already started something else, and the rig would twitch for no reason. */
+    for (const t of this.actionPending) clearTimeout(t);
+    this.actionPending = [];
+    this.applyVisibility(null);
+    delete this.el.dataset.action;
+    prev.onEnd?.(this);
+  }
+
+  /**
+   * Resolve visibility for every mounted component.
+   *
+   * Called on action start and end only — never per frame. That is the whole
+   * performance story: the table is small, it is read twice per action, and the
+   * hidden subtree is `visibility:hidden` so the compositor stops drawing it
+   * while the DOM stays put (re-showing costs no decode, no layout).
+   */
+  private applyVisibility(action: LaciaAction | null) {
+    for (const c of this.comps) {
+      const on = action ? actionVisible(action, c.def) : true;
+      if (on === c.on) continue;
+      c.on = on;
+      for (const el of c.els) (el as HTMLElement).dataset.on = on ? '1' : '0';
+    }
+  }
+
+  /* ── RigHandle: the surface an action module is allowed to touch ────── */
+
+  impulse(spring: LaciaSpring, peak: number) {
+    this.S[spring].impulse(peak);
+  }
+
+  kick(spring: LaciaSpring, velocity: number) {
+    this.S[spring].kick(velocity);
+  }
+
+  /** Apply a device configuration. Separate from `setForm` so that an action
+   *  can set the hardware without re-entering the action that describes it. */
+  setDeviceForm(form: LaciaForm) {
     this.form = form;
     if (this.monolith) this.monolith.dataset.form = form;
     // The host carries the form too: the barrier has to paint in front of her,
     // which is a stacking decision the stylesheet makes from this attribute.
     this.el.dataset.form = form;
     this.lock?.classList.toggle('is-unlocked', form !== 'coffin');
-    /* What she does about it. A form switch used to move only the device, which
-       is the mechanical half of the problem: hardware that reconfigures while
-       the person holding it stands perfectly still reads as a cut-scene. Each
-       form now has a reaction, and the reaction is the *consequence* of the
-       hardware rather than a decorative wobble.
-         railgun  the rails throw; she absorbs it — hips back, chest back, both
-                  arms pushed, and the head snaps a beat later once the slug has
-                  left.
-         unfold   eight plates lock out at once; the impulse goes through her
-                  shoulders, so the device swings and the head lifts.
-         shield   nothing is thrown, so nothing recoils — it just settles. */
-    if (form === 'railgun') {
-      this.recoil();
-      this.S.hipsX.kick(-11);
-      this.S.chestR.kick(-3.4);
-      this.S.armRR.kick(5);
-      this.S.armLR.kick(-7);
-      /* She drops her weight to take the recoil. Without this the upper body
-         braces while the legs stay in the neutral standing pose, and the pose
-         reads as pasted-on above the waist. */
-      this.S.kneeRR.impulse(3.4);
-      this.S.kneeLR.impulse(2.6);
-      /* The device's own swing, in degrees: the rails throw and the whole
-         housing rocks back on its mount before the cradle catches it. */
-      this.S.monHit.impulse(-3.2);
-      setTimeout(() => this.S.headR.kick(-13), 260);
-    } else if (form === 'unfold') {
-      /* Eight plates lock out at once — the heaviest impulse of the four, so
-         the biggest swing. */
-      this.S.monHit.impulse(-4.4);
-      this.S.headR.kick(-5);
-      this.S.armRR.kick(4);
-      this.S.armLR.kick(-4);
-    }
-    this.opts.onForm?.(form, manual);
+    this.opts.onForm?.(form, this.actionManual);
+  }
+
+  after(ms: number, fn: () => void) {
+    const t = window.setTimeout(() => {
+      this.actionPending = this.actionPending.filter((x) => x !== t);
+      fn();
+    }, ms);
+    this.actionPending.push(t);
+  }
+
+  /* ── legacy entry points ─────────────────────────────────────────────── */
+
+  /** One-off reaction to a click. Registered as her own module `self:poke`. */
+  poke() {
+    this.runAction('self:poke', true);
+  }
+
+  /**
+   * Switch the device configuration by playing the action that gets it there.
+   *
+   * Kept as the public entry point because every host and every verifier uses
+   * it, but it is no longer where the motion lives: the reaction belongs to the
+   * action, so a component can describe its own body language instead of the
+   * engine hard-coding four branches.
+   */
+  setForm(form: LaciaForm, manual = true) {
+    if (form === this.form) return;
+    this.runAction(`monolith:${form}`, manual);
   }
 
   nextForm(manual = true) {
@@ -1034,10 +1181,6 @@ export class LaciaRig {
   private onDeviceClick(e: Event) {
     e.stopPropagation();
     this.nextForm(true);
-  }
-
-  private recoil() {
-    this.S.monRecoil.kick(420);
   }
 
   /* ── input ──────────────────────────────────────────────────────────── */
@@ -1664,6 +1807,10 @@ export class LaciaRig {
 
   private autoForm(now: number) {
     if (now < this.autoAt) return;
+    /* An outfit with no device has no forms to cycle. Without this guard she
+       would keep scheduling form changes that `runAction` rejects, and the
+       demo would sit on `coffin` forever while burning a timer. */
+    if (!this.monolith) return;
     if (this.form === 'coffin') {
       const pool = LACIA_FORM_ORDER.filter((f) => f !== 'coffin');
       this.setForm(pool[Math.floor(Math.random() * pool.length)], false);

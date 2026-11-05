@@ -10,6 +10,7 @@ import '../styles/lacia-stage.css';
    outfit in 外观 → 看板娘 and both figures follow. */
 const look = resolveAppearance(activeAppearance(new Date(), null, null).appearance, 'auto');
 const skin = look.mascot?.skin ?? 'suit';
+const components = look.mascot?.components;
 ---
 
 <PublicLayout
@@ -28,7 +29,7 @@ const skin = look.mascot?.skin ?? 'suit';
       </p>
     </header>
 
-    <LaciaRigIsland client:load variant="stage" skin={skin} autoForms />
+    <LaciaRigIsland client:load variant="stage" skin={skin} components={components} autoForms />
 
     <footer class="lp-foot">
       <p>

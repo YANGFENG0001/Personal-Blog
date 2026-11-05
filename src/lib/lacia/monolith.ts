@@ -142,7 +142,7 @@ const HALF = {
   edge: `M0 -640 L0 508`,
 };
 
-export function monolithSvg(uid: string): string {
+export function monolithSvg(uid: string, extra = ''): string {
   const id = (n: string) => `${uid}-${n}`;
 
   const slabs = SLABS.map(([deg, len], i) => {
@@ -300,7 +300,7 @@ export function monolithSvg(uid: string): string {
       ${hexAt(-114, 26, 5)}${hexAt(114, 26, 6)}
     </g>`;
 
-  return `<svg class="lr-monolith" data-form="coffin" viewBox="0 0 3000 3000" aria-hidden="true" focusable="false">
+  return `<svg class="lr-monolith" data-form="coffin" viewBox="0 0 3000 3000" aria-hidden="true" focusable="false"${extra ? ` ${extra}` : ''}>
       <defs>
         /* The form ramp. It used to be gentle because a bright outline was
            doing the silhouette work; now that the outline is a 0.14-alpha rim,
