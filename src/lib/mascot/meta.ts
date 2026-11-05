@@ -27,7 +27,12 @@ export const MASCOTS: { id: MascotId; name: string; desc: string; thumb?: string
     desc: '分层骨架立绘：30 个语义图层挂在关节上，会转头、眨眼、摆臂、呼吸；装置 BLACK MONOLITH 有四种形态。（致敬《BEATLESS》，非官方立绘）',
     thumb: '/lacia-rig/thumb.webp',
   },
-  { id: 'chibi', name: 'Q 版', desc: '最初的 Q 版夏日制服少女。' },
+  {
+    id: 'chibi',
+    name: 'Q 版',
+    desc: '夏日制服的 Q 版少女。同样是分层骨架，但下半身是一整块——Q 版的腿本来就分不开，所以她只做上半身的关节。',
+    thumb: '/lacia-rig/chibi/thumb.webp',
+  },
 ];
 
 export function isMascotId(id: string): id is MascotId {

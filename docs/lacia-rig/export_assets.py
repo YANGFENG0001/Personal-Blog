@@ -327,14 +327,23 @@ if _args.source:
         np.maximum(_win, _a[: _win.shape[0], : _win.shape[1]], out=_win)
     _ink = np.array(_ref)[:, :, 3] / 255.0
     _lost = (_ink > 0.35) & (_covered < 0.35)
-    _lab, _n = ndimage.label(_lost)
+    # A real dropped element has an interior; a contour stroke does not. Two
+    # erosions, not one: a 1-px registration difference between the source and
+    # the layer composite traces the whole silhouette as an "orphan", and the
+    # chibi's lineart is 5 px thick, so two passes still left a contour standing.
+    # 小晴's braid is 12–18 px and survives three comfortably. Without this the
+    # chibi "recovered" a 207x788 frame of edge slivers.
+    _core = ndimage.binary_erosion(_lost, iterations=3)
+    _lab, _n = ndimage.label(_core)
     if _n:
-        _sizes = ndimage.sum(_lost, _lab, range(1, _n + 1))
-        # 200 px floor: below that it is anti-aliasing along a seam between two
-        # segments, not a missing element.
-        _keep = [i + 1 for i, s in enumerate(_sizes) if s > 200]
+        _sizes = ndimage.sum(_core, _lab, range(1, _n + 1))
+        # The floor applies to the *eroded* core, so it is smaller than the
+        # 200 px above: two erosions take a 3-px-wide line to nothing and a real
+        # object down to its middle.
+        _keep = [i + 1 for i, s in enumerate(_sizes) if s > 100]
         if _keep:
-            _m = np.isin(_lab, _keep)
+            _core_keep = np.isin(_lab, _keep)
+            _m = _lost & ndimage.binary_dilation(_core_keep, iterations=3)
             _out = np.array(_ref)
             _out[~ndimage.binary_dilation(_m, iterations=1)] = 0
             _ys, _xs = np.where(_m)
@@ -359,7 +368,31 @@ if _args.source:
             )
             print(f"  orphan           {_box[2]-_box[0]}x{_box[3]-_box[1]} at ({_box[0]},{_box[1]}) — recovered {int(_m.sum())} px")
         else:
-            print("  orphan           none (split lost nothing significant)")
+            print("  orphan           none (only outline slivers were uncovered)")
+    else:
+        print("  orphan           none (split lost nothing significant)")
+
+# 2c. ankles without a footwear layer.
+#
+# The ankle bone exists so the sole can stay level while the shin swings. It is
+# measured at the boot cuff, which needs the shoes to be their own layer. On a
+# chibi they are a few pixels at the bottom of each leg, so the splitter keeps
+# them inside `legwear-*-lo` and there is no cuff to find.
+#
+# The honest pivot then is the sole: the bottom centre of the lower leg. It is
+# not a compromise — a boot welded into the shin cannot tilt, so the ankle bone
+# has nothing to hold level, and putting its pivot at the sole makes it a no-op
+# instead of a joint that swings the foot about mid-shin.
+if not ANKLES:
+    _tmp = {p["id"]: p for p in parts}
+    for _side in ("r", "l"):
+        # `legwear` alone means the legs were never separated (see `_frame`);
+        # both ankles then come off the same fused shape.
+        _p = _tmp.get(f"legwear-{_side}-lo") or _tmp.get("legwear")
+        if _p is None:
+            raise SystemExit(f"ankle: no footwear layer and no leg layer for {_side}")
+        ANKLES[_side] = (round(_p["x"] + _p["w"] / 2.0, 1), _p["y"] + _p["h"] - 1)
+        print(f"  ankle {_side}: no footwear layer, sole pivot {ANKLES[_side]}")
 
 parts.sort(key=lambda p: p["z"])
 
@@ -390,37 +423,62 @@ def _cx(p):
 
 
 def _frame():
-    bw = _need("bottomwear")
+    # Offsets are canvas units, and they were read off the battle suit's 1276-px
+    # canvas. A chibi's canvas is 960 and her whole head is half of it, so the
+    # same "40 px above the hip" would put her chest inside her chin. Scaling by
+    # the canvas height keeps the ratios and leaves Lacia's numbers untouched.
+    k = CH / 1276.0
     tw = _need("topwear")
-    nk = _need("neck")
+    nk = _by_id.get("neck")
     fc = _need("face")
-    bh = _need("back hair")
     ar = _need("handwear-r-up")
     al = _need("handwear-l-up")
-    lr_ = _need("legwear-r-up")
-    ll = _need("legwear-l-up")
+    lr_ = _by_id.get("legwear-r-up")
+    ll = _by_id.get("legwear-l-up")
+    if lr_ is None or ll is None:
+        # The legs were never separated: on a chibi the thighs touch, so no
+        # amount of erosion finds two blobs. The hip is then the centre of the
+        # leg mass, which is where a fused lower body actually pivots.
+        merged = _by_id.get("legwear")
+        if merged is None:
+            raise SystemExit("frame: no leg layers at all")
+        lr_ = ll = merged
 
     hip_y = tw["y"] + tw["h"]
     hip_x = (_cx(lr_) + _cx(ll)) / 2.0
     face_bottom = fc["y"] + fc["h"]
+    # The neck sits under the chin, so its x is the chin's x. Some art has no
+    # separate neck layer at all — a chibi's collar swallows it — and inventing
+    # a horizontal offset from a layer that does not exist is not an option.
+    neck_x = _cx(nk) if nk else _cx(fc)
     return {
         "root": (hip_x, hip_y),
         "hips": (hip_x, hip_y),
         "spine": (hip_x, hip_y),
-        "chest": (hip_x, hip_y - 40),
+        "chest": (hip_x, hip_y - 40 * k),
         "torso": (_cx(tw), tw["y"] + tw["h"] / 2.0),
-        "neck": (_cx(nk), face_bottom + 24),
-        "head": (_cx(fc), face_bottom - 4),
-        "hairFront": (_cx(fc), face_bottom - 30),
+        "neck": (neck_x, face_bottom + 24 * k),
+        "head": (_cx(fc), face_bottom - 4 * k),
+        "hairFront": (_cx(fc), face_bottom - 30 * k),
         "hairBack": (_cx(fc), face_bottom),
         "armR": (ar["x"] + ar["w"] * 0.75, ar["y"] + ar["h"] * 0.11),
         "armL": (al["x"] + al["w"] * 0.25, al["y"] + al["h"] * 0.11),
-        "legR": (_cx(lr_), lr_["y"] + 16),
-        "legL": (_cx(ll), ll["y"] + 16),
+        "legR": (_cx(lr_), lr_["y"] + 16 * k),
+        "legL": (_cx(ll), ll["y"] + 16 * k),
     }
 
 
 FRAME = _frame()
+
+# A fused lower body has no knee to measure either. Pinning the knee to the hip
+# makes the shin rotate about the hip alongside the thigh — which is precisely
+# what "this leg does not bend" looks like — while every downstream consumer
+# still gets a number. The alternative, guessing a knee at 45% of a shape that
+# has no pinch, is the broken-doll rig the bands above exist to prevent.
+if not KNEES:
+    KNEES["r"], KNEES["l"] = FRAME["legR"], FRAME["legL"]
+    print("  knee: legs never separated — knee pinned to the hip (rigid lower body)")
+
 print("\nframe:")
 for k, v in FRAME.items():
     print(f"  {k:10s} ({v[0]:.1f}, {v[1]:.1f})")

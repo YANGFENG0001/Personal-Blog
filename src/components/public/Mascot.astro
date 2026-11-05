@@ -38,7 +38,7 @@ const builtin = isMascotId(character) ? character : 'haru';
 // Which built-ins are a real skeleton over split layers rather than a flat
 // drawing. This is the only place that forks on it — everything downstream
 // (canvas size, pivots, face variants, mounted components) is skin data.
-const RIGGED = new Set<string>(['lacia', 'haru', 'sora']);
+const RIGGED = new Set<string>(['lacia', 'haru', 'sora', 'chibi']);
 const rigged = !pack && !imageUrl && RIGGED.has(builtin);
 const rigSkin = skinForCharacter(builtin, skin);
 const kind = pack ? 'pack' : imageUrl ? 'image' : rigged ? 'rig' : builtin === 'chibi' ? 'chibi' : 'anime';

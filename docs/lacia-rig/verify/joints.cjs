@@ -101,7 +101,17 @@ function corr(a, b) {
       const els = {};
       for (const b of bones) els[b] = document.querySelector(`[data-bone="${b}"]`);
       const missing = bones.filter((b) => !els[b]);
-      const out = { missing, series: {} };
+      /* How many bitmaps each bone actually carries.
+       *
+       * This is not bookkeeping. A bone rotates whether or not anything hangs
+       * off it, so a range read on an empty bone is a green light for a joint
+       * that moves nothing — and that is exactly the shape of a rig that looks
+       * "fully articulated" while a limb is welded to its parent. The chibi's
+       * lower body is one fused layer riding the hips: her legR and kneeR bones
+       * spin away all day and drive zero pixels. */
+      const parts = {};
+      for (const b of bones) parts[b] = els[b] ? els[b].querySelectorAll('img.lr-part').length : 0;
+      const out = { missing, parts, series: {} };
       for (const b of bones) if (els[b]) out.series[b] = [];
 
       return new Promise((resolve) => {
@@ -123,22 +133,28 @@ function corr(a, b) {
   const S = trace.series;
   if (trace.missing.length) errs.push(`missing bones: ${trace.missing.join(', ')}`);
 
-  const report = { frames: S.legR?.length ?? 0, range: {}, corr: {}, sole: {}, pass: false, errs };
+  const report = { frames: S.legR?.length ?? 0, driven: trace.parts, range: {}, corr: {}, sole: {}, pass: false, errs };
 
   for (const [b, a] of Object.entries(S)) report.range[b] = +range(a).toFixed(2);
 
-  /* 1. Every joint moves. Floors are per joint: a hand travels less than a
-        thigh, and demanding the same number from both would just mean
-        inflating the hand until it flutters. */
+  /* 1. Every joint that carries a part moves. Floors are per joint: a hand
+        travels less than a thigh, and demanding the same number from both would
+        just mean inflating the hand until it flutters.
+        Joints with no part are reported and skipped, not passed. */
   const FLOOR = { legR: 0.6, legL: 0.6, kneeR: 0.8, kneeL: 0.8, ankleR: 0.5, ankleL: 0.5, armR: 0.5, armL: 0.5, elbowR: 0.5, elbowL: 0.5, wristR: 0.5, wristL: 0.5 };
+  const idle = Object.entries(trace.parts).filter(([, n]) => n === 0).map(([b]) => b);
+  report.noPart = idle;
   for (const [b, f] of Object.entries(FLOOR)) {
+    if (idle.includes(b)) continue;
     if (report.range[b] !== undefined && report.range[b] < f) errs.push(`${b} barely moves: ${report.range[b]}° < ${f}°`);
   }
 
   /* 2. The legs must disagree. Identical curves (r = 1.00) is the board; a
         weak correlation is fine, but it must be clearly below 1. */
   report.corr.legs = +corr(S.legR ?? [], S.legL ?? []).toFixed(3);
-  if (report.corr.legs > 0.9) errs.push(`legs move as one piece: r=${report.corr.legs}`);
+  if (!idle.includes('legR') && !idle.includes('legL') && report.corr.legs > 0.9) {
+    errs.push(`legs move as one piece: r=${report.corr.legs}`);
+  }
 
   /* 3. Sole level. The boot's world angle is **thigh + shin + ankle** — all
         three bones are nested, so all three contribute. This used to sum only
@@ -151,6 +167,10 @@ function corr(a, b) {
     const l = S[`leg${side}`] ?? [];
     const k = S[`knee${side}`] ?? [];
     const a = S[`ankle${side}`] ?? [];
+    if ([`leg${side}`, `knee${side}`, `ankle${side}`].some((b) => idle.includes(b))) {
+      report.sole[side] = null;
+      continue;
+    }
     const n = Math.min(l.length, k.length, a.length);
     let peak = 0;
     for (let i = 0; i < n; i++) peak = Math.max(peak, Math.abs(l[i] + k[i] + a[i]));
@@ -165,6 +185,7 @@ function corr(a, b) {
     const w = S[`wrist${side}`] ?? [];
     const c = +corr(e, w).toFixed(3);
     report.corr[`wrist${side}`] = c;
+    if (idle.includes(`wrist${side}`)) continue;
     if (c > 0.25) errs.push(`wrist${side} follows the forearm instead of hanging: r=${c}`);
   }
 

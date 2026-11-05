@@ -52,16 +52,16 @@ export const SORA_FRAME: Record<string, readonly [number, number]> = {
   root: [252.5, 584.0],
   hips: [252.5, 584.0],
   spine: [252.5, 584.0],
-  chest: [252.5, 544.0],
+  chest: [252.5, 544.3],
   torso: [251.5, 384.0],
-  neck: [228.5, 196.0],
+  neck: [228.5, 195.8],
   head: [244.5, 168.0],
-  hairFront: [244.5, 142.0],
+  hairFront: [244.5, 142.2],
   hairBack: [244.5, 172.0],
   armR: [153.0, 227.5],
   armL: [310.8, 239.9],
-  legR: [194.5, 514.0],
-  legL: [310.5, 516.0],
+  legR: [194.5, 513.9],
+  legL: [310.5, 515.9],
 };
 
 export const SORA_PARTS: readonly LaciaPart[] = [
@@ -95,5 +95,5 @@ export const SORA_PARTS: readonly LaciaPart[] = [
   { id: "irides-l", file: "irides-l.webp", x: 259, y: 105, w: 17, h: 16, z: 20 },
   { id: "front hair", file: "front-hair.webp", x: 180, y: 2, w: 148, h: 182, z: 21 },
   { id: "headwear", file: "headwear.webp", x: 177, y: 43, w: 30, h: 36, z: 22 },
-  { id: "orphan", file: "orphan.webp", x: 250, y: 132, w: 182, h: 70, z: 23 },
+  { id: "orphan", file: "orphan.webp", x: 276, y: 132, w: 156, h: 70, z: 23 },
 ];

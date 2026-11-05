@@ -28,6 +28,7 @@ import { LACIA_ANKLE, LACIA_CANVAS, LACIA_ELBOW, LACIA_KNEE, LACIA_PARTS, LACIA_
 import { DRESS_ANKLE, DRESS_ELBOW, DRESS_KNEE, DRESS_PARTS, DRESS_WRIST } from './parts-dress';
 import { HARU_ANKLE, HARU_CANVAS, HARU_ELBOW, HARU_FRAME, HARU_KNEE, HARU_PARTS, HARU_WRIST } from './parts-haru';
 import { SORA_ANKLE, SORA_CANVAS, SORA_ELBOW, SORA_FRAME, SORA_KNEE, SORA_PARTS, SORA_WRIST } from './parts-sora';
+import { CHIBI_ANKLE, CHIBI_CANVAS, CHIBI_ELBOW, CHIBI_FRAME, CHIBI_KNEE, CHIBI_PARTS, CHIBI_WRIST } from './parts-chibi';
 import type { LaciaPart } from './parts';
 import {
   FACE_IDS,
@@ -277,7 +278,43 @@ export const SORA_SKIN: LaciaSkin = {
   noOverride: true,
 };
 
-export const LACIA_SKINS = { suit: SUIT_SKIN, dress: DRESS_SKIN, haru: HARU_SKIN, sora: SORA_SKIN } as const;
+/**
+ * The Q-version, and the one skin whose rig is honestly *partial*.
+ *
+ * At two and a half heads her thighs touch, so the split could not find two
+ * legs and there is no knee to measure. `export_assets.py` pins the knee to the
+ * hip rather than guessing one at 45% of a shape with no pinch, and her single
+ * `legwear` layer rides the hips: the lower body is rigid and swings as one
+ * piece. That is not a compromise for a chibi — a chibi's legs *are* one shape,
+ * and the alternative is a shin that swings from mid-thigh.
+ *
+ * Her arms are the opposite: they came out as two separate layers and the
+ * elbow and wrist were measured normally, so those joints are real.
+ */
+export const CHIBI_SKIN: LaciaSkin = {
+  base: '/lacia-rig/chibi/',
+  parts: CHIBI_PARTS,
+  knee: CHIBI_KNEE,
+  elbow: CHIBI_ELBOW,
+  wrist: CHIBI_WRIST,
+  ankle: CHIBI_ANKLE,
+  canvas: CHIBI_CANVAS,
+  frame: CHIBI_FRAME,
+  faceBase: '/lacia-rig/chibi/',
+  /* `legwear` is the fused pair, so it hangs off the hips; `orphan` is the rim
+     the split left uncovered, which belongs to the body rather than the head. */
+  bone: { legwear: 'hips', bottomwear: 'torso', orphan: 'hips' },
+  components: [],
+  noOverride: true,
+};
+
+export const LACIA_SKINS = {
+  suit: SUIT_SKIN,
+  dress: DRESS_SKIN,
+  haru: HARU_SKIN,
+  sora: SORA_SKIN,
+  chibi: CHIBI_SKIN,
+} as const;
 export type LaciaSkinId = keyof typeof LACIA_SKINS;
 
 /** Which skin a corner mascot should wear. A character with only one outfit
@@ -285,6 +322,7 @@ export type LaciaSkinId = keyof typeof LACIA_SKINS;
 export function skinForCharacter(character: string, outfit: string): LaciaSkinId {
   if (character === 'haru') return 'haru';
   if (character === 'sora') return 'sora';
+  if (character === 'chibi') return 'chibi';
   return outfit === 'dress' ? 'dress' : 'suit';
 }
 
@@ -504,7 +542,7 @@ export function laciaMarkup(
         <div class="lr-bone lr-hairback" data-bone="hairBack">${p.hairBack ?? ''}</div>
         <div class="lr-bone lr-root" data-bone="root">
           <div class="lr-bone lr-hips" data-bone="hips">
-            ${at('hips')}
+            ${p.hips ?? ''}${at('hips')}
             <div class="lr-bone lr-leg" data-bone="legR">
               <div class="lr-bone lr-knee" data-bone="kneeR">
                 <div class="lr-bone lr-ankle" data-bone="ankleR">${p.ankleR ?? ''}</div>${p.kneeR ?? ''}
