@@ -121,7 +121,25 @@ export default function AppearanceManager(props: Props) {
         <div class="row">
           {dirty && <span class="ap-dirty"><span />未保存</span>}
           <button class="btn btn-ghost" type="button" onClick={reset}>恢复默认</button>
-          <a class="btn" href="/" target="_blank" rel="noopener">查看网站<Icon name="external" size={13} /></a>
+          <a
+            class="btn"
+            href="/"
+            target="_blank"
+            rel="noopener"
+            onClick={(e) => {
+              // `target="_blank"` is the right default in a normal browser, but an
+              // embedded webview (the desktop preview panel, an installed PWA) drops
+              // the new tab without an error — the click just looks dead. Open the
+              // tab ourselves and only cancel the default when a window actually came
+              // back; otherwise the anchor falls through to a same-page navigation,
+              // which works everywhere.
+              const w = window.open('/', '_blank');
+              if (w) {
+                try { w.opener = null; } catch { /* already cross-origin */ }
+                e.preventDefault();
+              }
+            }}
+          >查看网站<Icon name="external" size={13} /></a>
           <button class={`btn btn-primary ${saving ? 'is-loading' : ''}`} type="button" disabled={!dirty} onClick={save}>保存</button>
         </div>
       </div>
@@ -320,10 +338,13 @@ function MascotPanel({ a, setA, uploads, packs, setPacks, studioUrl }: { a: AS; 
                 options={[
                   ['suit', '战斗服'],
                   ['dress', '蓝色连衣裙'],
+                  ['casual', '日常'],
+                  ['tech', '机能'],
+                  ['gown', '礼服'],
                 ]}
               />
               <p class="hint">
-                两套是同一副 30 层骨架，关节、表情、口型、武器接触都在——换的只是衣服。素材包不一样：那是单张静态图，选中会丢掉全部分层动画。
+                五套都是同一副骨架，关节、表情、口型、眨眼都在——换的只是衣服。素材包里那几个「蕾西亚·日常 / 机能 / 礼服」是它们之前的静态版（只有一张图、不会动），建议改从上面选。
               </p>
             </div>
           )}

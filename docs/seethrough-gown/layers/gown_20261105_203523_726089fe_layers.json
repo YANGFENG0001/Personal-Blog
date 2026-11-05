@@ -1,0 +1,228 @@
+{
+  "prefix": "gown",
+  "timestamp": "20261105_203523_726089fe",
+  "layers": [
+    {
+      "name": "back hair",
+      "filename": "gown_20261105_203523_726089fe_back hair.png",
+      "left": 497,
+      "top": 4,
+      "right": 734,
+      "bottom": 382,
+      "depth_median": 0.9375,
+      "depth_filename": "gown_20261105_203523_726089fe_back hair_depth.png"
+    },
+    {
+      "name": "bottomwear",
+      "filename": "gown_20261105_203523_726089fe_bottomwear.png",
+      "left": 512,
+      "top": 540,
+      "right": 795,
+      "bottom": 1198,
+      "depth_median": 0.80859375,
+      "depth_filename": "gown_20261105_203523_726089fe_bottomwear_depth.png"
+    },
+    {
+      "name": "handwear-l",
+      "filename": "gown_20261105_203523_726089fe_handwear-l.png",
+      "left": 676,
+      "top": 238,
+      "right": 877,
+      "bottom": 660,
+      "depth_median": 0.765625,
+      "depth_filename": "gown_20261105_203523_726089fe_handwear-l_depth.png"
+    },
+    {
+      "name": "neck",
+      "filename": "gown_20261105_203523_726089fe_neck.png",
+      "left": 590,
+      "top": 154,
+      "right": 647,
+      "bottom": 234,
+      "depth_median": 0.72265625,
+      "depth_filename": "gown_20261105_203523_726089fe_neck_depth.png"
+    },
+    {
+      "name": "legwear",
+      "filename": "gown_20261105_203523_726089fe_legwear.png",
+      "left": 564,
+      "top": 523,
+      "right": 742,
+      "bottom": 1135,
+      "depth_median": 0.71484375,
+      "depth_filename": "gown_20261105_203523_726089fe_legwear_depth.png"
+    },
+    {
+      "name": "footwear",
+      "filename": "gown_20261105_203523_726089fe_footwear.png",
+      "left": 554,
+      "top": 1119,
+      "right": 717,
+      "bottom": 1276,
+      "depth_median": 0.6953125,
+      "depth_filename": "gown_20261105_203523_726089fe_footwear_depth.png"
+    },
+    {
+      "name": "handwear-r",
+      "filename": "gown_20261105_203523_726089fe_handwear-r.png",
+      "left": 390,
+      "top": 239,
+      "right": 567,
+      "bottom": 665,
+      "depth_median": 0.68359375,
+      "depth_filename": "gown_20261105_203523_726089fe_handwear-r_depth.png"
+    },
+    {
+      "name": "topwear",
+      "filename": "gown_20261105_203523_726089fe_topwear.png",
+      "left": 390,
+      "top": 211,
+      "right": 889,
+      "bottom": 1255,
+      "depth_median": 0.65625,
+      "depth_filename": "gown_20261105_203523_726089fe_topwear_depth.png"
+    },
+    {
+      "name": "nose",
+      "filename": "gown_20261105_203523_726089fe_nose.png",
+      "left": 620,
+      "top": 148,
+      "right": 630,
+      "bottom": 159,
+      "depth_median": 0.5078125,
+      "depth_filename": "gown_20261105_203523_726089fe_nose_depth.png"
+    },
+    {
+      "name": "eyebrow-r",
+      "filename": "gown_20261105_203523_726089fe_eyebrow-r.png",
+      "left": 568,
+      "top": 97,
+      "right": 613,
+      "bottom": 105,
+      "depth_median": 0.4658203125,
+      "depth_filename": "gown_20261105_203523_726089fe_eyebrow-r_depth.png"
+    },
+    {
+      "name": "mouth",
+      "filename": "gown_20261105_203523_726089fe_mouth.png",
+      "left": 612,
+      "top": 164,
+      "right": 635,
+      "bottom": 175,
+      "depth_median": 0.4228515625,
+      "depth_filename": "gown_20261105_203523_726089fe_mouth_depth.png"
+    },
+    {
+      "name": "ears-l",
+      "filename": "gown_20261105_203523_726089fe_ears-l.png",
+      "left": 663,
+      "top": 117,
+      "right": 685,
+      "bottom": 155,
+      "depth_median": 0.392578125,
+      "depth_filename": "gown_20261105_203523_726089fe_ears-l_depth.png"
+    },
+    {
+      "name": "eyebrow-l",
+      "filename": "gown_20261105_203523_726089fe_eyebrow-l.png",
+      "left": 639,
+      "top": 98,
+      "right": 675,
+      "bottom": 107,
+      "depth_median": 0.390625,
+      "depth_filename": "gown_20261105_203523_726089fe_eyebrow-l_depth.png"
+    },
+    {
+      "name": "ears-r",
+      "filename": "gown_20261105_203523_726089fe_ears-r.png",
+      "left": 550,
+      "top": 115,
+      "right": 576,
+      "bottom": 156,
+      "depth_median": 0.390625,
+      "depth_filename": "gown_20261105_203523_726089fe_ears-r_depth.png"
+    },
+    {
+      "name": "eyewhite-r",
+      "filename": "gown_20261105_203523_726089fe_eyewhite-r.png",
+      "left": 575,
+      "top": 114,
+      "right": 607,
+      "bottom": 134,
+      "depth_median": 0.3447265625,
+      "depth_filename": "gown_20261105_203523_726089fe_eyewhite-r_depth.png"
+    },
+    {
+      "name": "eyewhite-l",
+      "filename": "gown_20261105_203523_726089fe_eyewhite-l.png",
+      "left": 639,
+      "top": 114,
+      "right": 672,
+      "bottom": 135,
+      "depth_median": 0.3447265625,
+      "depth_filename": "gown_20261105_203523_726089fe_eyewhite-l_depth.png"
+    },
+    {
+      "name": "eyelash-l",
+      "filename": "gown_20261105_203523_726089fe_eyelash-l.png",
+      "left": 635,
+      "top": 109,
+      "right": 675,
+      "bottom": 136,
+      "depth_median": 0.2939453125,
+      "depth_filename": "gown_20261105_203523_726089fe_eyelash-l_depth.png"
+    },
+    {
+      "name": "irides-r",
+      "filename": "gown_20261105_203523_726089fe_irides-r.png",
+      "left": 580,
+      "top": 111,
+      "right": 603,
+      "bottom": 134,
+      "depth_median": 0.275390625,
+      "depth_filename": "gown_20261105_203523_726089fe_irides-r_depth.png"
+    },
+    {
+      "name": "irides-l",
+      "filename": "gown_20261105_203523_726089fe_irides-l.png",
+      "left": 641,
+      "top": 113,
+      "right": 665,
+      "bottom": 135,
+      "depth_median": 0.275390625,
+      "depth_filename": "gown_20261105_203523_726089fe_irides-l_depth.png"
+    },
+    {
+      "name": "eyelash-r",
+      "filename": "gown_20261105_203523_726089fe_eyelash-r.png",
+      "left": 568,
+      "top": 109,
+      "right": 610,
+      "bottom": 130,
+      "depth_median": 0.2734375,
+      "depth_filename": "gown_20261105_203523_726089fe_eyelash-r_depth.png"
+    },
+    {
+      "name": "front hair",
+      "filename": "gown_20261105_203523_726089fe_front hair.png",
+      "left": 523,
+      "top": 11,
+      "right": 723,
+      "bottom": 310,
+      "depth_median": 0.177734375,
+      "depth_filename": "gown_20261105_203523_726089fe_front hair_depth.png"
+    },
+    {
+      "name": "headwear",
+      "filename": "gown_20261105_203523_726089fe_headwear.png",
+      "left": 674,
+      "top": 28,
+      "right": 695,
+      "bottom": 85,
+      "depth_median": 0.1259765625,
+      "depth_filename": "gown_20261105_203523_726089fe_headwear_depth.png"
+    }
+  ],
+  "width": 1280,
+  "height": 1280
+}

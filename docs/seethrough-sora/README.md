@@ -55,11 +55,13 @@ _m     = _lost & ndimage.binary_dilation(_core_keep, iterations=3)
 
 ```bash
 python docs/lacia-rig/pipeline/gen_char.py    --ref lacia_idle.png --prompt "..." --seed N
-python docs/lacia-rig/pipeline/prep_source.py --in out.png --out docs/seethrough-sora/source.png
-python docs/lacia-rig/pipeline/run_st.py      --in docs/seethrough-sora/source.png --out <临时目录>
-python docs/lacia-rig/export_assets.py --layers <临时目录> --name sora \
-       --source docs/seethrough-sora/source.png   # ← 孤层回收需要整图
-python docs/lacia-rig/gen_face_variants.py --src docs/seethrough-sora/source.png --out public/lacia-rig/sora
+python docs/lacia-rig/pipeline/prep_source.py out.png docs/seethrough-sora/source.png
+python docs/lacia-rig/pipeline/run_st.py docs/seethrough-sora/source.png lacia_sora.png sora
+python docs/lacia-rig/export_assets.py --src docs/seethrough-sora/layers \
+    --meta docs/seethrough-sora/layers/<prefix>_layers.json \
+    --out public/lacia-rig/sora --ts src/lib/lacia/parts-sora.ts \
+    --name SORA --source docs/seethrough-sora/source.png   # ← 孤层回收需要整图
+python docs/lacia-rig/gen_face_variants.py --src public/lacia-rig/sora --out public/lacia-rig/sora
 ```
 
 `--source` 是给孤层回收用的。没有它，侧辫就是丢的。

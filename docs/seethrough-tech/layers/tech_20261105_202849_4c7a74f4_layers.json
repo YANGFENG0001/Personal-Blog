@@ -1,0 +1,218 @@
+{
+  "prefix": "tech",
+  "timestamp": "20261105_202849_4c7a74f4",
+  "layers": [
+    {
+      "name": "back hair",
+      "filename": "tech_20261105_202849_4c7a74f4_back hair.png",
+      "left": 506,
+      "top": 13,
+      "right": 743,
+      "bottom": 358,
+      "depth_median": 0.953125,
+      "depth_filename": "tech_20261105_202849_4c7a74f4_back hair_depth.png"
+    },
+    {
+      "name": "handwear-l",
+      "filename": "tech_20261105_202849_4c7a74f4_handwear-l.png",
+      "left": 693,
+      "top": 244,
+      "right": 884,
+      "bottom": 664,
+      "depth_median": 0.83984375,
+      "depth_filename": "tech_20261105_202849_4c7a74f4_handwear-l_depth.png"
+    },
+    {
+      "name": "handwear-r",
+      "filename": "tech_20261105_202849_4c7a74f4_handwear-r.png",
+      "left": 394,
+      "top": 244,
+      "right": 595,
+      "bottom": 668,
+      "depth_median": 0.8046875,
+      "depth_filename": "tech_20261105_202849_4c7a74f4_handwear-r_depth.png"
+    },
+    {
+      "name": "footwear",
+      "filename": "tech_20261105_202849_4c7a74f4_footwear.png",
+      "left": 557,
+      "top": 1084,
+      "right": 729,
+      "bottom": 1279,
+      "depth_median": 0.69921875,
+      "depth_filename": "tech_20261105_202849_4c7a74f4_footwear_depth.png"
+    },
+    {
+      "name": "legwear",
+      "filename": "tech_20261105_202849_4c7a74f4_legwear.png",
+      "left": 541,
+      "top": 484,
+      "right": 760,
+      "bottom": 1126,
+      "depth_median": 0.6953125,
+      "depth_filename": "tech_20261105_202849_4c7a74f4_legwear_depth.png"
+    },
+    {
+      "name": "neck",
+      "filename": "tech_20261105_202849_4c7a74f4_neck.png",
+      "left": 602,
+      "top": 157,
+      "right": 656,
+      "bottom": 230,
+      "depth_median": 0.6640625,
+      "depth_filename": "tech_20261105_202849_4c7a74f4_neck_depth.png"
+    },
+    {
+      "name": "topwear",
+      "filename": "tech_20261105_202849_4c7a74f4_topwear.png",
+      "left": 423,
+      "top": 188,
+      "right": 846,
+      "bottom": 1079,
+      "depth_median": 0.578125,
+      "depth_filename": "tech_20261105_202849_4c7a74f4_topwear_depth.png"
+    },
+    {
+      "name": "nose",
+      "filename": "tech_20261105_202849_4c7a74f4_nose.png",
+      "left": 631,
+      "top": 155,
+      "right": 640,
+      "bottom": 166,
+      "depth_median": 0.5390625,
+      "depth_filename": "tech_20261105_202849_4c7a74f4_nose_depth.png"
+    },
+    {
+      "name": "eyebrow-r",
+      "filename": "tech_20261105_202849_4c7a74f4_eyebrow-r.png",
+      "left": 579,
+      "top": 105,
+      "right": 624,
+      "bottom": 113,
+      "depth_median": 0.4560546875,
+      "depth_filename": "tech_20261105_202849_4c7a74f4_eyebrow-r_depth.png"
+    },
+    {
+      "name": "ears-l",
+      "filename": "tech_20261105_202849_4c7a74f4_ears-l.png",
+      "left": 671,
+      "top": 125,
+      "right": 695,
+      "bottom": 164,
+      "depth_median": 0.447265625,
+      "depth_filename": "tech_20261105_202849_4c7a74f4_ears-l_depth.png"
+    },
+    {
+      "name": "ears-r",
+      "filename": "tech_20261105_202849_4c7a74f4_ears-r.png",
+      "left": 561,
+      "top": 122,
+      "right": 590,
+      "bottom": 164,
+      "depth_median": 0.4462890625,
+      "depth_filename": "tech_20261105_202849_4c7a74f4_ears-r_depth.png"
+    },
+    {
+      "name": "mouth",
+      "filename": "tech_20261105_202849_4c7a74f4_mouth.png",
+      "left": 623,
+      "top": 172,
+      "right": 644,
+      "bottom": 182,
+      "depth_median": 0.3515625,
+      "depth_filename": "tech_20261105_202849_4c7a74f4_mouth_depth.png"
+    },
+    {
+      "name": "eyebrow-l",
+      "filename": "tech_20261105_202849_4c7a74f4_eyebrow-l.png",
+      "left": 650,
+      "top": 105,
+      "right": 685,
+      "bottom": 114,
+      "depth_median": 0.3203125,
+      "depth_filename": "tech_20261105_202849_4c7a74f4_eyebrow-l_depth.png"
+    },
+    {
+      "name": "eyewhite-r",
+      "filename": "tech_20261105_202849_4c7a74f4_eyewhite-r.png",
+      "left": 586,
+      "top": 122,
+      "right": 617,
+      "bottom": 142,
+      "depth_median": 0.25,
+      "depth_filename": "tech_20261105_202849_4c7a74f4_eyewhite-r_depth.png"
+    },
+    {
+      "name": "eyewhite-l",
+      "filename": "tech_20261105_202849_4c7a74f4_eyewhite-l.png",
+      "left": 649,
+      "top": 122,
+      "right": 680,
+      "bottom": 142,
+      "depth_median": 0.25,
+      "depth_filename": "tech_20261105_202849_4c7a74f4_eyewhite-l_depth.png"
+    },
+    {
+      "name": "eyelash-r",
+      "filename": "tech_20261105_202849_4c7a74f4_eyelash-r.png",
+      "left": 579,
+      "top": 117,
+      "right": 621,
+      "bottom": 138,
+      "depth_median": 0.23828125,
+      "depth_filename": "tech_20261105_202849_4c7a74f4_eyelash-r_depth.png"
+    },
+    {
+      "name": "irides-r",
+      "filename": "tech_20261105_202849_4c7a74f4_irides-r.png",
+      "left": 590,
+      "top": 120,
+      "right": 613,
+      "bottom": 141,
+      "depth_median": 0.212890625,
+      "depth_filename": "tech_20261105_202849_4c7a74f4_irides-r_depth.png"
+    },
+    {
+      "name": "irides-l",
+      "filename": "tech_20261105_202849_4c7a74f4_irides-l.png",
+      "left": 651,
+      "top": 120,
+      "right": 675,
+      "bottom": 143,
+      "depth_median": 0.212890625,
+      "depth_filename": "tech_20261105_202849_4c7a74f4_irides-l_depth.png"
+    },
+    {
+      "name": "headwear",
+      "filename": "tech_20261105_202849_4c7a74f4_headwear.png",
+      "left": 686,
+      "top": 39,
+      "right": 704,
+      "bottom": 93,
+      "depth_median": 0.189453125,
+      "depth_filename": "tech_20261105_202849_4c7a74f4_headwear_depth.png"
+    },
+    {
+      "name": "eyelash-l",
+      "filename": "tech_20261105_202849_4c7a74f4_eyelash-l.png",
+      "left": 646,
+      "top": 117,
+      "right": 686,
+      "bottom": 140,
+      "depth_median": 0.162109375,
+      "depth_filename": "tech_20261105_202849_4c7a74f4_eyelash-l_depth.png"
+    },
+    {
+      "name": "front hair",
+      "filename": "tech_20261105_202849_4c7a74f4_front hair.png",
+      "left": 529,
+      "top": 16,
+      "right": 731,
+      "bottom": 312,
+      "depth_median": 0.12109375,
+      "depth_filename": "tech_20261105_202849_4c7a74f4_front hair_depth.png"
+    }
+  ],
+  "width": 1280,
+  "height": 1280
+}

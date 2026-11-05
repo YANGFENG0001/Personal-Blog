@@ -54,11 +54,13 @@ const schemas = {
     mascot: z.object({
       mode: z.enum(['preset', 'on', 'off']),
       character: z.union([z.enum(['preset', 'haru', 'sora', 'chibi', 'lacia']), z.string().regex(/^pack:[a-f0-9]{16}$/)]),
-      /* Which outfit the rigged character wears. Both skins are the same
-         30-part skeleton, so this is a costume change, not a capability one.
-         Optional because settings saved before the second skin have no key;
-         `deepMerge` leaves it absent and the reader falls back to 'suit'. */
-      skin: z.enum(['suit', 'dress']).optional(),
+      /* Which outfit the rigged character wears. All five are the same
+         skeleton over split layers, so this is a costume change, not a
+         capability one. Optional because settings saved before a given outfit
+         existed have no key; `deepMerge` leaves it absent and the reader falls
+         back to 'suit'. The enum is the validation boundary -- adding an outfit
+         to the rig without adding it here makes the save fail with a 400. */
+      skin: z.enum(['suit', 'dress', 'casual', 'tech', 'gown']).optional(),
       /* Same trap as `skin` above: `setSetting` runs `schemas[key].parse()`, and
          a zod object drops keys it does not declare. Without this line the admin
          panel's component checkboxes would save, silently disappear, and come

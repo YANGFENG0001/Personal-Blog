@@ -2,6 +2,10 @@ import { cursorDataUri, getPreset, paletteVars, type ThemePreset } from './theme
 import type { CustomTheme, ThemeLayer } from './custom-theme';
 import { getScene } from './scenes';
 
+/** Outfits 蕾西亚 can wear. Kept next to the settings shape rather than imported
+ *  from the rig so the settings module stays free of the geometry tables. */
+export type MascotSkin = 'suit' | 'dress' | 'casual' | 'tech' | 'gown';
+
 export interface AppearanceSettings {
   preset: string;
   theme: 'system' | 'light' | 'dark';
@@ -31,12 +35,14 @@ export interface AppearanceSettings {
     mode: 'preset' | 'on' | 'off';
     character: string;
     /**
-     * Outfit for the rigged character. Only 蕾西亚 has a rig, so this is the
-     * only place it applies: `suit` is the battle dress, `dress` the blue
-     * off-shoulder one. Both are the same 30-part skeleton, so neither is a
-     * downgrade — a pack, by contrast, is a single flat bitmap.
+     * Outfit for the rigged character. Only 蕾西亚 has several, so this is the
+     * only place it applies: `suit` (battle dress), `dress` (blue off-shoulder),
+     * `casual` (cardigan and pleated skirt), `tech` (bodysuit and long coat),
+     * `gown` (white slit gown). All five are the same skeleton over split
+     * layers, so none is a downgrade — a pack, by contrast, is a single flat
+     * bitmap and loses every animation.
      */
-    skin?: 'suit' | 'dress';
+    skin?: MascotSkin;
     /**
      * Optional components to mount on the rig, overriding the outfit's own set.
      * Absent means "whatever the outfit ships with" — the dress ships nothing,
@@ -72,7 +78,7 @@ export interface ResolvedAppearance {
     imageUrl: string;
     position: 'right' | 'left';
     size: 'sm' | 'md' | 'lg';
-    skin?: 'suit' | 'dress';
+    skin?: MascotSkin;
     components?: string[];
   } | null;
 }

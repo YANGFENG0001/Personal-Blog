@@ -15,7 +15,7 @@ import json
 import os
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageChops, ImageDraw, ImageFilter
 from scipy import ndimage
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -229,6 +229,44 @@ def big_components(img, share=0.05):
     return sum(1 for s in sizes if s > mask.sum() * share)
 
 
+def split_by_column(name, img, ox, oy, z, knee=False):
+    """Separate two legs that are joined at the crotch, by the narrowest column.
+
+    A one-piece bodysuit or a pair of tights is a single connected region from
+    waist to ankle: no amount of erosion splits it, because the fabric really is
+    continuous. But the silhouette still pinches between the thighs, so the
+    narrowest column in the middle third is where the two legs meet. Cutting
+    there leaves a sliver of overlap at the crotch, which is invisible (it is
+    the same dark tone on both sides) and far better than a lower body with no
+    knee at all.
+    """
+    arr = np.array(img)
+    a = arr[:, :, 3] > 24
+    h, w = a.shape
+    col = a.sum(axis=0)
+    lo, hi = int(w * 0.30), int(w * 0.70)
+    cut = lo + int(np.argmin(col[lo:hi]))
+    # The dip has to be a real gap. A gown covers one leg completely, so its
+    # `legwear` is a single limb: the "narrowest column" is then just the edge of
+    # that limb, and cutting there produces one leg plus a sliver of nothing --
+    # which is how the gown ended up with a knee at y=871 and the other at y=536.
+    # A genuine crotch dip is a fraction of the peak; an edge is most of it.
+    if col[cut] > col.max() * 0.35:
+        print(f"  {name}: no gap between the legs (min {int(col[cut])} of {int(col.max())}), keeping whole")
+        return False
+    print(f"  {name}: joined at the crotch, cutting at column {cut}/{w}")
+    for nm, sl in ((f"{name}-r", slice(0, cut)), (f"{name}-l", slice(cut, w))):
+        out = arr.copy()
+        keep = np.zeros(w, bool)
+        keep[sl] = True
+        out[:, ~keep] = 0
+        if knee:
+            split_joint(nm, out, ox, oy, z, "knee")
+        else:
+            add(nm, Image.fromarray(out), ox, oy, z)
+    return True
+
+
 def split_lr(name, img, ox, oy, z, knee=False, arm=False):
     """Split a merged two-limb layer into left / right halves by connected components."""
     a = np.array(img)[:, :, 3]
@@ -237,6 +275,12 @@ def split_lr(name, img, ox, oy, z, knee=False, arm=False):
     mask = ndimage.binary_erosion(mask, iterations=2)
     lab, n = ndimage.label(mask)
     if n < 2:
+        # A one-piece lower body (tights, a bodysuit) is genuinely continuous,
+        # so connected components cannot help. A short fused shape -- the chibi
+        # -- is left whole on purpose: there is no knee to find in a 200px leg
+        # and cutting it in half would only add a seam.
+        if knee and a.shape[0] > 400 and split_by_column(name, img, ox, oy, z, knee=True):
+            return
         print(f"  !! {name}: only {n} component, keeping whole")
         add(name, img, ox, oy, z)
         return
@@ -247,8 +291,16 @@ def split_lr(name, img, ox, oy, z, knee=False, arm=False):
         ys, xs = np.where(lab == k)
         boxes.append((xs.mean(), xs.min(), ys.min(), xs.max(), ys.max(), k))
     boxes.sort(key=lambda b: b[0])
+    if len(boxes) < 2:
+        # Several components but only one substantial one: the other half is
+        # noise, so there is no pair to split. Same fallback as above.
+        if knee and a.shape[0] > 400 and split_by_column(name, img, ox, oy, z, knee=True):
+            return
+        print(f"  !! {name}: {len(boxes)} substantial component, keeping whole")
+        add(name, img, ox, oy, z)
+        return
     # left in image space = smaller x; the figure faces us, so image-left is her right
-    names = [f"{name}-r", f"{name}-l"] if len(boxes) == 2 else [f"{name}-{i}" for i in range(len(boxes))]
+    names = [f"{name}-r", f"{name}-l"]
     arr = np.array(img)
     for nm, b in zip(names, boxes):
         cx, bx0, by0, bx1, by1, k = b
@@ -300,6 +352,83 @@ for layer in meta["layers"]:
             split_arm(name, np.array(img), ox, oy, Z)
     else:
         add(name, img, ox, oy, Z)
+
+# 2a. the face plate.
+#
+# Some splits hand back the features (nose, mouth, eyewhite, eyelash) with no
+# skin behind them. The figure then renders as eyes and a mouth floating on
+# hair: every part is present, the face is not. The splitter did not get
+# anything wrong -- it simply has no slot called "skin".
+#
+# Recovering it is subtraction, not drawing: those pixels exist in the
+# illustration and in no layer. An ellipse rather than the raw rectangle,
+# because a hard crop of the face box carries a rim of fringe on all four
+# sides, and a feather so the plate can sit under the fringe without a seam.
+_by_id = {p["id"]: p for p in parts}
+
+FACE_FEATURE_IDS = {
+    "eyebrow-r", "eyebrow-l", "eyewhite-r", "eyewhite-l",
+    "eyelash-r", "eyelash-l", "irides-r", "irides-l", "nose", "mouth",
+}
+
+
+def _face_box():
+    """The face rectangle: measured if the split produced a plate, else derived.
+
+    The features span brow-to-mouth. A face needs the forehead above and the
+    chin below; both are a fraction of that span again. This is the same box the
+    head pivot is derived from, so the two cannot disagree about where her chin
+    is.
+    """
+    fc = _by_id.get("face")
+    if fc is not None:
+        return fc
+    feats = [p for p in parts if p["id"] in FACE_FEATURE_IDS]
+    if not feats:
+        raise SystemExit("face: no 'face' layer and no facial features to derive one from")
+    top = min(p["y"] for p in feats)
+    bot = max(p["y"] + p["h"] for p in feats)
+    left = min(p["x"] for p in feats)
+    right = max(p["x"] + p["w"] for p in feats)
+    span = bot - top
+    cx = (left + right) / 2.0
+    fw = max(right - left, span) * 1.12
+    fh = span * 1.55
+    return {"x": cx - fw / 2.0, "y": top - span * 0.28, "w": fw, "h": fh}
+
+
+if "face" not in _by_id and _args.source:
+    _fb = _face_box()
+    _src = Image.open(_args.source).convert("RGBA")
+    _sb = _src.getbbox()
+    if not _sb:
+        raise SystemExit(f"face: {_args.source} is empty")
+    _ref = _src.crop(_sb).resize((CW, CH), Image.LANCZOS)
+    _box = (
+        max(0, int(_fb["x"])),
+        max(0, int(_fb["y"])),
+        min(CW, int(_fb["x"] + _fb["w"])),
+        min(CH, int(_fb["y"] + _fb["h"])),
+    )
+    _plate = _ref.crop(_box)
+    _pw, _ph = _plate.size
+    _mask = Image.new("L", (_pw, _ph), 0)
+    # Inset by a few px so the ellipse stays inside the skin at every side.
+    _inset = max(2, int(min(_pw, _ph) * 0.04))
+    ImageDraw.Draw(_mask).ellipse((_inset, _inset, _pw - 1 - _inset, _ph - 1 - _inset), fill=255)
+    _mask = _mask.filter(ImageFilter.GaussianBlur(max(2, _inset)))
+    _plate.putalpha(ImageChops.multiply(_plate.getchannel("A"), _mask))
+    _fn = "face.webp"
+    _plate.save(os.path.join(OUT, _fn), "WEBP", quality=92, method=6)
+    # Above the clothes, below the features. The fringe is painted last of all
+    # (`front hair` has the highest z in every split), so the forehead stays
+    # covered by hair and the plate never shows a straight edge there.
+    _z = (_by_id.get("topwear", {}).get("z", 1)) + 0.5
+    parts.append(
+        {"id": "face", "file": _fn, "x": _box[0], "y": _box[1], "w": _pw, "h": _ph, "z": _z}
+    )
+    _by_id["face"] = parts[-1]
+    print(f"  face (recovered) {_pw}x{_ph} at ({_box[0]},{_box[1]}) z={_z}")
 
 # 2b. orphans — the thin things the split dropped.
 #
@@ -430,7 +559,7 @@ def _frame():
     k = CH / 1276.0
     tw = _need("topwear")
     nk = _by_id.get("neck")
-    fc = _need("face")
+    fc = _face_box()
     ar = _need("handwear-r-up")
     al = _need("handwear-l-up")
     lr_ = _by_id.get("legwear-r-up")
@@ -444,7 +573,20 @@ def _frame():
             raise SystemExit("frame: no leg layers at all")
         lr_ = ll = merged
 
-    hip_y = tw["y"] + tw["h"]
+    bw = _by_id.get("bottomwear")
+    if bw is not None:
+        # A skirt or trousers layer starts at the waist, and that edge is the
+        # best measurement of the pelvis: it does not move when the top happens
+        # to be long. The battle suit has no such layer, so it falls through.
+        hip_y = bw["y"]
+    else:
+        hip_y = tw["y"] + tw["h"]
+        if lr_ is not None and hip_y > lr_["y"] + 0.06 * CH:
+            # No lower-body layer and the top reaches well past the top of the
+            # legs: that is a coat, not a shirt. Its hem is down at her calves,
+            # and a root there bends the whole figure at the shin -- the techwear
+            # split put `topwear` from the shoulder to y=1079 on a 1266 canvas.
+            hip_y = lr_["y"]
     hip_x = (_cx(lr_) + _cx(ll)) / 2.0
     face_bottom = fc["y"] + fc["h"]
     # The neck sits under the chin, so its x is the chin's x. Some art has no
@@ -463,8 +605,14 @@ def _frame():
         "hairBack": (_cx(fc), face_bottom),
         "armR": (ar["x"] + ar["w"] * 0.75, ar["y"] + ar["h"] * 0.11),
         "armL": (al["x"] + al["w"] * 0.25, al["y"] + al["h"] * 0.11),
-        "legR": (_cx(lr_), lr_["y"] + 16 * k),
-        "legL": (_cx(ll), ll["y"] + 16 * k),
+        # The thigh bone starts at the hip, not at the top of whatever the split
+        # called `legwear`. On the battle suit those are the same row; on a
+        # pleated skirt the layer starts below the hem, and on a slit gown one
+        # leg is covered to the knee while the other is bare from the thigh --
+        # so the two `legwear` tops sat 335px apart and the legs would have
+        # swung about two different heights.
+        "legR": (_cx(lr_), hip_y + 16 * k),
+        "legL": (_cx(ll), hip_y + 16 * k),
     }
 
 

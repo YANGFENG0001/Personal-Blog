@@ -862,12 +862,21 @@ interface MascotComponent<H, S> {      // S 是渲染器的主体（皮肤 / 造
 压板是那个铰座的固定件，让开 1.6 秒再回来。这是目前唯一一条跨组件规则，也是唯一需要
 解释的取舍 —— 动作结束时全槽位自动恢复，所以它不需要在别处写一条配对的"显示"。
 
-### 6.4 三个原创角色不是"三套衣服"，是三副骨架
+### 6.4 七套皮肤，一副引擎
 
 小春 / 小晴 / Q 版最初是手写的内联 SVG（`src/lib/mascot/svg.ts`）。那条路已经判死，
 理由写在 `docs/mascot-motion-research.md` §5.2：**手调贝塞尔画不出生成模型的量级**，
 怎么调路径都追不上，用户的原话是「还是丑」。现在四个角色走同一条流水线（§6.6），
 差别只剩数据。
+
+同一件事后来又发生了第二次，只是对象不同：蕾西亚的**日常 / 机能 / 礼服**三套衣服当时是
+素材包，各有一张 `idle.webp`。选它们等于把角落里的看板娘换成一张静态图——不呼吸、不转头、
+不说话，而同一个人的战斗服和蓝裙是骨架。**同一个人的两套衣服能力不一样，这没有道理**，
+所以这三套也重做成了骨架（`casual` / `tech` / `gown`，各自的坑写在
+`docs/seethrough-{casual,tech,gown}/README.md`）。
+
+于是现在是七套皮肤：`suit` / `dress` / `casual` / `tech` / `gown` 是同一个人换衣服，
+`haru` / `sora` / `chibi` 是三个人。**引擎里没有一处按皮肤 id 分支**。
 
 接进来时踩到的第一个坑是**把它们当成第三套皮肤**。蓝裙确实只是"换一组图层 + 换一组
 枢轴"，因为她和战斗服是同一个人、同一张画布、同一套表情。小春不是——她 328×1277，
@@ -938,11 +947,26 @@ export function skinComponents(skin: LaciaSkinId, override?: readonly string[]) 
 ### 6.6 重做一个角色的流水线
 
 ```bash
-python docs/lacia-rig/pipeline/gen_char.py     --ref lacia_idle.png --prompt "..." --seed N   # 1. 出图
-python docs/lacia-rig/pipeline/prep_source.py  --in out.png --out docs/seethrough-<x>/source.png  # 2. 抠图 + 对齐
-python docs/lacia-rig/pipeline/run_st.py       --in source.png --out layers/                  # 3. See-through 拆层
-python docs/lacia-rig/export_assets.py --layers layers --name <x> --source source.png  # 4. 导出
-python docs/lacia-rig/gen_face_variants.py --src source.png --out public/lacia-rig/<x>/  # 5. 表情
+# 1. 出图（只有新角色 / 需要换姿势时才做；已有透明素材就跳过）
+python docs/lacia-rig/pipeline/gen_char.py --ref lacia_idle.png --prompt "..." --seed N
+
+# 2a. 生成图是纯黑背景 → 四边 flood fill 抠图 + 对齐
+python docs/lacia-rig/pipeline/prep_source.py <in.png> <out.png>
+
+# 2b. 素材本来就是透明 PNG/WebP → 只要对齐（裙摆比人宽时加 --fill-height）
+python docs/lacia-rig/pipeline/prep_alpha.py <in> <out.png> [--fill-height]
+
+# 3. See-through 拆层（ComfyUI 要在跑，约 4–5 分钟）
+python docs/lacia-rig/pipeline/run_st.py <source.png> <comfy 输入名> <前缀>
+
+# 4. 导出部件 + 坐标表（--source 必填：脸皮回收和孤层回收都靠它）
+python docs/lacia-rig/export_assets.py \
+    --src docs/seethrough-<x>/layers --meta docs/seethrough-<x>/layers/<前缀>_layers.json \
+    --out public/lacia-rig/<x> --ts src/lib/lacia/parts-<x>.ts \
+    --name <X> --source docs/seethrough-<x>/source.png
+
+# 5. 表情变体（读上一步导出的 eyebrow-*/mouth，写到同一个目录）
+python docs/lacia-rig/gen_face_variants.py --src public/lacia-rig/<x> --out public/lacia-rig/<x>
 ```
 
 每一步的坑：
@@ -951,7 +975,9 @@ python docs/lacia-rig/gen_face_variants.py --src source.png --out public/lacia-r
    最窄行"来测肘和膝；手臂横过髋部就落到窗口外，量出来的关节是错的。拿 `lacia_idle.png`
    当结构输入是最省事的姿势锁定。
 2. **抠图是四边 flood fill，不是按颜色阈值。** 生成图背景是纯黑，但发梢/描边也有近黑
-   像素；从四边灌水只吃掉"与边缘连通"的那部分。
+   像素；从四边灌水只吃掉"与边缘连通"的那部分。**已经是透明的素材不要用这个脚本**——
+   它会把 alpha 当不透明处理。用 `prep_alpha.py`，它只做对齐，并把半透明边缘的 RGB
+   换成最近的实心像素（否则 320px 显示时有一圈深色描边）。
 3. **兜帽是拆层流水线的天敌。** 小晴前两版是连帽雨衣，See-through 把两只袖子和帽兜塞进
    同一个 `handwear` 层——兜帽布料和袖子物理相连，按连通域永远切不开。这是**设计约束**，
    不是服装偏好：改成立领之后同一个拆层器干净吐出两只手。改角色设计前先想清楚
@@ -960,12 +986,29 @@ python docs/lacia-rig/gen_face_variants.py --src source.png --out public/lacia-r
    解法是减法而不是重画：源图里有、而所有图层都没有的像素，按定义就是丢的那块。
    判据是"有没有内部"——`binary_erosion(iterations=3)` 之后还剩核心的才算真物体。
    腐蚀一次时 Q 版会"回收"出 207×788 的碎片，那全是 5 px 描边和 1 px 配准差。
-5. **Q 版的骨架是部分为真的。** 大腿贴合 → 拆层找不到两条腿 → 没有膝盖可测。
+5. **脸皮也会丢，而且是整套丢。** 日常 / 机能 / 礼服三次拆层都没有 `face` 层：鼻子、嘴、
+   眼白、睫毛都在，就是没有皮肤。渲染出来是一双眼睛和一张嘴浮在头发上——部件一个不少，
+   脸没有。`export_assets.py` 现在从对齐后的源图按椭圆回收脸皮，插在衣服之上、五官之下。
+   椭圆是必须的：矩形裁脸会把刘海的四条边一起带进来。
+   推导下巴**不能用脖子层的顶边**——它的顶边在 y=142，而嘴结束于 y=169，用它会得到
+   "头绕鼻子转"。正确做法是用五官的纵向跨度：眉毛到嘴是 `span`，下巴在嘴下方
+   `0.35 * span` 处。
+6. **连体衣的腿按列切，不是按连通域。** 紧身衣 / 连体裤是一整块布，腐蚀到 8 次仍是一个
+   连通域。但轮廓在中线有低谷，所以 `split_lr` 分不开时会按最窄的那一列切。判据是
+   "低谷必须 < 峰值的 35%"——礼服的 `legwear` 只有一条腿，没有缝，会被这条判据挡回去
+   保持整体（否则会切出一条空腿，两个膝盖相差 300 多像素）。
+7. **髋取 `bottomwear` 的顶边，不是 `topwear` 的底边。** 上衣短的时候两者同一行；开衫长到
+   裙摆、风衣长到小腿，取上衣底边等于把整个身体的根放在脚踝上。没有 `bottomwear` 时，
+   如果 `topwear` 的底边明显低于 `legwear` 的顶边，就用 `legwear` 的顶边。
+8. **腿骨起点固定在髋下方 `16k`**，不是"各自 `legwear` 的顶边"——过膝袜的顶边在大腿中部，
+   绕那里转像从袜口折腿。
+9. **Q 版的骨架是部分为真的。** 大腿贴合 → 拆层找不到两条腿 → 没有膝盖可测。
    `export_assets.py` 把膝盖钉在髋上（`KNEES["r"] = FRAME["legR"]`），而不是在没有收窄的
    形状上按 45% 猜——后者正是 `JOINT_BANDS` 那套搜索窗口存在的理由。
 
-**已知缺口**：`docs/seethrough-haru/` 归档了 46 个图层，小晴和 Q 版的图层在导出后没有
-留档（只留了 `source.png`）。要重新导出这两个角色必须重跑第 3 步（各约 5 分钟 GPU）。
+**已知缺口**：`docs/seethrough-sora/` 与 `docs/seethrough-chibi/` 只留了 `source.png`，
+拆层结果没有归档（haru 的 46 层、casual/tech/gown 的 21–22 层都在）。要重新导出这两个
+角色必须重跑第 3 步（各约 5 分钟 GPU）。
 
 ### 6.7 加载：把"参数"留在服务端
 

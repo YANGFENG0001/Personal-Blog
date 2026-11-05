@@ -15,7 +15,9 @@ import urllib.request
 import uuid
 
 HOST = "http://127.0.0.1:8188"
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# This file lives at docs/lacia-rig/pipeline/, so the repo root is four levels up
+# (it used to sit in the gitignored .ref/ draft folder, where it was two).
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 WF = os.path.join(ROOT, "docs", "seethrough-dress", "workflow.json")
 os.environ.pop("HTTP_PROXY", None)
 os.environ.pop("HTTPS_PROXY", None)

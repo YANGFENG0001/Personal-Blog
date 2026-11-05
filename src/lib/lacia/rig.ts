@@ -29,6 +29,9 @@ import { DRESS_ANKLE, DRESS_ELBOW, DRESS_KNEE, DRESS_PARTS, DRESS_WRIST } from '
 import { HARU_ANKLE, HARU_CANVAS, HARU_ELBOW, HARU_FRAME, HARU_KNEE, HARU_PARTS, HARU_WRIST } from './parts-haru';
 import { SORA_ANKLE, SORA_CANVAS, SORA_ELBOW, SORA_FRAME, SORA_KNEE, SORA_PARTS, SORA_WRIST } from './parts-sora';
 import { CHIBI_ANKLE, CHIBI_CANVAS, CHIBI_ELBOW, CHIBI_FRAME, CHIBI_KNEE, CHIBI_PARTS, CHIBI_WRIST } from './parts-chibi';
+import { CASUAL_ANKLE, CASUAL_CANVAS, CASUAL_ELBOW, CASUAL_FRAME, CASUAL_KNEE, CASUAL_PARTS, CASUAL_WRIST } from './parts-casual';
+import { TECH_ANKLE, TECH_CANVAS, TECH_ELBOW, TECH_FRAME, TECH_KNEE, TECH_PARTS, TECH_WRIST } from './parts-tech';
+import { GOWN_ANKLE, GOWN_CANVAS, GOWN_ELBOW, GOWN_FRAME, GOWN_KNEE, GOWN_PARTS, GOWN_WRIST } from './parts-gown';
 import type { LaciaPart } from './parts';
 import {
   FACE_IDS,
@@ -219,6 +222,98 @@ const DRESS_SKIN: LaciaSkin = {
 };
 
 /**
+ * The casual outfit — same person, a different generation.
+ *
+ * These three extra outfits started life as mascot *packs*: one flat `idle.webp`
+ * each, no talk, no blink, no joints. That is a different class of thing from
+ * the battle suit, and the corner mascot showed it — picking 日常 meant the
+ * figure stopped breathing, stopped turning her head, and could not speak. They
+ * now go through the same split-and-rig pipeline as every other skin, so the
+ * only thing that differs between outfits is the bitmaps.
+ *
+ * Two things are worth knowing about this split:
+ *
+ *  - It has no `face` plate. See-through returned the features separately (nose,
+ *    mouth, eyewhite, eyelash) with no skin behind them, so `export_assets.py`
+ *    derives the chin from the top of the `neck` layer instead. The pivots come
+ *    out the same; only the rule that finds them changed.
+ *  - The cardigan is `topwear` and the pleated skirt is `bottomwear`, split
+ *    cleanly, so the skirt rides the torso rather than the head. The hair clip
+ *    is `headwear`, pinned to the fringe.
+ *
+ * `components: []` — she carries no device, same as the dress.
+ */
+export const CASUAL_SKIN: LaciaSkin = {
+  base: '/lacia-rig/casual/',
+  parts: CASUAL_PARTS,
+  knee: CASUAL_KNEE,
+  elbow: CASUAL_ELBOW,
+  wrist: CASUAL_WRIST,
+  ankle: CASUAL_ANKLE,
+  canvas: CASUAL_CANVAS,
+  frame: CASUAL_FRAME,
+  faceBase: '/lacia-rig/casual/',
+  bone: { bottomwear: 'torso', headwear: 'hairFront' },
+  components: [],
+  noOverride: true,
+};
+
+/**
+ * The techwear outfit. A one-piece bodysuit under a long coat.
+ *
+ * Two things the split could not do on its own, both handled in
+ * `export_assets.py` and both worth knowing before re-running it:
+ *
+ *  - The legs are joined at the crotch, so connected components never see two
+ *    of them. The splitter cuts on the narrowest column instead, which is where
+ *    the two thighs meet. Without that her knees were pinned to her hips and the
+ *    whole lower body was rigid.
+ *  - The coat reaches her calves, so `topwear`'s bottom edge is not her waist —
+ *    taking it put the root at y=1066 of 1266, and the figure would have bent at
+ *    the shin. The root comes off the top of the leg layer instead.
+ */
+export const TECH_SKIN: LaciaSkin = {
+  base: '/lacia-rig/tech/',
+  parts: TECH_PARTS,
+  knee: TECH_KNEE,
+  elbow: TECH_ELBOW,
+  wrist: TECH_WRIST,
+  ankle: TECH_ANKLE,
+  canvas: TECH_CANVAS,
+  frame: TECH_FRAME,
+  faceBase: '/lacia-rig/tech/',
+  bone: { headwear: 'hairFront' },
+  components: [],
+  noOverride: true,
+};
+
+/**
+ * The gown. The skirt is a `bottomwear` layer 658px tall and the legs under it
+ * are only partly visible, so this is the one outfit whose lower body is mostly
+ * cloth rather than limb.
+ *
+ * The two knee pivots sit at different heights (y=1007 and y=843) because the
+ * slit covers one leg to the knee and leaves the other bare from the thigh. That
+ * is what the art shows, not a measurement error: a knee can only be found where
+ * a silhouette exists. It costs nothing visually — the skirt covers both — and
+ * the alternative was inventing a knee for a leg that is not drawn.
+ */
+export const GOWN_SKIN: LaciaSkin = {
+  base: '/lacia-rig/gown/',
+  parts: GOWN_PARTS,
+  knee: GOWN_KNEE,
+  elbow: GOWN_ELBOW,
+  wrist: GOWN_WRIST,
+  ankle: GOWN_ANKLE,
+  canvas: GOWN_CANVAS,
+  frame: GOWN_FRAME,
+  faceBase: '/lacia-rig/gown/',
+  bone: { bottomwear: 'torso', headwear: 'hairFront' },
+  components: [],
+  noOverride: true,
+};
+
+/**
  * A second character, not a second outfit.
  *
  * She is a rig skin like the others because a skin is exactly "bitmap directory +
@@ -311,11 +406,19 @@ export const CHIBI_SKIN: LaciaSkin = {
 export const LACIA_SKINS = {
   suit: SUIT_SKIN,
   dress: DRESS_SKIN,
+  casual: CASUAL_SKIN,
+  tech: TECH_SKIN,
+  gown: GOWN_SKIN,
   haru: HARU_SKIN,
   sora: SORA_SKIN,
   chibi: CHIBI_SKIN,
 } as const;
 export type LaciaSkinId = keyof typeof LACIA_SKINS;
+
+/** The outfits Lacia herself can wear. Kept separate from `LACIA_SKINS` because
+ *  the other three keys are *people*, and "outfit = haru" would silently dress
+ *  Lacia in someone else's body. */
+const LACIA_OUTFITS = ['suit', 'dress', 'casual', 'tech', 'gown'] as const;
 
 /** Which skin a corner mascot should wear. A character with only one outfit
  *  ignores the outfit setting rather than silently wearing someone else's. */
@@ -323,7 +426,7 @@ export function skinForCharacter(character: string, outfit: string): LaciaSkinId
   if (character === 'haru') return 'haru';
   if (character === 'sora') return 'sora';
   if (character === 'chibi') return 'chibi';
-  return outfit === 'dress' ? 'dress' : 'suit';
+  return (LACIA_OUTFITS as readonly string[]).includes(outfit) ? (outfit as LaciaSkinId) : 'suit';
 }
 
 /** Canvas size of a skin, falling back to the original figure. */
@@ -478,6 +581,38 @@ function partsFor(skin: LaciaSkin): Record<string, string> {
  */
 const FACE_BASE = '/lacia-rig/parts/';
 
+/** The features a face is made of, when the split did not give us a plate. */
+const FACE_FEATURE_IDS = new Set([
+  'eyebrow-r', 'eyebrow-l', 'eyewhite-r', 'eyewhite-l', 'eyelash-r', 'eyelash-l',
+  'irides-r', 'irides-l', 'nose', 'mouth',
+]);
+
+/**
+ * A face box for a skin whose split produced features but no `face` plate.
+ *
+ * The casual outfit came back that way: nose, mouth, eyewhites and lashes as
+ * separate layers, with no skin behind them. The only thing the markup needs a
+ * face box for is where the blush sits, and that is a fraction of the box — so
+ * an approximate box is enough. What is *not* enough is reaching for the head
+ * pivot instead: that one sits below the chin, and 0.74 of the way down from
+ * there lands on her collarbone.
+ *
+ * The features span brow-to-mouth; the chin is below the mouth by about a third
+ * of that span again, which is the same ratio `export_assets.py` uses to place
+ * the head pivot.
+ */
+function faceBoxOf(parts: readonly LaciaPart[]): LaciaPart {
+  const feats = parts.filter((p) => FACE_FEATURE_IDS.has(p.id));
+  if (!feats.length) throw new Error('rig: skin has neither a face layer nor any face features');
+  const x0 = Math.min(...feats.map((p) => p.x));
+  const y0 = Math.min(...feats.map((p) => p.y));
+  const x1 = Math.max(...feats.map((p) => p.x + p.w));
+  const y1 = Math.max(...feats.map((p) => p.y + p.h));
+  const span = y1 - y0;
+  const cx = (x0 + x1) / 2;
+  return { id: 'face', file: '', x: cx - span * 0.5, y: y0, w: span, h: y1 + span * 0.35 - y0, z: 0 };
+}
+
 function faceStack(base: string, bases: FaceBases): string {
   const img = (p: { file: string; x: number; y: number; w: number; h: number; z: number }, v: string, group: string, on: boolean) =>
     `<img class="lr-part lr-face" data-face="${group}" data-v="${v}"${on ? ' data-on' : ''}` +
@@ -523,8 +658,7 @@ export function laciaMarkup(
      her own part table rather than from the constants `face.ts` used to hold. */
   const bases = faceBasesOf(skin.parts);
   const faceDir = skin.faceBase ?? FACE_BASE;
-  const face = skin.parts.find((x) => x.id === 'face');
-  if (!face) throw new Error('rig: skin has no face layer');
+  const face = skin.parts.find((x) => x.id === 'face') ?? faceBoxOf(skin.parts);
   const blush = blushOf(face);
 
   /* Components are rendered into their mount points. Nothing here knows what a

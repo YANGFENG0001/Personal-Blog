@@ -39,10 +39,13 @@
 
 ```bash
 python docs/lacia-rig/pipeline/gen_char.py    --ref lacia_idle.png --prompt "..." --seed N
-python docs/lacia-rig/pipeline/prep_source.py --in out.png --out docs/seethrough-haru/source.png
-python docs/lacia-rig/pipeline/run_st.py      --in docs/seethrough-haru/source.png --out docs/seethrough-haru/layers
-python docs/lacia-rig/export_assets.py --layers docs/seethrough-haru/layers --name haru
-python docs/lacia-rig/gen_face_variants.py --src docs/seethrough-haru/source.png --out public/lacia-rig/haru
+python docs/lacia-rig/pipeline/prep_source.py out.png docs/seethrough-haru/source.png
+python docs/lacia-rig/pipeline/run_st.py docs/seethrough-haru/source.png lacia_haru.png haru
+python docs/lacia-rig/export_assets.py --src docs/seethrough-haru/layers \
+    --meta docs/seethrough-haru/layers/<prefix>_layers.json \
+    --out public/lacia-rig/haru --ts src/lib/lacia/parts-haru.ts \
+    --name HARU --source docs/seethrough-haru/source.png
+python docs/lacia-rig/gen_face_variants.py --src public/lacia-rig/haru --out public/lacia-rig/haru
 ```
 
 ## 验证

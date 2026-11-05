@@ -1,4 +1,5 @@
 import type BetterSqlite3 from 'better-sqlite3';
+import type { MascotSkin } from '../lib/appearance';
 
 type Db = BetterSqlite3.Database;
 
@@ -50,9 +51,9 @@ export const DEFAULT_SETTINGS = {
     mascot: {
       mode: 'preset' as 'preset' | 'on' | 'off',
       character: 'preset' as string,
-      /* Outfit for the rigged character only; both skins are the same 30-part
-         skeleton, so this is a costume change, not a capability change. */
-      skin: 'suit' as 'suit' | 'dress',
+      /* Outfit for the rigged character only. All five are the same skeleton
+         over split layers, so this is a costume change, not a capability one. */
+      skin: 'suit' as MascotSkin,
       /* Which optional components are mounted. Undefined means "the outfit's
          own set", which is what keeps a weaponless outfit weaponless after the
          owner switches outfits in the admin panel. */
