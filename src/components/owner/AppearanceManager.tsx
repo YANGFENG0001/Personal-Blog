@@ -4,8 +4,7 @@ import { BG_EFFECTS, EGG_SETS, PRESETS, getPreset, paletteVars, type ThemePreset
 import { resolveAppearance, cursorCss } from '../../lib/appearance';
 import { SHAPE_LAYOUTS, dialHtml, effectiveLayout } from '../../lib/dial';
 import { SCENES, sceneHtml, type SceneId } from '../../lib/scenes';
-import { MASCOTS, isMascotId } from '../../lib/mascot/meta';
-import { mascotSvg } from '../../lib/mascot/svg';
+import { MASCOTS } from '../../lib/mascot/meta';
 import { componentCatalog, defaultComponentIds, selfActionCount } from '../../lib/mascot/catalog';
 import type { StoredMascotPack } from '../../lib/mascot-pack';
 import type { StoredTheme } from '../../lib/custom-theme';
@@ -157,7 +156,7 @@ function PresetCard({ p, active, onPick }: { p: ThemePreset; active: boolean; on
           <span class={`mini mini-${mode} bg-${p.background.type}`} style={`${style(p[mode])};color-scheme:${mode}`}>
             {p.background.scene && <span class="mini-scene" dangerouslySetInnerHTML={{ __html: sceneHtml(p.background.scene as SceneId) }} />}
             {mode === 'light' && p.background.effect && <canvas ref={canvas} class="mini-canvas" aria-hidden="true" />}
-            {p.mascot && <span class="mini-mascot" dangerouslySetInnerHTML={{ __html: mascotSvg(p.mascot) }} />}
+            {p.mascot && <span class="mini-mascot"><img src={MASCOTS.find((c) => c.id === p.mascot)?.thumb} alt="" loading="lazy" /></span>}
             <span class="mini-head"><i /><b /></span>
             <span class="mini-title" style={`font-family:var(${p.font === 'sans' ? '--sans' : '--serif'})`}>Aa 标题</span>
             <span class="mini-line" /><span class="mini-line short" />
@@ -256,7 +255,11 @@ function MascotPanel({ a, setA, uploads, packs, setPacks, studioUrl }: { a: AS; 
      The two are different states on purpose — "unset" keeps following the
      character (or, for the rig, the outfit), an explicit list survives a
      change of either. */
-  const picked = m.components ?? defaultComponentIds(character, m.skin ?? 'suit');
+  /* 皮肤键：只有蕾西亚有"换衣服"这回事，其余三个角色一人一副骨架，皮肤键就是
+     角色 id。这里重写一次而不是调 `skinForCharacter()`，是为了不让设置面板
+     import 骨架引擎（弹簧、IK、标记生成器会一起进包）。 */
+  const skinKey = character === 'lacia' ? (m.skin ?? 'suit') : character;
+  const picked = m.components ?? defaultComponentIds(character, skinKey);
   const catalog = componentCatalog(character);
   const toggleComponent = (list: readonly string[], id: string) =>
     list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
@@ -272,8 +275,8 @@ function MascotPanel({ a, setA, uploads, packs, setPacks, studioUrl }: { a: AS; 
       </div>
       <div class="mascot-cfg">
         <div class={`mascot-stage ${shown ? '' : 'is-off'}`} data-pos={m.position}>
-          <div class="mascot-demo" data-size={m.size} data-kind={pack || m.imageUrl || thumb ? 'image' : character === 'chibi' ? 'chibi' : 'anime'}>
-            {pack?.urls.idle ? <img src={pack.urls.idle} alt="" /> : m.imageUrl ? <img src={m.imageUrl} alt="" /> : thumb ? <img src={thumb} alt="" /> : <span dangerouslySetInnerHTML={{ __html: mascotSvg(isMascotId(character) ? character : 'haru', picked) }} />}
+          <div class="mascot-demo" data-size={m.size} data-kind="image">
+            {pack?.urls.idle ? <img src={pack.urls.idle} alt="" /> : m.imageUrl ? <img src={m.imageUrl} alt="" /> : thumb ? <img src={thumb} alt="" /> : null}
           </div>
           {!shown && <span class="mascot-off">当前主题下不显示</span>}
         </div>
@@ -293,7 +296,7 @@ function MascotPanel({ a, setA, uploads, packs, setPacks, studioUrl }: { a: AS; 
               {MASCOTS.map((c) => (
                 <button type="button" role="radio" aria-checked={m.character === c.id} class={`mascot-pick ${m.character === c.id ? 'on' : ''}`} onClick={() => set({ character: c.id, components: undefined })}>
                   <span class="mascot-pick-art">
-                    {c.thumb ? <img src={c.thumb} alt="" loading="lazy" /> : <span dangerouslySetInnerHTML={{ __html: mascotSvg(c.id) }} />}
+                    {c.thumb && <img src={c.thumb} alt="" loading="lazy" />}
                   </span>
                   <strong>{c.name}</strong><small>{c.desc}</small>
                 </button>

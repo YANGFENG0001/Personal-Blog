@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { PRESETS, contrast, getPreset, mix, EGG_SETS } from '../../src/lib/themes';
 import { SCENES, sceneHtml } from '../../src/lib/scenes';
 import { isSceneEffect } from '../../src/lib/scene-effects';
-import { MASCOT_LINES, mascotSvg } from '../../src/lib/mascot';
+import { MASCOT_LINES, MASCOTS } from '../../src/lib/mascot';
 import { resolveAppearance, cursorCss } from '../../src/lib/appearance';
 import { toggleChip } from '../../src/components/owner/ui';
 import { dueInfo } from '../../src/components/owner/TaskBoards';
@@ -107,10 +107,16 @@ describe('resolveAppearance', () => {
     expect(EGG_SETS.some((e) => e.id === 'lacia')).toBe(true);
     expect(isSceneEffect('data')).toBe(true);
     // The mascot is a real anime bust with its own lines, not a fallback.
-    expect(mascotSvg('lacia')).toContain('ms-anime');
-    expect(mascotSvg('lacia')).toContain('ms-monolith');
-    expect(MASCOT_LINES.lacia.length).toBeGreaterThanOrEqual(5);
-    expect(sceneHtml('lacia')).toContain('l-mono-seam');
+    expect(MASCOT_LINES.haru.length).toBeGreaterThanOrEqual(5);
+    // 设置面板的角色卡片只画缩略图（手绘造型已删除），所以每个角色都必须有
+    // 一张——漏了不会报错，只会是一张空白卡片。
+    expect(MASCOTS.filter((m) => !m.thumb).map((m) => m.id)).toEqual([]);
+    // 场景标记：云带与天光是 DOM（不是 SVG），太阳路径与远景是 SVG。两半都要在，
+    // 只断言一个 `<div class="scene">` 壳子等于什么都没验。
+    const scene = sceneHtml('lacia');
+    expect(scene).toContain('data-scene-id="lacia"');
+    expect(scene).toContain('l-bands');
+    expect(scene).toContain('l-hglow');
   });
 
   it('builds cursor data URIs only when not system', () => {

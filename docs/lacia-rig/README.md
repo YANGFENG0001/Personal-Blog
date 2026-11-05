@@ -640,7 +640,6 @@ docs/lacia-rig/verify/joints.cjs           关节实测：行程 / 两腿反相 
 docs/lacia-rig/verify/secondary.cjs        躯干链实测：行程 / 胸廓滞后 / 耦合增益 / 脖子的横向漂移
 docs/lacia-rig/verify/stance.cjs           站姿与接触实测：鞋底一致 / 站距不同 / 掌心钉在装置上 / 不僵
 docs/lacia-rig/verify/components.mjs       组件实测：解析顺序 / 派生矩阵 / 蓝裙无装置 / 动作独占
-docs/mascot/verify/components.mjs          造型侧组件实测：默认挂载 / 目录过滤 / 拖起来伞会收 / 转伞
 ```
 
 十个验证脚本都要求 dev server 在跑，且都用 playwright（站点已有 devDependency）。
@@ -710,9 +709,11 @@ D:/Comfy-Desktop/ComfyUI-Installs/ComfyUI/ComfyUI/.venv/Scripts/python.exe \
    用别的立绘当参考会让姿势漂移，枢轴就全废了。
 2. **对齐**：把生成图的 alpha bbox 缩放到与原立绘**完全相同的 bbox**。这一步之后，
    两套画布是 493×1275 与 493×1276 —— 差 1px，所有手工枢轴（肩、髋、脖）直接通用。
-3. **拆层**：同一个 See-through 工作流（`.ref/seethrough_prompt.json`），只改输入图与前缀。
-   `.ref/` 是 gitignored 的草稿目录、不随仓库走；蓝裙那一次实际用的工作流已归档到
-   `docs/seethrough-dress/workflow.json`，可以直接 POST `/prompt` 复现。
+3. **拆层**：同一个 See-through 工作流，只改输入图与前缀。工作流已归档到
+   `docs/seethrough-dress/workflow.json`，`docs/lacia-rig/pipeline/run_st.py` 就是拿它
+   POST `/prompt` 复现的那几行。`.ref/` 是 gitignored 的草稿目录（生图底稿、参考图、
+   对照截图），**脚本本身不在那儿**——出图 / 抠图 / 拆层三个脚本在
+   `docs/lacia-rig/pipeline/`。
 4. **后处理**：见下面的清单，四件事缺一不可。
 5. **导出**：`export_assets.py` 带 `--src/--meta/--out/--ts/--name`，写到独立目录和独立
    `parts-dress.ts`，绝不覆盖原皮肤。转正后的素材在 `docs/seethrough-dress/`，
@@ -766,13 +767,16 @@ export interface LaciaSkin {
   components?: readonly string[];  // 这套衣服挂哪些可选组件（蓝裙 = []）
   lock?: readonly [number, number];// 只在挂了 lock 组件时才用到
 }
-export const LACIA_SKINS = { suit, dress } as const;
+export const LACIA_SKINS = { suit, dress, haru, sora, chibi } as const;
 ```
 
-`rig.ts` 里 `PIVOT` 拆成 `FIXED_PIVOT`（手工，跨皮肤通用）+ `pivotTable(skin)`；
+`rig.ts` 里 `PIVOT` 拆成 `FIXED_PIVOT`（跨皮肤通用）+ `pivotTable(skin)`；
 `ARM_CHAIN` 变成 `armChain(skin)`；类里存 `this.pivot` / `this.limbs`。
-**五官变体（4 眉 × 2 + 6 嘴）跨皮肤共享**：那是同一个人的眉毛，而且两套的眉位差
-(2,1)、嘴位差 (1,1)，在 9px 的显示尺寸下不可见。为每套衣服重切 14 个文件没有收益。
+
+**五官变体只在"同一个人的两套衣服"之间共享**：蓝裙和战斗服是同一张脸，眉位差 (2,1)、
+嘴位差 (1,1)，在 9px 的显示尺寸下不可见，所以两套共用那 14 个文件。三个原创角色各自
+有 `faceBase`（`/lacia-rig/haru/` 等），因为它们本来就是三张不同的脸。判断标准是
+"换了之后还是不是同一个人"，不是"换了之后是不是同一套骨架"。
 
 ### 6.3 可选组件与动作模组（为什么不是 N×N 可见性表）
 
@@ -858,59 +862,131 @@ interface MascotComponent<H, S> {      // S 是渲染器的主体（皮肤 / 造
 压板是那个铰座的固定件，让开 1.6 秒再回来。这是目前唯一一条跨组件规则，也是唯一需要
 解释的取舍 —— 动作结束时全槽位自动恢复，所以它不需要在别处写一条配对的"显示"。
 
-### 6.4 造型侧：同一套模型，两种渲染器
+### 6.4 三个原创角色不是"三套衣服"，是三副骨架
 
-三个内置造型（小春 / 小晴 / Q 版）是手写的内联 SVG，没有骨骼、没有弹簧。它们曾经是
-完全独立的另一条路径——`data-state` 由 CSS 选形状，组件和动作的概念不存在。这造成一个
-结构性问题：**"可选组件"只在骨架那侧成立**，换个角色就退回硬编码。
+小春 / 小晴 / Q 版最初是手写的内联 SVG（`src/lib/mascot/svg.ts`）。那条路已经判死，
+理由写在 `docs/mascot-motion-research.md` §5.2：**手调贝塞尔画不出生成模型的量级**，
+怎么调路径都追不上，用户的原话是「还是丑」。现在四个角色走同一条流水线（§6.6），
+差别只剩数据。
 
-现在两侧共用 `src/lib/mascot/model.ts` 一份逻辑，各自实现自己的渲染：
+接进来时踩到的第一个坑是**把它们当成第三套皮肤**。蓝裙确实只是"换一组图层 + 换一组
+枢轴"，因为她和战斗服是同一个人、同一张画布、同一套表情。小春不是——她 328×1277，
+髋在 (167.5, 543)，脸的形状不一样，表情变体是另一批文件。把这三种差异写进引擎的
+`if (skin === 'haru')` 就回到了"每加一个角色改一次引擎"。
 
-| | 骨架（蕾西亚） | 造型（小春 / 小晴 / Q 版） |
-|---|---|---|
-| 把手 `H` | `RigHandle`：弹簧冲量 / 踢 / 切形态 | `SvgHandle`：换表情 / 播一次性类 |
-| 主体 `S` | `LaciaSkin`（位图目录、枢轴、锁扣位置） | 不用（配色写死在造型里） |
-| 挂载点 | `stage` / `hips` / `chest` / `head` / `wristR` / `wristL` | `behind` / `body` / `head` |
-| 动作 | 四个装置构型 + 受击 | 五个表情状态 + 受击 + 组件的转伞 |
-| 组件 | 秘棺 / 锁扣 | 樱花发卡 / 太阳发夹 / 透明雨伞 / 手里的书 |
+所以 `LaciaSkin` 加了四个字段，**让引擎按数据分支**：
 
-**把手做成泛型，而不是"全可选的大接口"**，是为了让写错的把手在编译期报错。做成一个
-带 5 个可选方法的对象，`h.impulse` 在造型上就是一句静默无效的代码。
+```ts
+export interface LaciaSkin {
+  base: string;                     // 位图目录
+  parts: readonly LaciaPart[];      // 图层坐标（脚本生成，勿手改）
+  knee / elbow / wrist / ankle;     // 关节
+  bone?: Record<string, LaciaBone>; // 新层名 → 骨骼（bottomwear → torso）
+  components?: readonly string[];   // 这套皮肤挂哪些可选组件
+  lock?: readonly [number, number]; // 只在挂了 lock 组件时才用到
+  /* ↓ 这三条是为了"另一个角色"，不是为了"另一件衣服" */
+  canvas?: readonly [number, number]; // 画布尺寸（CSS 变量 --lr-cw/--lr-ch）
+  frame?: Readonly<Record<string, readonly [number, number]>>; // 十三根非关节枢轴
+  faceBase?: string;                // 表情变体目录（/lacia-rig/haru/）
+  noOverride?: boolean;             // 拒绝调用方传进来的组件列表
+}
+```
 
-**`fits` 是必须的**：组件表两侧共用，后台列组件时若不按角色过滤，就会给小春列出
-"DEVICE LOCK"。
+三个具体后果，每一条都是踩过才知道的：
 
-**造型的可见性规则只有一条是真的**：伞在被抱起时合上（`hideIn: ['svg:held']`），书在
-被抱起和睡着时收起（`hideIn: ['svg:held','svg:sleep']`）。这不是为了凑演示——被拎起来
-还撑着伞、还捧着书，是错的那一个。
+- **变换原点必须取她自己的 root 枢轴，不是画布中心。** 蕾西亚的 root 在 x=246、画布宽
+  493，两个数碰巧都接近中线，所以"绕中心转"一直没暴露问题。小春的髋在 x=167.5 / 宽 328
+  ——绕画布中心转会把她的脚甩起来。
+- **`--lr-k`（1 / 画布高）必须预计算成字面量。** CSS 里 `calc()` 不能用 `var()` 做除数，
+  所以 `canvasCss(skin)` 输出 `--lr-k: 0.000784` 这样的八位小数，`--lr-s` 再乘它。
+- **`noOverride` 是必要的。** 后台的"挂载组件"列表对非蕾西亚角色是空的，但如果调用方
+  还留着上一次存的 `['monolith','lock']`（切角色时没清），引擎会照着 id 去找组件——
+  找不到是幸运，找到了就是给 Q 版挂上秘棺。
 
-**组件的交互模组**由 `data-action` 承载：点伞面跑 `umbrella:twirl`，并且 `stopPropagation`，
-因为"让伞转一圈"不是"让她说话"。
+`skinComponents()` 因此多了一道守卫：
 
-#### 造型侧的三个坑
+```ts
+export function skinComponents(skin: LaciaSkinId, override?: readonly string[]) {
+  const s = LACIA_SKINS[skin];
+  return resolveComponents((s.noOverride ? s.components : (override ?? s.components)) ?? []);
+}
+```
 
-1. **`hideIn` 别写 `self`。** `self` 是所有自带模组的 owner，写了等于在所有自带动作里
-   消失。要写具体动作 id（`svg:held`）。
-2. **`ms-umb` 上已经挂着随风轻摆的动画。** 转伞必须落在子层 `.ms-umb-canopy` 上，否则
-   两条 `animation` 抢同一个元素，平时就不摆了。
-3. **`visibility` 的过渡延迟 0.24s。** 断言"看不见"要先等过淡出，再读 computed style；
-   只读 `data-on` 才是立刻生效的那一层。
+### 6.5 十三根枢轴是量出来的，不是写死的
 
-### 6.5 加载：把"参数"留在服务端
+`FIXED_PIVOT` 里那十三根（髋 / 胸 / 脖 / 头 / 两肩 / 两膝 / 两肘 / 两踝 / 两腕之外的）
+原本是照 1276 px 高的蕾西亚手写的常量。换角色之后全部改成 `export_assets.py` 从图层
+包围盒推出来：
+
+| 枢轴 | 怎么来的 |
+|---|---|
+| `hips` / `chest` | 髋是 `legwear` 的顶边中点；胸是髋上 `40 * k` |
+| `neck` | 脸的下缘下方 `24 * k`（**没有脖子层时退回脸的水平中心**） |
+| `head` | 脸的下缘下方 `4 * k` |
+| `shoulderL/R` | `armwear` 顶边的内外两侧，各让 `30 * k` |
+| `knee` | 在 `legwear-{side}-up` 的窗口内找"最窄行" |
+| `elbow` | 在 `armwear-{side}-up` 的窗口内找"最窄行" |
+| `wrist` / `ankle` | 对应层的底边中心 |
+
+`k = 画布高 / 1276`。**这些绝对偏移必须跟着画布缩放**：Q 版画布只有 816，头占了一半，
+"髋上 40 px" 会落进下巴里。
+
+`joints.cjs` 的判据也跟着变了：它读的是骨头的变换矩阵，**没有部件的骨头上也照样报出
+行程**（Q 版的 `legR` 上根本没有图，却报了 1.97°）。现在它统计每根骨头上 `img.lr-part`
+的数量，`noPart` 里的关节只报告不判分。
+
+### 6.6 重做一个角色的流水线
+
+```bash
+python docs/lacia-rig/pipeline/gen_char.py     --ref lacia_idle.png --prompt "..." --seed N   # 1. 出图
+python docs/lacia-rig/pipeline/prep_source.py  --in out.png --out docs/seethrough-<x>/source.png  # 2. 抠图 + 对齐
+python docs/lacia-rig/pipeline/run_st.py       --in source.png --out layers/                  # 3. See-through 拆层
+python docs/lacia-rig/export_assets.py --layers layers --name <x> --source source.png  # 4. 导出
+python docs/lacia-rig/gen_face_variants.py --src source.png --out public/lacia-rig/<x>/  # 5. 表情
+```
+
+每一步的坑：
+
+1. **必须 img2img，不能 txt2img。** 骨架要求站立 A-pose，`cut_at` 在固定窗口里找"层内
+   最窄行"来测肘和膝；手臂横过髋部就落到窗口外，量出来的关节是错的。拿 `lacia_idle.png`
+   当结构输入是最省事的姿势锁定。
+2. **抠图是四边 flood fill，不是按颜色阈值。** 生成图背景是纯黑，但发梢/描边也有近黑
+   像素；从四边灌水只吃掉"与边缘连通"的那部分。
+3. **兜帽是拆层流水线的天敌。** 小晴前两版是连帽雨衣，See-through 把两只袖子和帽兜塞进
+   同一个 `handwear` 层——兜帽布料和袖子物理相连，按连通域永远切不开。这是**设计约束**，
+   不是服装偏好：改成立领之后同一个拆层器干净吐出两只手。改角色设计前先想清楚
+   "拆层器能不能切开"。
+4. **孤层要回收。** 拆层会静默丢细条（小晴的侧辫 182×70、3105 px，在任何图层里都不存在）。
+   解法是减法而不是重画：源图里有、而所有图层都没有的像素，按定义就是丢的那块。
+   判据是"有没有内部"——`binary_erosion(iterations=3)` 之后还剩核心的才算真物体。
+   腐蚀一次时 Q 版会"回收"出 207×788 的碎片，那全是 5 px 描边和 1 px 配准差。
+5. **Q 版的骨架是部分为真的。** 大腿贴合 → 拆层找不到两条腿 → 没有膝盖可测。
+   `export_assets.py` 把膝盖钉在髋上（`KNEES["r"] = FRAME["legR"]`），而不是在没有收窄的
+   形状上按 45% 猜——后者正是 `JOINT_BANDS` 那套搜索窗口存在的理由。
+
+**已知缺口**：`docs/seethrough-haru/` 归档了 46 个图层，小晴和 Q 版的图层在导出后没有
+留档（只留了 `source.png`）。要重新导出这两个角色必须重跑第 3 步（各约 5 分钟 GPU）。
+
+### 6.7 加载：把"参数"留在服务端
 
 看板娘的体积分三块，处理方式不同：
 
-- **标记（HTML）**：骨架的 30 层和造型的几何都在**服务端按参数生成**——角色、服装、
-  组件列表是渲染参数，浏览器收到的是结果。换角色换组件不增加任何下载，只换 HTML 里
-  那一段。造型的几何模块（`svg.ts`）因此完全不进浏览器。
-- **引擎（JS）**：骨架引擎 11 KB(gz) 只在真的渲染骨架时才有 `<astro-island>` 标记，
-  所以平涂主题的页面根本不取它；再加上 `client:media="(min-width: 901px)"`，手机
-  （CSS 本来就把看板娘隐藏了）连 chunk 都不下载。
+- **标记（HTML）**：四个角色都是**服务端按参数生成**——角色、皮肤、组件列表是渲染参数，
+  浏览器收到的是结果。换角色换皮肤不增加任何下载，只换 HTML 里那一段。`parts-*.ts`
+  那几份坐标表（各 0.12–0.14 MB）因此完全不进浏览器，只有 Node 侧读。
+- **引擎（JS）**：骨架引擎 11 KB(gz) 只在真的渲染骨架时才有 `<astro-island>` 标记；
+  再加上 `client:media="(min-width: 901px)"`，手机（CSS 本来就把看板娘隐藏了）连 chunk
+  都不下载。
 - **按需模块**：素材包的位移场（`mascot-warp.ts`，3 KB gz）只有包才用得到，改成
   动态 `import()`；内置角色页面不再为它付费。
 
-拆包时踩过的一条：**`index.ts` 只能给服务端和后台用**。客户端从 `./actions` / `./meta`
-直接 import，从 `index.ts` 进来会把几何一起拖下水，等于白拆。
+拆包时踩过的两条：
+
+1. **`index.ts` 只能给服务端和后台用。** 客户端要什么就 import 那个具体模块（`./meta`、
+   `./lines`），从 `index.ts` 进来会把整个角色表拖下水，等于白拆。
+2. **手绘造型删掉之后，后台 chunk 少了 6.5 KB(gz)。** 那套几何（565 行路径 + 四个
+   `Look` 配色对象）只为了在设置面板里画 84px 的预览，而四个角色都有 `thumb.webp`。
+  现在全站客户端 JS 合计 158 KB(gz)，比删之前少 9 KB。
 
 ## 7. 已知取舍
 

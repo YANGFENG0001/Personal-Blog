@@ -1,15 +1,10 @@
 .mascot {
   --ms-w: 120px;
-  --ms-accent: var(--accent);
   position: fixed; bottom: 0; z-index: 45; width: var(--ms-w); pointer-events: none;
   animation: ms-enter calc(0.9s * var(--dur)) var(--spring) 0.6s both;
 }
 .mascot[data-size='sm'] { --ms-w: 92px; }
 .mascot[data-size='lg'] { --ms-w: 156px; }
-/* Anime busts are taller portraits; give them more room. */
-.mascot[data-kind='anime'] { --ms-w: 150px; }
-.mascot[data-kind='anime'][data-size='sm'] { --ms-w: 118px; }
-.mascot[data-kind='anime'][data-size='lg'] { --ms-w: 196px; }
 .mascot[data-pos='right'] { right: 18px; }
 .mascot[data-pos='left'] { left: 54px; }
 .mascot.is-free { animation: ms-fade calc(0.4s * var(--dur)) var(--ease) both; }
@@ -48,157 +43,8 @@
   opacity: 0; transform: translateY(6px) scale(0.95); transform-origin: bottom right; pointer-events: none;
   transition: opacity calc(0.25s * var(--dur)), transform calc(0.3s * var(--dur)) var(--spring);
 }
-.mascot[data-kind='anime'] .mascot-bubble { bottom: calc(100% - 22px); }
 .mascot[data-pos='left']:not([data-bubble]) .mascot-bubble, .mascot[data-bubble='right'] .mascot-bubble { right: auto; left: 30%; border-radius: 14px 14px 14px 4px; transform-origin: bottom left; }
 .mascot.is-talking .mascot-bubble { opacity: 1; transform: none; }
-
-/* ---------- faces: state → shape (both SVG looks) ----------
-   Every look carries the same five faces, and the state picks one — the same
-   rule the rigged character follows, for the same reason: at this size an
-   *offset* is invisible while a different *silhouette* is not. The bust is 250
-   units tall with a ~70-unit face, so a brow that merely sits 2 units higher
-   reads as nothing at all.
-
-   Opacity rather than display: the shapes cross-fade in 0.18s, which is what
-   makes a state change feel like a change of expression instead of a swap.
-
-   `idle` is the fallback, not the base rule, so an unknown state (a pack's
-   `blink`, or a state set before hydration) still shows a face rather than a
-   blank one. */
-.ms-mouth, .ms-brow, .ms-eyes-shut, .ms-cheeks, .ms-happy { opacity: 0; transition: opacity 0.18s linear; }
-
-.mascot:is([data-state='idle'], [data-state='blink'], [data-state='talk']) .ms-mouth-idle,
-.mascot:is([data-state='idle'], [data-state='blink'], [data-state='talk']) .ms-brow-neutral { opacity: 1; }
-.mascot[data-state='talk'] .ms-mouth-idle { opacity: 0; }
-.mascot[data-state='talk'] .ms-mouth-talk { opacity: 1; }
-
-.mascot[data-state='happy'] .ms-mouth-grin,
-.mascot[data-state='happy'] .ms-brow-raise,
-.mascot[data-state='happy'] .ms-cheeks,
-.mascot[data-state='happy'] .ms-happy { opacity: 1; }
-
-.mascot[data-state='held'] .ms-mouth-pout,
-.mascot[data-state='held'] .ms-brow-raise,
-.mascot[data-state='held'] .ms-cheeks { opacity: 1; }
-
-.mascot[data-state='sleep'] .ms-mouth-sleep,
-.mascot[data-state='sleep'] .ms-brow-drop,
-.mascot[data-state='sleep'] .ms-eyes-shut { opacity: 1; }
-
-/* Sleep and happy both replace the open eyes, but with opposite arcs (∪ vs ∩) —
-   that is the whole difference between "asleep" and "delighted", and it is why
-   neither uses `scaleY` on the open eye. */
-.mascot:is([data-state='sleep'], [data-state='happy']) .ms-eyes { opacity: 0; }
-.mascot[data-state='sleep'] .ms-eyes { animation: none; }
-
-/* The speaking mouths are the one thing driven at runtime: `--ms-open` and
-   `--ms-wide` are written per frame from the viseme schedule (lib/viseme.ts).
-   Scaling from the top edge makes the lower lip drop, which is what an opening
-   mouth does; the X term is what separates a spread "i" from a pursed "u".
-
-   The grin is driven too, but damped, not just along for the ride: a click lands
-   in `happy` about a third of the time, and a line spoken through a mouth that
-   never moves is the exact thing this pass was meant to fix. It takes 70% of the
-   travel — enough to read at this size, while a full 1.9 would turn a grin into
-   a gape. (It would still be inside the face even at 1.9: the grin is drawn 5.1
-   units tall from y=102.8, so the chin at 117.6 is never reached.) */
-.mascot { --ms-grin: calc(1 + (var(--ms-open, 1) - 1) * 0.7); }
-.ms-mouth-talk, .ms-mouth-grin { transform-box: fill-box; transform-origin: 50% 0; }
-.ms-mouth-talk { transform: scale(var(--ms-wide, 1), var(--ms-open, 1)); }
-.ms-mouth-grin { transform: scale(var(--ms-wide, 1), var(--ms-grin)); }
-
-/* ---------- 组件可见性（内联 SVG 造型） ----------
-   和 lacia-rig.css 里的 `.lr [data-comp][data-on='0']` 是同一条规则，写两遍是
-   因为两套渲染器的根元素不同（`.lr` 在骨架里，可能不在 `.mascot` 内）。改一处
-   必须改另一处。
-
-   `visibility` 而不是 `display`：子树不绘制，但元素、渐变 defs 都还在，重新
-   显示只花一次属性写。过渡延迟 0.24s 到淡出之后，否则第一帧就闪没。 */
-.mascot [data-comp][data-on='0'] {
-  opacity: 0; visibility: hidden;
-  transition: opacity 0.24s ease, visibility 0s linear 0.24s;
-}
-.mascot [data-comp][data-on='1'] { transition: opacity 0.24s ease, visibility 0s; }
-/* 带动作的组件是可点的——这是"组件自带的交互模组"唯一的外显。 */
-.mascot [data-comp][data-action] { cursor: pointer; }
-.mascot [data-comp][data-action]:hover { filter: brightness(1.14); }
-
-/* ---------- Anime busts (haru / sora / lacia) ---------- */
-.mascot-svg { display: block; width: 100%; height: auto; overflow: visible; }
-.ms-anime { filter: drop-shadow(0 4px 10px color-mix(in srgb, var(--ink) 16%, transparent)); }
-.ms-anime .ms-head { filter: drop-shadow(0 1px 0 rgba(255,255,255,.24)); }
-.ms-anime .ms-breath, .ms-anime .ms-head, .ms-anime .ms-eyes, .ms-anime .ms-lock, .ms-anime .ms-umb, .ms-anime .ms-braid { transform-box: fill-box; }
-.ms-anime .ms-umb-canopy { transform-box: fill-box; transform-origin: 50% 42%; }
-.ms-anime .ms-iris { transition: transform 0.25s ease-out; }
-.ms-anime .ms-eyes { transition: opacity 0.12s linear; }
-
-/* ---------- Chibi (original) ---------- */
-.mascot-svg .ms-shadow { fill: color-mix(in srgb, var(--ink) 14%, transparent); }
-.ms-chibi .ms-skin { fill: url(#chibi-skin); stroke: #d9988c; stroke-width: .35; }
-.ms-chibi .ms-hair { fill: url(#chibi-hair); }
-.ms-chibi .ms-hair-back { fill: #2f2540; }
-.ms-chibi .ms-hair-hi { fill: none; stroke: #ffffff66; stroke-width: 3; stroke-linecap: round; }
-.ms-chibi .ms-ribbon { fill: var(--ms-accent); stroke: color-mix(in srgb, var(--ms-accent) 70%, #000); stroke-width: .5; }
-.ms-chibi .ms-clip { fill: #ffd36e; }
-.ms-chibi .ms-eye { fill: light-dark(#3a2f5a, #2a2448); }
-.ms-chibi .ms-shine { fill: #fff; }
-.ms-chibi .ms-shine-sm { fill: #fff; opacity: .7; }
-.ms-chibi .ms-blush { fill: #ff9fb8; opacity: 0.55; }
-.ms-chibi .ms-mouth { stroke-linecap: round; }
-.ms-chibi .ms-eyes-shut path { fill: none; stroke: light-dark(#3a2f5a, #2a2448); stroke-width: 2; stroke-linecap: round; }
-.ms-chibi .ms-happy path { fill: none; stroke: light-dark(#3a2f5a, #2a2448); stroke-width: 2.2; stroke-linecap: round; }
-.ms-chibi .ms-shirt { fill: url(#chibi-shirt); stroke: #bfc6e6; stroke-width: .8; }
-.ms-chibi .ms-collar { fill: #fff; stroke: #aeb7de; stroke-width: .7; }
-.ms-chibi .ms-scarf { fill: #f3a7bd; stroke: #b86486; stroke-width: .55; }
-.ms-chibi .ms-skirt { fill: url(#chibi-skirt); stroke: #404a89; stroke-width: .8; }
-.ms-chibi .ms-pleat { stroke: #9eabd9; stroke-width: 1; fill: none; opacity: .8; }
-.ms-chibi .ms-cuff { fill: url(#chibi-shirt); stroke: #bfc6e6; stroke-width: .6; }
-/* 四肢是圆头描边，不是多边形：Q 版的胳膊只有 10 单位宽，多边形一画就露直角。 */
-.ms-chibi .ms-leg, .ms-chibi .ms-arm { fill: none; stroke: #f9d2be; stroke-linecap: round; }
-.ms-chibi .ms-leg { stroke-width: 10; }
-.ms-chibi .ms-arm { stroke-width: 9.5; }
-.ms-chibi .ms-sock { fill: none; stroke: #fbfcff; stroke-width: 11; stroke-linecap: round; }
-.ms-chibi .ms-hand { fill: #fbd8c6; stroke: #d9988c; stroke-width: .35; }
-.ms-chibi .ms-face-shade { fill: #e7a8a4; opacity: .13; }
-.ms-chibi .ms-earring { fill: #ffd36e; stroke: #c9912f; stroke-width: .5; }
-.ms-chibi .ms-shoe { fill: #3d3a67; stroke: #252447; stroke-width: .8; }
-.ms-chibi .ms-cover { fill: var(--ms-accent); }
-.ms-chibi .ms-page { fill: #fdfbf7; }
-.ms-chibi .ms-pages { stroke: #cbbfd2; stroke-width: .8; fill: none; }
-.ms-chibi .ms-eyes { transform-box: fill-box; transform-origin: center; }
-.ms-chibi .ms-body, .ms-chibi .ms-head { transform-box: fill-box; }
-
-@media (prefers-reduced-motion: no-preference) {
-  :root:not([data-motion='off']) .ms-chibi .ms-body { animation: ms-bob 4.2s ease-in-out infinite; transform-origin: 50% 100%; }
-  :root:not([data-motion='off']) .ms-chibi .ms-head { animation: ms-tilt 7s ease-in-out infinite; transform-origin: 50% 90%; }
-  :root:not([data-motion='off']) .ms-chibi .ms-eyes { animation: ms-blink 5s infinite; }
-  :root:not([data-motion='off']) .mascot.is-talking .ms-chibi .ms-body { animation: ms-hop 0.5s var(--spring); }
-
-  :root:not([data-motion='off']) .ms-anime .ms-breath { animation: ms-breathe 4.6s ease-in-out infinite; transform-origin: 50% 100%; }
-  :root:not([data-motion='off']) .ms-anime .ms-head { animation: ms-head 9s ease-in-out infinite; transform-origin: 50% 85%; }
-  :root:not([data-motion='off']) .ms-anime .ms-eyes { animation: ms-blink2 5.2s infinite; transform-origin: 50% 46%; }
-  :root:not([data-motion='off']) .ms-anime .ms-lock { animation: ms-sway 5.4s ease-in-out infinite; transform-origin: 50% 0; }
-  :root:not([data-motion='off']) .ms-anime .ms-lock-r { animation-delay: -2.2s; }
-  :root:not([data-motion='off']) .ms-anime .ms-braid { animation: ms-sway 6s ease-in-out infinite -1s; transform-origin: 50% 0; }
-  :root:not([data-motion='off']) .ms-anime .ms-umb { animation: ms-umb 8s ease-in-out infinite; transform-origin: 50% 100%; }
-  :root:not([data-motion='off']) .mascot.is-talking .ms-anime .ms-head { animation: ms-nod 0.6s var(--spring); }
-  /* 组件动作：转伞。伞面单独一层，才不会把 `.ms-umb` 上的随风轻摆顶掉。 */
-  :root:not([data-motion='off']) .mascot.is-twirl .ms-anime .ms-umb-canopy { animation: ms-twirl 1.2s var(--ease); }
-  /* 受击。造型没有弹簧，所以是一次快速摆头——整个图形一起，不是只有头。 */
-  :root:not([data-motion='off']) .mascot.is-poked .mascot-svg { animation: ms-poke 0.7s var(--ease); }
-}
-@keyframes ms-bob { 50% { transform: translateY(-3px); } }
-@keyframes ms-tilt { 0%, 60%, 100% { transform: rotate(0); } 70% { transform: rotate(-5deg); } 85% { transform: rotate(3deg); } }
-@keyframes ms-blink { 0%, 94%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } }
-@keyframes ms-hop { 40% { transform: translateY(-10px); } }
-@keyframes ms-breathe { 50% { transform: translateY(-1.5px) scaleY(1.006); } }
-@keyframes ms-head { 0%, 55%, 100% { transform: rotate(0); } 65% { transform: rotate(-3deg); } 82% { transform: rotate(2deg); } }
-@keyframes ms-blink2 { 0%, 92%, 97.5%, 100% { transform: scaleY(1); } 94.5% { transform: scaleY(0.08); } }
-@keyframes ms-sway { 50% { transform: rotate(2.2deg); } }
-@keyframes ms-umb { 50% { transform: rotate(-2deg); } }
-@keyframes ms-nod { 40% { transform: rotate(-4deg) translateY(2px); } }
-@keyframes ms-twirl { to { transform: rotate(360deg); } }
-@keyframes ms-poke { 18% { transform: translateX(-3px); } 44% { transform: translateX(2.4px); } 70% { transform: translateX(-1.2px); } }
 
 @media (max-width: 900px) { .mascot { display: none; } }
 @media print { .mascot { display: none; } }
@@ -207,18 +53,12 @@
 body:has(.mascot[data-pos='right']:not([hidden]):not(.is-free)) .to-top { right: calc(var(--ms-right-gap, 150px)); }
 body:has(.mascot[data-pos='right'][data-size='lg']:not([hidden]):not(.is-free)) .to-top { right: 186px; }
 body:has(.mascot[data-pos='right'][data-size='sm']:not([hidden]):not(.is-free)) .to-top { right: 122px; }
-body:has(.mascot[data-kind='anime'][data-pos='right']:not([hidden]):not(.is-free)) .to-top { right: 182px; }
-body:has(.mascot[data-kind='anime'][data-pos='right'][data-size='lg']:not([hidden]):not(.is-free)) .to-top { right: 226px; }
-body:has(.mascot[data-kind='anime'][data-pos='right'][data-size='sm']:not([hidden]):not(.is-free)) .to-top { right: 148px; }
 
 /* The owner's visitor-preview ball lives in the same corner — step it aside too.
    Scoped to the layout-level ball so the appearance-page stage copy is untouched. */
 body:has(.mascot[data-pos='right']:not([hidden]):not(.is-free)) > .pball[data-pos='right'] { right: 158px; }
 body:has(.mascot[data-pos='right'][data-size='sm']:not([hidden]):not(.is-free)) > .pball[data-pos='right'] { right: 118px; }
 body:has(.mascot[data-pos='right'][data-size='lg']:not([hidden]):not(.is-free)) > .pball[data-pos='right'] { right: 196px; }
-body:has(.mascot[data-kind='anime'][data-pos='right']:not([hidden]):not(.is-free)) > .pball[data-pos='right'] { right: 178px; }
-body:has(.mascot[data-kind='anime'][data-pos='right'][data-size='sm']:not([hidden]):not(.is-free)) > .pball[data-pos='right'] { right: 146px; }
-body:has(.mascot[data-kind='anime'][data-pos='right'][data-size='lg']:not([hidden]):not(.is-free)) > .pball[data-pos='right'] { right: 220px; }
 
 /* A docked mascot overlaps the right edge of the sidebar, where the metric
    values are right-aligned. Give those rows room so the numbers stay readable.
@@ -228,9 +68,6 @@ body:has(.mascot[data-pos='right']:not([hidden]):not(.is-free)) .metric { paddin
 body:has(.mascot[data-pos='right'][data-size='sm']:not([hidden]):not(.is-free)) .metric { padding-right: 40px; }
 body:has(.mascot[data-pos='right'][data-size='lg']:not([hidden]):not(.is-free)) .metric { padding-right: 88px; }
 /* The built-in SVG busts are wider still (150 / 196 px at md / lg). */
-body:has(.mascot[data-kind='anime'][data-pos='right']:not([hidden]):not(.is-free)) .metric { padding-right: 96px; }
-body:has(.mascot[data-kind='anime'][data-pos='right'][data-size='sm']:not([hidden]):not(.is-free)) .metric { padding-right: 76px; }
-body:has(.mascot[data-kind='anime'][data-pos='right'][data-size='lg']:not([hidden]):not(.is-free)) .metric { padding-right: 138px; }
 
 /* ---------- Mascot packs (state images) ---------- */
 .mascot-body { display: block; position: relative; transform-origin: 50% 0; }

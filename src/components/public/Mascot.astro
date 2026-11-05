@@ -1,9 +1,9 @@
 ---
 /**
  * Corner mascot. Three sources:
- *  - built-in characters: lacia / haru as a layered rig (a real skeleton over
- *    the layers See-through split, see lib/lacia/rig.ts), sora / chibi as
- *    inline SVG,
+ *  - built-in characters: a layered rig (a real skeleton over the layers
+ *    See-through split, see lib/lacia/rig.ts). All four — lacia / haru / sora /
+ *    chibi — are the same renderer over different skin data.
  *  - a mascot pack (state images + anchors + lines, see lib/mascot-pack.ts),
  *  - a legacy single image URL.
  *
@@ -12,7 +12,7 @@
  * them), position remembered per browser, double-click returns to the corner,
  * shrinks away when it would cover article text. Hidden under 900px and in print.
  */
-import { mascotSvg, MASCOT_LINES } from '../../lib/mascot/svg';
+import { MASCOT_LINES } from '../../lib/mascot/lines';
 import { isMascotId } from '../../lib/mascot/meta';
 import { MASCOT_STATES, type StoredMascotPack } from '../../lib/mascot-pack';
 import { LACIA_LINES } from '../../lib/lacia/lines';
@@ -35,13 +35,15 @@ interface Props {
 }
 const { character, skin = 'suit', components, pack = null, draggable, imageUrl, position, size, page } = Astro.props;
 const builtin = isMascotId(character) ? character : 'haru';
-// Which built-ins are a real skeleton over split layers rather than a flat
-// drawing. This is the only place that forks on it — everything downstream
-// (canvas size, pivots, face variants, mounted components) is skin data.
+/* Which built-ins are a real skeleton over split layers rather than a flat
+   drawing. This is the only place that forks on it — everything downstream
+   (canvas size, pivots, face variants, mounted components) is skin data.
+   All four are rigged now; the set stays so that adding a look which is *not*
+   rigged fails loudly at the `kind` line instead of rendering nothing. */
 const RIGGED = new Set<string>(['lacia', 'haru', 'sora', 'chibi']);
 const rigged = !pack && !imageUrl && RIGGED.has(builtin);
 const rigSkin = skinForCharacter(builtin, skin);
-const kind = pack ? 'pack' : imageUrl ? 'image' : rigged ? 'rig' : builtin === 'chibi' ? 'chibi' : 'anime';
+const kind = pack ? 'pack' : imageUrl ? 'image' : rigged ? 'rig' : 'none';
 // Packs without their own generic lines still get something to say. The rigged
 // character keeps her own voice: only 蕾西亚 has a written line set.
 const lines = pack
@@ -110,7 +112,7 @@ const payload = JSON.stringify({
           </span>
         ) : imageUrl ? (
           <img src={imageUrl} alt="" loading="lazy" decoding="async" draggable="false" />
-        ) : rigged ? (
+        ) : (
           // The island server-renders the whole skeleton, so the figure is
           // painted before hydration and stays readable with JS off.
           // `client:media` and not `client:visible`: the CSS hides the mascot
@@ -120,8 +122,6 @@ const payload = JSON.stringify({
           // the chunk — and the server-rendered markup is still there, so the
           // figure is visible with no JS at all.
           <LaciaRigIsland client:media="(min-width: 901px)" variant="mascot" skin={rigSkin} components={components} autoForms />
-        ) : (
-          <Fragment set:html={mascotSvg(builtin, components)} />
         )
       }
     </span>
@@ -133,10 +133,6 @@ const payload = JSON.stringify({
 <script>
   import { pickLines, type LineGroup, type MascotPack } from '../../lib/mascot-pack';
   import type { WarpHandle } from '../../lib/mascot-warp';
-  import { scheduleForText } from '../../lib/viseme';
-  import { actionForState, svgMounted } from '../../lib/mascot/actions';
-  import { actionVisible, type MascotAction } from '../../lib/mascot/model';
-  import type { SvgHandle } from '../../lib/mascot/parts';
 
   const root = document.querySelector<HTMLElement>('[data-mascot]');
   if (root) {
@@ -157,75 +153,6 @@ const payload = JSON.stringify({
     let stateTimer = 0;
     const used = new Map<string, number>();
 
-    /* ---------------- components & actions (inline SVG looks) ----------------
-       A pack is a bitmap and the rig owns its own springs, so the action model
-       only has a second home here: the built-in SVG busts. They have no bones,
-       so an "action" can only swap the expression and play a one-shot class —
-       but the *visibility* half is identical to the rig's, and that is the
-       point: a component can get out of the way of an action written after it.
-
-       The mounted set is read back from the DOM (`data-comp`), not from the
-       settings payload. Whatever the server decided to render is by definition
-       what is on screen, so the two cannot drift. */
-    const flat = root.dataset.kind === 'chibi' || root.dataset.kind === 'anime';
-    const compEls = flat ? Array.from(root.querySelectorAll<SVGElement>('[data-comp]')) : [];
-    const mounted = flat ? svgMounted(compEls.map((el) => el.dataset.comp ?? '')) : null;
-    const compById = new Map(compEls.map((el) => [el.dataset.comp ?? '', el]));
-    const svgHandle: SvgHandle = {
-      state: (s) => {
-        root.dataset.state = s;
-      },
-      play: (cls, ms) => {
-        root.classList.remove(cls);
-        void root.offsetWidth;
-        root.classList.add(cls);
-        window.setTimeout(() => root.classList.remove(cls), ms);
-      },
-    };
-    let runningAction: MascotAction<SvgHandle> | null = null;
-    let actionTimer = 0;
-    const applyVisibility = (action: MascotAction<SvgHandle> | null) => {
-      if (!mounted) return;
-      for (const c of mounted.components) {
-        const el = compById.get(c.id);
-        if (!el) continue;
-        const on = action ? actionVisible(action, c) : true;
-        el.dataset.on = on ? '1' : '0';
-      }
-    };
-    const endAction = () => {
-      clearTimeout(actionTimer);
-      const a = runningAction;
-      runningAction = null;
-      applyVisibility(null);
-      a?.onEnd?.(svgHandle);
-    };
-    /* One at a time, always: starting an action ends whatever was playing. Two
-       overlapping modules is how you get a book that is hidden by an action
-       that already finished. */
-    const runAction = (id: string) => {
-      const a = mounted?.actions.find((x) => x.id === id);
-      if (!a) return false;
-      endAction();
-      runningAction = a;
-      applyVisibility(a);
-      a.onStart?.(svgHandle);
-      if (a.duration) actionTimer = window.setTimeout(endAction, a.duration);
-      return true;
-    };
-    /* A component may bring its own interaction module. `data-action` names it;
-       the click is stopped so it does not also trigger the talk line — asking
-       for the umbrella to twirl is not asking her to speak. */
-    for (const el of compEls) {
-      const id = el.dataset.action;
-      if (!id) continue;
-      el.addEventListener('click', (e) => {
-        e.stopPropagation();
-        runAction(id);
-      });
-    }
-    root.addEventListener('lacia:poke', () => runAction('self:poke'));
-
     /* ---------------- state & lines ---------------- */
     // How hard the per-part motion runs in each state: asleep she barely
     // breathes, held she swings freely.
@@ -234,16 +161,11 @@ const payload = JSON.stringify({
     const setState = (s: string, ms = 0) => {
       clearTimeout(stateTimer);
       root.dataset.state = s;
-      if (mounted) {
-        // A flat look has no engine: the state *is* an action, and running it
-        // is what applies the visibility rules that come with it.
-        runAction(actionForState(s));
-      } else {
-        warpHandle?.setEnergy(energyFor(s));
-        // A rigged character renders itself, so it gets the state as an event
-        // instead of a data attribute (the rig owns its own springs).
-        root.dispatchEvent(new CustomEvent('lacia:state', { detail: s }));
-      }
+      /* A pack is a stack of bitmaps and the rig renders itself, so neither has
+         anything to run here: the state is a `data-state` for the pack's CSS and
+         an event for the rig engine, which owns its own springs. */
+      warpHandle?.setEnergy(energyFor(s));
+      root.dispatchEvent(new CustomEvent('lacia:state', { detail: s }));
       // Fall back to held, not idle, if she is still being carried — otherwise
       // a long drag drops the motion back to idle mid-air after the line ends.
       if (ms) stateTimer = window.setTimeout(() => setState(root.classList.contains('is-dragging') ? 'held' : 'idle'), ms);
@@ -272,65 +194,6 @@ const payload = JSON.stringify({
       setState(state, 3400);
       clearTimeout(talkTimer);
       talkTimer = window.setTimeout(() => root.classList.remove('is-talking'), 3400);
-      driveMouth(text);
-    };
-
-    /* ---------------- lip sync (inline SVG looks only) ----------------
-       A pack is a flat bitmap and the rigged character owns its own mouth, so
-       only the two SVG looks are driven here. Their bubble text appears all at
-       once, so there is no per-glyph reveal to follow — the schedule is derived
-       from the text at a speaking rate (lib/viseme.ts) instead. Two CSS variables
-       carry the result and `mascot.css` turns them into a scale on the speaking
-       mouth, so nothing here touches the DOM tree.
-
-       The guard asks for the mouth itself rather than for `data-kind`. The kind
-       is a *label* for which renderer ran, and a label can disagree with the DOM
-       it describes: the corner mascot is a rig on this site, so a look swapped in
-       later would still carry `kind="rig"` and the mouth would sit there mute
-       while every check passed. Asking "is there a mouth element" cannot drift
-       from the truth, because it is the truth.
-
-       Scale is `REST + open * SPAN`, not `offset + open * span`. The drawn mouth
-       is the mouth *at rest*, so a viseme has to push it past 1 — the first cut
-       here mapped the range to 0.55–1.17, which meant she spoke by shrinking her
-       mouth, and at 2.5 rendered px the whole thing moved less than a pixel.
-       `REST 0.8 / SPAN 1.16` gives 0.8–1.9: shut on a closed vowel, jaw dropped
-       on "a". The ceiling is set by the chin, not by taste — the talk mouth hangs
-       6.3 units below its top edge and the chin is 14.4 units down, so 1.9 is the
-       largest scale that keeps it inside the face at every look. */
-    const mouthFor = (s: string) => root.querySelector<SVGGElement>(s);
-    const REST = 0.8;
-    const SPAN = 1.16;
-    let mouthRaf = 0;
-    const driveMouth = (text: string) => {
-      // Every SVG look ships all six mouths, so one probe answers for both of
-      // the speaking states (`talk` shows `ms-mouth-talk`, `happy` the grin).
-      if (!mouthFor('.ms-mouth-talk') || still) return;
-      cancelAnimationFrame(mouthRaf);
-      const cues = scheduleForText(text);
-      if (!cues.length) return;
-      const t0 = performance.now();
-      const end = cues[cues.length - 1].at;
-      let i = 0;
-      // Both start at rest and ease out, so the first frame is not a jump.
-      let open = 1;
-      let wide = 1;
-      const frame = (now: number) => {
-        const el = now - t0;
-        if (el > end + 240) {
-          root.style.setProperty('--ms-open', '1');
-          root.style.setProperty('--ms-wide', '1');
-          return;
-        }
-        while (i + 1 < cues.length && cues[i + 1].at <= el) i++;
-        const cue = cues[i];
-        open += (REST + cue.open * SPAN - open) * 0.42;
-        wide += (cue.wide - wide) * 0.34;
-        root.style.setProperty('--ms-open', open.toFixed(3));
-        root.style.setProperty('--ms-wide', wide.toFixed(3));
-        mouthRaf = requestAnimationFrame(frame);
-      };
-      mouthRaf = requestAnimationFrame(frame);
     };
     const clickLine = () => {
       // Mix in context: time of day first, then the page, then generic lines.
@@ -545,24 +408,10 @@ const payload = JSON.stringify({
       setTimeout(check, 400);
     }
 
-    /* ---------------- eyes follow the pointer (built-in SVG characters) ---------------- */
-    const iris = root.querySelectorAll<SVGGElement>('.ms-iris');
-    if (iris.length && !still) {
-      let raf = 0;
-      addEventListener('pointermove', (e) => {
-        if (raf) return;
-        raf = requestAnimationFrame(() => {
-          raf = 0;
-          const r = btn.getBoundingClientRect();
-          const dx = clamp((e.clientX - (r.left + r.width / 2)) / 300, -1, 1);
-          const dy = clamp((e.clientY - (r.top + r.height * 0.45)) / 300, -1, 1);
-          iris.forEach((g) => {
-            const sx = g.classList.contains('ms-iris-r') ? -1 : 1;
-            g.style.transform = `translate(${(dx * 2.4 * sx).toFixed(2)}px, ${(dy * 1.8).toFixed(2)}px)`;
-          });
-        });
-      }, { passive: true });
-    }
+    /* Eyes following the pointer used to live here. It moved into the rig
+       engine (`lib/lacia/rig.ts`) when the built-in characters stopped being
+       hand-drawn SVG: the eyes are bitmaps on a bone now, so "look at the
+       pointer" is a transform on that bone, not a class swap. */
 
     root.querySelector('[data-mascot-hide]')?.addEventListener('click', () => {
       sessionStorage.setItem('fn-mascot-hidden', '1');
