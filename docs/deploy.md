@@ -124,6 +124,11 @@ services:
   app:
     ports:
       - "127.0.0.1:4321:4321"
+  # 用 profile 把 Caddy 关掉，这样 `docker compose up -d` 不会去抢 80 端口。
+  # 只写端口映射是拦不住的：up 仍会尝试创建 caddy 并报
+  # "failed to bind host port 0.0.0.0:80/tcp: address already in use"（app 本身没事）。
+  caddy:
+    profiles: ["caddy"]
 ```
 
 ```nginx
@@ -150,7 +155,8 @@ server {
 }
 ```
 
-启动时只起 app，别把 Caddy 拉起来：`docker compose up -d app`。
+启动时只起 app，别把 Caddy 拉起来：`docker compose up -d app`（上面的 profile 写好之后，
+直接 `docker compose up -d` 也不会碰 Caddy）。
 走 HTTP 时 `.env` 要设 `COOKIE_SECURE=false`，拿到证书后改回 `true`。
 
 两个容易踩的坑：
