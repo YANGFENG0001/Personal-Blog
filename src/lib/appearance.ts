@@ -41,7 +41,7 @@ export interface AppearanceSettings {
      * Optional components to mount on the rig, overriding the outfit's own set.
      * Absent means "whatever the outfit ships with" — the dress ships nothing,
      * so an empty array and an absent key differ only for outfits that do have
-     * defaults. See lib/lacia/components.ts for why this is a list of ids and
+     * defaults. See lib/mascot/model.ts for why this is a list of ids and
      * not a per-component matrix.
      */
     components?: string[];

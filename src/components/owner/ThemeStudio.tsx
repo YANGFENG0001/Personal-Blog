@@ -3,7 +3,7 @@ import { api, errMsg, toast } from '../../lib/client';
 import { confirmDialog, promptDialog } from '../../lib/dialogs';
 import { BG_EFFECTS, EGG_SETS, PRESETS, contrast, getPreset, type Palette } from '../../lib/themes';
 import { SCENES } from '../../lib/scenes';
-import { MASCOTS } from '../../lib/mascot';
+import { MASCOTS } from '../../lib/mascot/meta';
 import { mergeCustom } from '../../lib/appearance';
 import {
   BLEND_MODES, STICKER_SLOTS, STICKER_SLOT_LABELS, checkThemeCss, themeSchema,

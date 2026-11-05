@@ -8,12 +8,13 @@
  * only thing that survives being 70 units tall — two states that differ only in
  * an offset look identical in a screenshot and are, in fact, the same face.
  *
- * The SVGs are pulled from `src/lib/mascot.ts` and injected into a real page, so
- * the markup under test is the shipped markup and the CSS under test is the
- * shipped CSS. Node ≥22.18 strips the TypeScript on import, no build step.
+ * The SVGs are pulled from `src/lib/mascot/svg.ts` through the dev server's module
+ * graph and injected into a real page, so the markup under test is the shipped
+ * markup and the CSS under test is the shipped CSS. (Node's TypeScript stripping
+ * cannot resolve the extensionless imports between those modules, so the import
+ * happens in the browser instead.)
  */
 import { chromium } from 'playwright';
-import { mascotSvg } from '../../../src/lib/mascot.ts';
 
 const LOOKS = ['chibi', 'haru', 'sora'];
 const STATES = ['idle', 'talk', 'happy', 'held', 'sleep'];
@@ -31,9 +32,10 @@ const shots = process.argv.includes('--shots');
 const rows = [];
 
 for (const look of LOOKS) {
-  await p.evaluate((svg) => {
-    document.querySelector('[data-mascot-body]').innerHTML = svg;
-  }, mascotSvg(look));
+  await p.evaluate(async (id) => {
+    const { mascotSvg } = await import('/src/lib/mascot/svg.ts');
+    document.querySelector('[data-mascot-body]').innerHTML = mascotSvg(id);
+  }, look);
   await p.waitForTimeout(120);
 
   for (const state of STATES) {

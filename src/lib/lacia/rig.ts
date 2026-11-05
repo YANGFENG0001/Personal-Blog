@@ -1,5 +1,5 @@
 /**
- * Lacia rig — a real skeleton over the 24 layers See-through split out.
+ * Lacia rig — a real skeleton over the 30 layers See-through split out.
  *
  * The point of this file is that **nothing is warped**. Every part is a rigid
  * bitmap hanging off a bone whose `transform-origin` sits on an anatomical
@@ -34,17 +34,16 @@ import {
   actionList,
   actionVisible,
   visibilityMatrix,
-  type LaciaAction,
-  type LaciaComponent,
-  type LaciaMount,
-  type LaciaSpring,
-  type RigHandle,
+  type MascotAction,
+  type MascotComponent,
+  type MascotMount,
   type VisibilityMatrix,
-} from './components';
+} from '../mascot/model';
+import type { LaciaSpring, RigHandle } from './handle';
 import { resolveComponents, SELF_ACTIONS, SKIN_COMPONENT_DEFAULTS } from './registry';
 export { LACIA_COMPONENTS, COMPONENT_IDS, type LaciaComponentId } from './registry';
-export type { LaciaAction, LaciaComponent, LaciaSlot, VisibilityMatrix } from './components';
-export { LACIA_SLOTS, SLOT_LABELS } from './components';
+export type { MascotAction as LaciaAction, MascotComponent as LaciaComponent, MascotSlot as LaciaSlot, VisibilityMatrix } from '../mascot/model';
+export { MASCOT_SLOTS as LACIA_SLOTS, SLOT_LABELS } from '../mascot/model';
 
 export type { LaciaForm };
 
@@ -239,13 +238,13 @@ export interface LaciaRigOptions {
  * Which components an outfit mounts: the caller's list if it gave one,
  * otherwise the skin's own.
  */
-export function skinComponents(skin: LaciaSkinId, override?: readonly string[]): LaciaComponent[] {
+export function skinComponents(skin: LaciaSkinId, override?: readonly string[]): MascotComponent<RigHandle, LaciaSkin>[] {
   return resolveComponents(override ?? LACIA_SKINS[skin].components ?? []);
 }
 
 /** The action list for an outfit — what the device console and any settings
  *  panel should offer. Character modules come first, then each component's. */
-export function laciaActions(skin: LaciaSkinId, override?: readonly string[]): LaciaAction[] {
+export function laciaActions(skin: LaciaSkinId, override?: readonly string[]): MascotAction<RigHandle>[] {
   return [...SELF_ACTIONS, ...actionList(skinComponents(skin, override))];
 }
 
@@ -316,13 +315,13 @@ export function laciaMarkup(
 
   /* Components are rendered into their mount points. Nothing here knows what a
      component is — an outfit with no device simply contributes no markup. */
-  const byMount = new Map<LaciaMount, string>();
+  const byMount = new Map<MascotMount, string>();
   for (const comp of skinComponents(skinId, opts.components)) {
-    for (const part of comp.parts({ uid, skin })) {
+    for (const part of comp.parts({ uid, subject: skin })) {
       byMount.set(part.mount, (byMount.get(part.mount) ?? '') + part.html);
     }
   }
-  const at = (m: LaciaMount) => byMount.get(m) ?? '';
+  const at = (m: MascotMount) => byMount.get(m) ?? '';
 
   return `<div class="lr-stage">
       <div class="lr-bones">
@@ -743,11 +742,11 @@ export class LaciaRig implements RigHandle {
   private readonly monolith: SVGElement | null;
   private readonly lock: SVGElement | null;
   /** Mounted components, each with the elements that make it up. */
-  private readonly comps: { def: LaciaComponent; els: Element[]; on: boolean }[] = [];
+  private readonly comps: { def: MascotComponent<RigHandle, LaciaSkin>; els: Element[]; on: boolean }[] = [];
   /** Every action the mounted components bring, plus her own modules. */
-  private readonly actions: readonly LaciaAction[];
+  private readonly actions: readonly MascotAction<RigHandle>[];
   /** Id of the action currently playing; only one may run at a time. */
-  private activeAction: LaciaAction | null = null;
+  private activeAction: MascotAction<RigHandle> | null = null;
   private actionTimer = 0;
   /** Delayed callbacks owned by the running action, cancelled with it. */
   private actionPending: number[] = [];
@@ -1105,7 +1104,7 @@ export class LaciaRig implements RigHandle {
    * hidden subtree is `visibility:hidden` so the compositor stops drawing it
    * while the DOM stays put (re-showing costs no decode, no layout).
    */
-  private applyVisibility(action: LaciaAction | null) {
+  private applyVisibility(action: MascotAction<RigHandle> | null) {
     for (const c of this.comps) {
       const on = action ? actionVisible(action, c.def) : true;
       if (on === c.on) continue;

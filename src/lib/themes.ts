@@ -2,7 +2,7 @@
  * Theme registry — pure data shared by server (SSR attributes / CSS vars)
  * and client (owner live preview, background effects, egg sets).
  */
-import type { MascotId } from './mascot';
+import type { MascotId } from './mascot/meta';
 
 export interface Palette {
   bg: string;

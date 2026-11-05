@@ -1,6 +1,7 @@
 # 内联 SVG 看板娘：表情与口型
 
-> 对象：`chibi` / `haru` / `sora` 三个内联 SVG 造型（`src/lib/mascot.ts`）。
+> 对象：`chibi` / `haru` / `sora` 三个内联 SVG 造型（`src/lib/mascot/svg.ts`；可选组件在
+> `src/lib/mascot/parts.ts`，动作模组在 `src/lib/mascot/actions.ts`）。
 > 骨架角色（蕾西亚）不在本文范围，见 `docs/lacia-rig/README.md` §3.4。
 > 共同的方法论在 `skills/mascot-studio/`，本文只记录「这三个造型现在是什么样、怎么验的」。
 

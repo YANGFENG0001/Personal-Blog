@@ -11,7 +11,8 @@
  * them), position remembered per browser, double-click returns to the corner,
  * shrinks away when it would cover article text. Hidden under 900px and in print.
  */
-import { mascotSvg, MASCOT_LINES, isMascotId } from '../../lib/mascot';
+import { mascotSvg, MASCOT_LINES } from '../../lib/mascot/svg';
+import { isMascotId } from '../../lib/mascot/meta';
 import { MASCOT_STATES, type StoredMascotPack } from '../../lib/mascot-pack';
 import { LACIA_LINES } from '../../lib/lacia/lines';
 import LaciaRigIsland from './LaciaRigIsland';
@@ -106,9 +107,15 @@ const payload = JSON.stringify({
         ) : rigged ? (
           // The island server-renders the whole skeleton, so the figure is
           // painted before hydration and stays readable with JS off.
-          <LaciaRigIsland client:visible variant="mascot" skin={skin} components={components} autoForms />
+          // `client:media` and not `client:visible`: the CSS hides the mascot
+          // below 900px, but `visible` still downloaded and parsed the whole
+          // 11 KB (gz) rig engine on a phone, to drive an element that is not
+          // displayed. A media query that does not match never even fetches
+          // the chunk — and the server-rendered markup is still there, so the
+          // figure is visible with no JS at all.
+          <LaciaRigIsland client:media="(min-width: 901px)" variant="mascot" skin={skin} components={components} autoForms />
         ) : (
-          <Fragment set:html={mascotSvg(builtin)} />
+          <Fragment set:html={mascotSvg(builtin, components)} />
         )
       }
     </span>
@@ -119,8 +126,11 @@ const payload = JSON.stringify({
 
 <script>
   import { pickLines, type LineGroup, type MascotPack } from '../../lib/mascot-pack';
-  import { attachWarp, type WarpHandle } from '../../lib/mascot-warp';
+  import type { WarpHandle } from '../../lib/mascot-warp';
   import { scheduleForText } from '../../lib/viseme';
+  import { actionForState, svgMounted } from '../../lib/mascot/actions';
+  import { actionVisible, type MascotAction } from '../../lib/mascot/model';
+  import type { SvgHandle } from '../../lib/mascot/parts';
 
   const root = document.querySelector<HTMLElement>('[data-mascot]');
   if (root) {
@@ -141,6 +151,75 @@ const payload = JSON.stringify({
     let stateTimer = 0;
     const used = new Map<string, number>();
 
+    /* ---------------- components & actions (inline SVG looks) ----------------
+       A pack is a bitmap and the rig owns its own springs, so the action model
+       only has a second home here: the built-in SVG busts. They have no bones,
+       so an "action" can only swap the expression and play a one-shot class —
+       but the *visibility* half is identical to the rig's, and that is the
+       point: a component can get out of the way of an action written after it.
+
+       The mounted set is read back from the DOM (`data-comp`), not from the
+       settings payload. Whatever the server decided to render is by definition
+       what is on screen, so the two cannot drift. */
+    const flat = root.dataset.kind === 'chibi' || root.dataset.kind === 'anime';
+    const compEls = flat ? Array.from(root.querySelectorAll<SVGElement>('[data-comp]')) : [];
+    const mounted = flat ? svgMounted(compEls.map((el) => el.dataset.comp ?? '')) : null;
+    const compById = new Map(compEls.map((el) => [el.dataset.comp ?? '', el]));
+    const svgHandle: SvgHandle = {
+      state: (s) => {
+        root.dataset.state = s;
+      },
+      play: (cls, ms) => {
+        root.classList.remove(cls);
+        void root.offsetWidth;
+        root.classList.add(cls);
+        window.setTimeout(() => root.classList.remove(cls), ms);
+      },
+    };
+    let runningAction: MascotAction<SvgHandle> | null = null;
+    let actionTimer = 0;
+    const applyVisibility = (action: MascotAction<SvgHandle> | null) => {
+      if (!mounted) return;
+      for (const c of mounted.components) {
+        const el = compById.get(c.id);
+        if (!el) continue;
+        const on = action ? actionVisible(action, c) : true;
+        el.dataset.on = on ? '1' : '0';
+      }
+    };
+    const endAction = () => {
+      clearTimeout(actionTimer);
+      const a = runningAction;
+      runningAction = null;
+      applyVisibility(null);
+      a?.onEnd?.(svgHandle);
+    };
+    /* One at a time, always: starting an action ends whatever was playing. Two
+       overlapping modules is how you get a book that is hidden by an action
+       that already finished. */
+    const runAction = (id: string) => {
+      const a = mounted?.actions.find((x) => x.id === id);
+      if (!a) return false;
+      endAction();
+      runningAction = a;
+      applyVisibility(a);
+      a.onStart?.(svgHandle);
+      if (a.duration) actionTimer = window.setTimeout(endAction, a.duration);
+      return true;
+    };
+    /* A component may bring its own interaction module. `data-action` names it;
+       the click is stopped so it does not also trigger the talk line — asking
+       for the umbrella to twirl is not asking her to speak. */
+    for (const el of compEls) {
+      const id = el.dataset.action;
+      if (!id) continue;
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        runAction(id);
+      });
+    }
+    root.addEventListener('lacia:poke', () => runAction('self:poke'));
+
     /* ---------------- state & lines ---------------- */
     // How hard the per-part motion runs in each state: asleep she barely
     // breathes, held she swings freely.
@@ -149,10 +228,16 @@ const payload = JSON.stringify({
     const setState = (s: string, ms = 0) => {
       clearTimeout(stateTimer);
       root.dataset.state = s;
-      warpHandle?.setEnergy(energyFor(s));
-      // A rigged character renders itself, so it gets the state as an event
-      // instead of a data attribute (the rig owns its own springs).
-      root.dispatchEvent(new CustomEvent('lacia:state', { detail: s }));
+      if (mounted) {
+        // A flat look has no engine: the state *is* an action, and running it
+        // is what applies the visibility rules that come with it.
+        runAction(actionForState(s));
+      } else {
+        warpHandle?.setEnergy(energyFor(s));
+        // A rigged character renders itself, so it gets the state as an event
+        // instead of a data attribute (the rig owns its own springs).
+        root.dispatchEvent(new CustomEvent('lacia:state', { detail: s }));
+      }
       // Fall back to held, not idle, if she is still being carried — otherwise
       // a long drag drops the motion back to idle mid-air after the line ends.
       if (ms) stateTimer = window.setTimeout(() => setState(root.classList.contains('is-dragging') ? 'held' : 'idle'), ms);
@@ -277,22 +362,29 @@ const payload = JSON.stringify({
     // A pack is one flat bitmap, so the head, hair and torso are warped by an
     // SVG displacement filter instead of being split into layers. See
     // lib/mascot-warp.ts for why layer splitting is not viable.
+    /* Loaded on demand: only a bitmap pack uses the displacement field, and the
+       built-in characters are SVG or a rig. Importing it statically put ~3 KB
+       (gz) of filter code on every page for a branch that never runs there. */
     const frames = root.querySelector<HTMLElement>('.mascot-frames');
     if (frames && data.warp && data.motion?.warp !== false && !still) {
-      warpHandle = attachWarp(frames, {
-        width: data.warp.width,
-        height: data.warp.height,
-        head: data.warp.head,
-        baseline: data.warp.baseline,
-        intensity: data.motion?.warpIntensity ?? 1,
-      });
-      if (warpHandle) {
-        warpHandle.start();
-        warpHandle.setEnergy(energyFor(root.dataset.state ?? 'idle'));
+      void import('../../lib/mascot-warp').then(({ attachWarp }) => {
+        const handle = attachWarp(frames, {
+          width: data.warp!.width,
+          height: data.warp!.height,
+          head: data.warp!.head,
+          baseline: data.warp!.baseline,
+          intensity: data.motion?.warpIntensity ?? 1,
+        });
+        if (!handle) return;
+        warpHandle = handle;
+        handle.start();
+        /* A state may have changed while the module was in flight; the current
+           one is the truth, not the one captured above. */
+        handle.setEnergy(energyFor(root.dataset.state ?? 'idle'));
         // No point burning frames on a tab nobody is looking at.
         document.addEventListener('visibilitychange', () => (document.hidden ? warpHandle?.stop() : warpHandle?.start()));
-        addEventListener('pagehide', () => warpHandle?.destroy(), { once: true });
-      }
+        addEventListener('pagehide', () => handle.destroy(), { once: true });
+      });
     }
 
     /* ---------------- position ---------------- */

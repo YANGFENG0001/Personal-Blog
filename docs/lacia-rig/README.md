@@ -603,12 +603,21 @@ margin-inline: calc((100% - var(--plate-w)) / 2);
 ## 5. 代码在哪
 
 ```
+src/lib/mascot/                          ← 两种渲染器共用的一层
+├── model.ts        槽位 / 挂载点 / 组件 / 动作的类型 + 可见性解析 + 派生矩阵（纯逻辑，可单测）
+├── meta.ts         角色列表（id / 名字 / 一句话）——后台只要这一份
+├── svg.ts          三个内联 SVG 造型的几何（服务端渲染，不进浏览器）
+├── parts.ts        ← 造型的可选组件（发卡 / 太阳发夹 / 伞 / 书），加组件改这里
+├── actions.ts      造型的动作模组（五个表情状态 + 受击）＋ 客户端动作运行时用的小接口
+├── catalog.ts      后台用的组件目录：把两种把手的组件表投影成同一份
+└── index.ts        合起来的方便入口（服务端与后台用；客户端别从这里 import）
+
 src/lib/lacia/
 ├── parts.ts        30 个部件的坐标与绘制顺序（自动生成，勿手改）
 ├── face.ts         表情变体的几何与"哪个状态用哪个形状"
 ├── viseme.ts       字形 → 元音 → (张口度, 宽窄)；打字日程展开成嘴部 cue
 ├── lines.ts        ← 台词与装置读数，改这里
-├── components.ts   槽位 / 组件 / 动作的类型 + 可见性解析 + 派生矩阵（纯逻辑，可单测）
+├── handle.ts       弹簧名 + RigHandle（只有类型，用来把后台挡在引擎之外）
 ├── registry.ts     ← 实际挂载的组件（秘棺 / 锁扣）与角色自带的动作模组，加组件改这里
 ├── monolith.ts     装置 SVG（四形态共用一套 3000×3000 viewBox）
 └── rig.ts          LaciaRig 类：骨骼层级 / 弹簧 / 眼动 / 表情 / 动作状态机
@@ -631,9 +640,10 @@ docs/lacia-rig/verify/joints.cjs           关节实测：行程 / 两腿反相 
 docs/lacia-rig/verify/secondary.cjs        躯干链实测：行程 / 胸廓滞后 / 耦合增益 / 脖子的横向漂移
 docs/lacia-rig/verify/stance.cjs           站姿与接触实测：鞋底一致 / 站距不同 / 掌心钉在装置上 / 不僵
 docs/lacia-rig/verify/components.mjs       组件实测：解析顺序 / 派生矩阵 / 蓝裙无装置 / 动作独占
+docs/mascot/verify/components.mjs          造型侧组件实测：默认挂载 / 目录过滤 / 拖起来伞会收 / 转伞
 ```
 
-九个验证脚本都要求 dev server 在跑，且都用 playwright（站点已有 devDependency）。
+十个验证脚本都要求 dev server 在跑，且都用 playwright（站点已有 devDependency）。
 改过弹簧参数、表情映射、口型幅度、装置几何、姿态表或断点之后重跑，比肉眼看可靠；
 `states.cjs` / `linkage.cjs` / `transition.cjs` / `joints.cjs` / `secondary.cjs` / `stance.cjs`
 失败时退出码非 0，可以直接挂到 CI 或 pre-push（`lip.cjs` / `bleed.cjs` 只打印读数，
@@ -801,24 +811,25 @@ export const LACIA_SKINS = { suit, dress } as const;
 #### 数据结构
 
 ```ts
-type LaciaSlot = 'head'|'face'|'neck'|'torso'|'back'|'waist'|'arm'|'hand'
-               |'leg'|'foot'|'weapon'|'aura'|'device';
+type MascotSlot = 'head'|'face'|'neck'|'torso'|'back'|'waist'|'arm'|'hand'
+                |'leg'|'foot'|'weapon'|'aura'|'device';
 
-interface LaciaAction {
-  id: string;                 // 'monolith:unfold' / 'self:poke'
-  owner: string;              // 组件 id，或 'self'
-  visibility?: Partial<Record<LaciaSlot, boolean>>;  // 稀疏行，缺省可见
-  duration?: number;          // ms，0 = 保持到被下一个动作替换
-  onStart?: (h: RigHandle) => void;
-  onEnd?: (h: RigHandle) => void;
+interface MascotAction<H> {            // H 是渲染器给的把手
+  id: string;                          // 'monolith:unfold' / 'svg:held' / 'self:poke'
+  owner: string;                       // 组件 id，或 'self'
+  visibility?: Partial<Record<MascotSlot, boolean>>;  // 稀疏行，缺省可见
+  duration?: number;                   // ms，0 = 保持到被下一个动作替换
+  onStart?: (h: H) => void;
+  onEnd?: (h: H) => void;
 }
 
-interface LaciaComponent {
+interface MascotComponent<H, S> {      // S 是渲染器的主体（皮肤 / 造型配色）
   id: string;
-  slot: LaciaSlot;
-  parts: (ctx) => { mount: LaciaMount; html: string }[];  // 可多部位（秘棺 + 锁扣）
-  actions?: LaciaAction[];
-  hideIn?: readonly string[];  // 动作 id 或 owner 标签
+  slot: MascotSlot;
+  parts: (ctx: { uid: string; subject: S }) => { mount: MascotMount; html: string }[];
+  actions?: MascotAction<H>[];
+  hideIn?: readonly string[];          // 动作 id 或 owner 标签
+  fits?: readonly string[];            // 只属于哪个角色，省略 = 都能挂
 }
 ```
 
@@ -846,6 +857,60 @@ interface LaciaComponent {
 `monolith:unfold` 声明 `visibility: { waist: false }`：八片晶体板锁出铰座时，锁扣的四片
 压板是那个铰座的固定件，让开 1.6 秒再回来。这是目前唯一一条跨组件规则，也是唯一需要
 解释的取舍 —— 动作结束时全槽位自动恢复，所以它不需要在别处写一条配对的"显示"。
+
+### 6.4 造型侧：同一套模型，两种渲染器
+
+三个内置造型（小春 / 小晴 / Q 版）是手写的内联 SVG，没有骨骼、没有弹簧。它们曾经是
+完全独立的另一条路径——`data-state` 由 CSS 选形状，组件和动作的概念不存在。这造成一个
+结构性问题：**"可选组件"只在骨架那侧成立**，换个角色就退回硬编码。
+
+现在两侧共用 `src/lib/mascot/model.ts` 一份逻辑，各自实现自己的渲染：
+
+| | 骨架（蕾西亚） | 造型（小春 / 小晴 / Q 版） |
+|---|---|---|
+| 把手 `H` | `RigHandle`：弹簧冲量 / 踢 / 切形态 | `SvgHandle`：换表情 / 播一次性类 |
+| 主体 `S` | `LaciaSkin`（位图目录、枢轴、锁扣位置） | 不用（配色写死在造型里） |
+| 挂载点 | `stage` / `hips` / `chest` / `head` / `wristR` / `wristL` | `behind` / `body` / `head` |
+| 动作 | 四个装置构型 + 受击 | 五个表情状态 + 受击 + 组件的转伞 |
+| 组件 | 秘棺 / 锁扣 | 樱花发卡 / 太阳发夹 / 透明雨伞 / 手里的书 |
+
+**把手做成泛型，而不是"全可选的大接口"**，是为了让写错的把手在编译期报错。做成一个
+带 5 个可选方法的对象，`h.impulse` 在造型上就是一句静默无效的代码。
+
+**`fits` 是必须的**：组件表两侧共用，后台列组件时若不按角色过滤，就会给小春列出
+"DEVICE LOCK"。
+
+**造型的可见性规则只有一条是真的**：伞在被抱起时合上（`hideIn: ['svg:held']`），书在
+被抱起和睡着时收起（`hideIn: ['svg:held','svg:sleep']`）。这不是为了凑演示——被拎起来
+还撑着伞、还捧着书，是错的那一个。
+
+**组件的交互模组**由 `data-action` 承载：点伞面跑 `umbrella:twirl`，并且 `stopPropagation`，
+因为"让伞转一圈"不是"让她说话"。
+
+#### 造型侧的三个坑
+
+1. **`hideIn` 别写 `self`。** `self` 是所有自带模组的 owner，写了等于在所有自带动作里
+   消失。要写具体动作 id（`svg:held`）。
+2. **`ms-umb` 上已经挂着随风轻摆的动画。** 转伞必须落在子层 `.ms-umb-canopy` 上，否则
+   两条 `animation` 抢同一个元素，平时就不摆了。
+3. **`visibility` 的过渡延迟 0.24s。** 断言"看不见"要先等过淡出，再读 computed style；
+   只读 `data-on` 才是立刻生效的那一层。
+
+### 6.5 加载：把"参数"留在服务端
+
+看板娘的体积分三块，处理方式不同：
+
+- **标记（HTML）**：骨架的 30 层和造型的几何都在**服务端按参数生成**——角色、服装、
+  组件列表是渲染参数，浏览器收到的是结果。换角色换组件不增加任何下载，只换 HTML 里
+  那一段。造型的几何模块（`svg.ts`）因此完全不进浏览器。
+- **引擎（JS）**：骨架引擎 11 KB(gz) 只在真的渲染骨架时才有 `<astro-island>` 标记，
+  所以平涂主题的页面根本不取它；再加上 `client:media="(min-width: 901px)"`，手机
+  （CSS 本来就把看板娘隐藏了）连 chunk 都不下载。
+- **按需模块**：素材包的位移场（`mascot-warp.ts`，3 KB gz）只有包才用得到，改成
+  动态 `import()`；内置角色页面不再为它付费。
+
+拆包时踩过的一条：**`index.ts` 只能给服务端和后台用**。客户端从 `./actions` / `./meta`
+直接 import，从 `index.ts` 进来会把几何一起拖下水，等于白拆。
 
 ## 7. 已知取舍
 

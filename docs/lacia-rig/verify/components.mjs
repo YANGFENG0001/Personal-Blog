@@ -23,10 +23,10 @@
  * a component names the actions it hides in). The N×N table is *derived* from
  * them, so asserting the table is asserting the resolver — and the table cannot
  * drift from the rules because it has no independent existence. See
- * lib/lacia/components.ts for why authoring the table was rejected.
+ * lib/mascot/model.ts for why authoring the table was rejected.
  */
 import { chromium } from 'playwright';
-import { actionVisible, visibilityMatrix } from '../../../src/lib/lacia/components.ts';
+import { actionVisible, visibilityMatrix } from '../../../src/lib/mascot/model.ts';
 
 const PAGE = 'http://localhost:4321/lacia';
 const errs = [];

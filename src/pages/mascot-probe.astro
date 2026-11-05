@@ -13,9 +13,16 @@
  * In a production build the route answers 404 and paints nothing.
  */
 import Mascot from '../components/public/Mascot.astro';
+import { isMascotId } from '../lib/mascot/meta';
 
 const dev = import.meta.env.DEV;
 if (!dev) Astro.response.status = 404;
+
+/* `?c=sora` picks the look, so the component test can mount the umbrella and
+   the book instead of adding a second fixture page. The rigged character is
+   excluded on purpose: it has its own probe (`/lacia`) and its own verifier. */
+const asked = Astro.url.searchParams.get('c') ?? 'haru';
+const character = isMascotId(asked) && asked !== 'lacia' ? asked : 'haru';
 ---
 {
   dev && (
@@ -26,7 +33,7 @@ if (!dev) Astro.response.status = 404;
         <title>mascot fixture</title>
       </head>
       <body style="margin:0;height:100vh">
-        <Mascot character="haru" draggable={false} imageUrl="" position="right" size="md" page="home" />
+        <Mascot character={character} draggable imageUrl="" position="right" size="md" page="home" />
       </body>
     </html>
   )

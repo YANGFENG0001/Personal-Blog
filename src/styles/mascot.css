@@ -107,11 +107,28 @@
 .ms-mouth-talk { transform: scale(var(--ms-wide, 1), var(--ms-open, 1)); }
 .ms-mouth-grin { transform: scale(var(--ms-wide, 1), var(--ms-grin)); }
 
+/* ---------- 组件可见性（内联 SVG 造型） ----------
+   和 lacia-rig.css 里的 `.lr [data-comp][data-on='0']` 是同一条规则，写两遍是
+   因为两套渲染器的根元素不同（`.lr` 在骨架里，可能不在 `.mascot` 内）。改一处
+   必须改另一处。
+
+   `visibility` 而不是 `display`：子树不绘制，但元素、渐变 defs 都还在，重新
+   显示只花一次属性写。过渡延迟 0.24s 到淡出之后，否则第一帧就闪没。 */
+.mascot [data-comp][data-on='0'] {
+  opacity: 0; visibility: hidden;
+  transition: opacity 0.24s ease, visibility 0s linear 0.24s;
+}
+.mascot [data-comp][data-on='1'] { transition: opacity 0.24s ease, visibility 0s; }
+/* 带动作的组件是可点的——这是"组件自带的交互模组"唯一的外显。 */
+.mascot [data-comp][data-action] { cursor: pointer; }
+.mascot [data-comp][data-action]:hover { filter: brightness(1.14); }
+
 /* ---------- Anime busts (haru / sora / lacia) ---------- */
 .mascot-svg { display: block; width: 100%; height: auto; overflow: visible; }
 .ms-anime { filter: drop-shadow(0 4px 10px color-mix(in srgb, var(--ink) 16%, transparent)); }
 .ms-anime .ms-head { filter: drop-shadow(0 1px 0 rgba(255,255,255,.24)); }
 .ms-anime .ms-breath, .ms-anime .ms-head, .ms-anime .ms-eyes, .ms-anime .ms-lock, .ms-anime .ms-umb, .ms-anime .ms-braid { transform-box: fill-box; }
+.ms-anime .ms-umb-canopy { transform-box: fill-box; transform-origin: 50% 42%; }
 .ms-anime .ms-iris { transition: transform 0.25s ease-out; }
 .ms-anime .ms-eyes { transition: opacity 0.12s linear; }
 
@@ -156,6 +173,10 @@
   :root:not([data-motion='off']) .ms-anime .ms-braid { animation: ms-sway 6s ease-in-out infinite -1s; transform-origin: 50% 0; }
   :root:not([data-motion='off']) .ms-anime .ms-umb { animation: ms-umb 8s ease-in-out infinite; transform-origin: 50% 100%; }
   :root:not([data-motion='off']) .mascot.is-talking .ms-anime .ms-head { animation: ms-nod 0.6s var(--spring); }
+  /* 组件动作：转伞。伞面单独一层，才不会把 `.ms-umb` 上的随风轻摆顶掉。 */
+  :root:not([data-motion='off']) .mascot.is-twirl .ms-anime .ms-umb-canopy { animation: ms-twirl 1.2s var(--ease); }
+  /* 受击。造型没有弹簧，所以是一次快速摆头——整个图形一起，不是只有头。 */
+  :root:not([data-motion='off']) .mascot.is-poked .mascot-svg { animation: ms-poke 0.7s var(--ease); }
 }
 @keyframes ms-bob { 50% { transform: translateY(-3px); } }
 @keyframes ms-tilt { 0%, 60%, 100% { transform: rotate(0); } 70% { transform: rotate(-5deg); } 85% { transform: rotate(3deg); } }
@@ -167,6 +188,8 @@
 @keyframes ms-sway { 50% { transform: rotate(2.2deg); } }
 @keyframes ms-umb { 50% { transform: rotate(-2deg); } }
 @keyframes ms-nod { 40% { transform: rotate(-4deg) translateY(2px); } }
+@keyframes ms-twirl { to { transform: rotate(360deg); } }
+@keyframes ms-poke { 18% { transform: translateX(-3px); } 44% { transform: translateX(2.4px); } 70% { transform: translateX(-1.2px); } }
 
 @media (max-width: 900px) { .mascot { display: none; } }
 @media print { .mascot { display: none; } }

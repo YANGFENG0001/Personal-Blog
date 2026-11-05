@@ -1,106 +1,39 @@
 /**
- * The site's original mascots ("看板娘"), drawn as inline SVG so they need no
- * image request. All characters are original designs.
+ * 站内原创看板娘（内联 SVG 造型），不需要任何图片请求。角色均为原创设计。
  *
- * - chibi: the first, simple chibi girl (kept for the 夏日物语 preset).
- * - haru:  long chestnut hair, sakura hairpin, sailor uniform.
- * - sora:  dark bob with a side braid, sun hairclip, clear umbrella.
- * - lacia: lavender hair, ice-blue eyes, a homage to BEATLESS (not the
- *          official design).
+ * - chibi: 最早的 Q 版夏日制服少女（「夏日物语」主题）。
+ * - haru:  栗色长发、樱花发卡、水手服。
+ * - sora:  深色短发侧辫、太阳发夹、透明雨伞。
+ * - lacia: 淡紫长发、冰蓝眼睛，致敬《BEATLESS》（非官方立绘）。角落里她用的是
+ *          骨架版（`lib/lacia`），这里的平涂版本只作后台预览与兜底。
  *
- * The three anime busts share one construction so the site stays consistent:
+ * 三个人像共用一套构造，站点才不会看着像拼的：
  *
- *   head   98 tall × 77 wide (≈1.27 ratio), crown at y=20, chin at y=118
- *   eyes   line at y≈79, each 22 × 25, one eye-width apart, irises filling
- *          the socket, thick upper lash + flick, double-lid crease, lower lash
- *   nose   a single 2px shadow curve at y≈93 (anime noses are not outlined)
- *   mouth  small, 8 wide, at y≈105, 13 above the chin
- *   neck   20 wide, ~26 visible below the chin, with a jaw shadow
- *   body   shoulders 104 wide (≈1.35 heads) at y=167, widening to 134 at the
- *          bottom cut (y=250)
- *   hair   one fringe mass whose lower edge is a chain of soft points (never a
- *          row of separate locks — those read as fangs or bricks), over a dark
- *          arc that fills the notches so they show hair instead of skin; side
- *          locks taper narrow-wide-point; the back fall gets gloss + strands.
- *          Never a broad translucent highlight: it erases the strand seams and
- *          turns the whole fringe into a veil with a jagged edge.
+ *   head   高 98 × 宽 77（≈1.27），颅顶 y=20，下巴 y=118
+ *   eyes   线在 y≈79，每只 22 × 25，眼距一只眼宽，虹膜填满眼窝，
+ *          粗上睫毛带外挑、双眼皮褶、细下睫毛
+ *   nose   y≈93 一条 2px 阴影弧（动画的鼻子不描边）
+ *   mouth  小，宽 8，在 y≈105，距下巴 13
+ *   neck   宽 20，下巴下可见约 26，带下颌投影
+ *   body   肩宽 104（≈1.35 头）在 y=167，向下展到 134 于裁切线 y=250
+ *   hair   一片刘海，下缘是一串软尖（绝不是一排独立的发绺——那读起来像獠牙
+ *          或砖块），下面垫一层深色弧填住缺口，露出的才是头发不是皮肤；侧发
+ *          从窄到宽收到一个尖；后发加光泽与发丝。**不要大面积的半透明高光**：
+ *          它会把发丝缝抹平，整片刘海变成一块锯齿边的面纱。
  *
- * Class names (ms-*) drive the CSS animations: breathing, hair sway, blinking,
- * eye-follow and a happy face while talking. Geometry is shared through the
- * constants below; only colour and outfit differ per character.
+ * ## 组件
+ *
+ * 可以拆下来的东西（发卡、伞、书）不画在这里，而是从 `lib/mascot/parts.ts` 的
+ * 组件表按挂载点注入。判据是"拿掉之后人物仍然完整"：发卡、伞、书满足；头发、
+ * 校服、侧辫不满足，所以留在造型里。
+ *
+ * 类名（ms-*）驱动 CSS 动画：呼吸、发丝摆动、眨眼、视线跟随、说话时的笑脸。
+ * 几何通过下面的常量共享，角色之间只有配色与服装不同。
  */
-
-export type MascotId = 'chibi' | 'haru' | 'sora' | 'lacia';
-
-export const MASCOTS: { id: MascotId; name: string; desc: string; thumb?: string }[] = [
-  { id: 'haru', name: '小春', desc: '樱色发卡、长发、水手服，安静地陪你读书。' },
-  { id: 'sora', name: '小晴', desc: '短发侧辫、太阳发夹，撑着透明雨伞的晴天少女。' },
-  {
-    id: 'lacia',
-    name: '蕾西亚',
-    desc: '分层骨架立绘：24 个语义图层挂在关节上，会转头、眨眼、摆臂、呼吸；装置 BLACK MONOLITH 有四种形态。（致敬《BEATLESS》，非官方立绘）',
-    thumb: '/lacia-rig/thumb.webp',
-  },
-  { id: 'chibi', name: 'Q 版', desc: '最初的 Q 版夏日制服少女。' },
-];
-
-export function isMascotId(id: string): id is MascotId {
-  return MASCOTS.some((m) => m.id === id);
-}
-
-/* ------------------------------------------------------------------ chibi */
-
-const CHIBI = `<svg class="mascot-svg ms-chibi" viewBox="0 0 160 200" aria-hidden="true" focusable="false">
-  <defs>
-    <linearGradient id="chibi-skin" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe9dc"/><stop offset="1" stop-color="#f3c9b8"/></linearGradient>
-    <linearGradient id="chibi-shirt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#dfe6f6"/></linearGradient>
-    <linearGradient id="chibi-skirt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3d4c96"/><stop offset="1" stop-color="#2a3468"/></linearGradient>
-  </defs>
-  <ellipse class="ms-shadow" cx="80" cy="192" rx="42" ry="6"/>
-  <g class="ms-body">
-    <path class="ms-hair" d="M30 70 q-22 26 -10 64 q6 -20 18 -30 z"/>
-    <path class="ms-hair" d="M130 70 q22 26 10 64 q-6 -20 -18 -30 z"/>
-    <circle class="ms-ribbon" cx="34" cy="66" r="7"/><circle class="ms-ribbon" cx="126" cy="66" r="7"/>
-    <rect class="ms-skin" x="62" y="160" width="10" height="24" rx="4"/><rect class="ms-skin" x="88" y="160" width="10" height="24" rx="4"/>
-    <path class="ms-shoe" d="M58 182 h18 v6 h-20z M86 182 h18 v6 h-20z"/>
-    <path class="ms-skirt" d="M52 146 h56 l10 22 h-76z"/>
-    <path class="ms-pleat" d="M66 148 l-4 20 M80 148 v20 M94 148 l4 20"/>
-    <path class="ms-shirt" d="M54 116 q26 -10 52 0 l4 32 h-60z"/>
-    <path class="ms-collar" d="M58 116 q22 18 44 0 l-6 14 q-16 8 -32 0z"/>
-    <path class="ms-scarf" d="M76 128 l4 8 l4 -8 l-4 -3z"/>
-    <path class="ms-skin" d="M52 122 q-10 16 0 28 l8 -4 q-6 -10 0 -20z"/>
-    <path class="ms-skin" d="M108 122 q10 16 0 28 l-8 -4 q6 -10 0 -20z"/>
-    <ellipse class="ms-cuff" cx="52" cy="148" rx="5" ry="4"/>
-    <ellipse class="ms-cuff" cx="108" cy="148" rx="5" ry="4"/>
-    <g class="ms-book"><path class="ms-cover" d="M58 136 l22 6 l22 -6 v18 l-22 6 l-22 -6z"/><path class="ms-pages" d="M80 142 v18"/></g>
-    <g class="ms-head">
-      <circle class="ms-skin" cx="80" cy="74" r="40"/>
-      <ellipse class="ms-face-shade" cx="80" cy="99" rx="32" ry="23"/>
-      <ellipse class="ms-earring" cx="42" cy="97" rx="2.4" ry="2.4"/>
-      <ellipse class="ms-earring" cx="118" cy="97" rx="2.4" ry="2.4"/>
-      <path class="ms-hair" d="M40 76 q-2 -46 40 -48 q42 2 40 48 q-8 -22 -22 -26 q-6 12 -20 14 q4 -8 2 -14 q-14 14 -40 26z"/>
-      <path class="ms-hair-hi" d="M58 40 q10 -6 22 -6"/>
-      <g class="ms-eyes">
-        <ellipse class="ms-eye" cx="64" cy="82" rx="6.5" ry="8"/><ellipse class="ms-eye" cx="96" cy="82" rx="6.5" ry="8"/>
-        <circle class="ms-shine" cx="66" cy="79" r="2.3"/><circle class="ms-shine" cx="98" cy="79" r="2.3"/>
-      </g>
-      <g class="ms-eyes-shut"><path d="M57.5 82.6q6.5 4.2 13 0"/><path d="M89.5 82.6q6.5 4.2 13 0"/></g>
-      <g class="ms-happy"><path d="M57.5 82.4q6.5-4.6 13 0"/><path d="M89.5 82.4q6.5-4.6 13 0"/></g>
-      <g class="ms-cheeks">
-        <ellipse class="ms-blush" cx="56" cy="96" rx="6" ry="3"/><ellipse class="ms-blush" cx="104" cy="96" rx="6" ry="3"/>
-      </g>
-      <path class="ms-mouth ms-mouth-idle" style="fill:none;stroke:#b5546f;stroke-width:2" d="M75 98q5 5 10 0"/>
-      <path class="ms-mouth ms-mouth-talk" style="fill:#c25a6a;stroke:none" d="M76.6 97.4q3.4 6.4 6.8 0q-3.4 2.6-6.8 0z"/>
-      <g class="ms-mouth ms-mouth-grin">
-        <path style="fill:#c25a6a;stroke:none" d="M75.4 97.2q4.6 7.6 9.2 0q-4.6 3-9.2 0z"/>
-        <path style="fill:#f8eef1;stroke:none" d="M76.6 97.8q3.4 1.2 6.8 0l-.3 1.4q-3.1 1-6.2 0z"/>
-      </g>
-      <ellipse class="ms-mouth ms-mouth-pout" style="fill:#c25a6a;stroke:none" cx="80" cy="98.6" rx="1.7" ry="2.1"/>
-      <path class="ms-mouth ms-mouth-sleep" style="fill:none;stroke:#b5546f;stroke-width:1.8" d="M76.2 98.8q3.8 2.4 7.6 0"/>
-      <path class="ms-clip" d="M106 50 l8 -4 l2 6z"/>
-    </g>
-  </g>
-</svg>`;
+import type { MascotComponent, MascotMount } from './model';
+import { resolveComponents } from './model';
+import { SVG_COMPONENTS, SVG_COMPONENT_DEFAULTS } from './parts';
+import { isMascotId, type MascotId } from './meta';
 
 /* ------------------------------------------------------- shared geometry */
 
@@ -135,7 +68,7 @@ interface Look {
   bangs: Tip[];
   outfit: string;
   outfitBase: string;
-  accessory: string;
+  /** 画在呼吸组之前的整块东西（蕾西亚的装置碎片）。可拆卸的挂件走组件表。 */
   behind?: string;
   front?: string;
 }
@@ -261,12 +194,6 @@ function backHair(L: Look): string {
 }
 
 /**
- * Fringe: a smooth scalp cap (crown silhouette + hairline), then a few wide
- * overlapping locks, then thin highlight strokes. Keeping the highlights thin
- * is what preserves the strand seams — a broad translucent shape turns the
- * whole fringe into a flat veil with a jagged edge.
- */
-/**
  * Fringe silhouette: one dome over the skull whose lower edge is a chain of
  * soft points. `tips` lists [x, depth] left to right; the edge leaves the left
  * temple and returns to the right one, with a quadratic notch between tips.
@@ -277,8 +204,8 @@ function fringePath(tips: [number, number][], templeY = 56, notch = 8): string {
   const pts: [number, number][] = [[50, templeY], ...tips, [150, templeY]];
   let edge = '';
   for (let i = 0; i < pts.length - 1; i++) {
-    const [x0, y0] = pts[i];
-    const [x1, y1] = pts[i + 1];
+    const [x0, y0] = pts[i]!;
+    const [x1, y1] = pts[i + 1]!;
     edge += `Q${Math.round(x0 + (x1 - x0) * 0.36)} ${Math.round(Math.min(y0, y1) - notch)} ${x1} ${y1}`;
   }
   return `M100 12C71 12 51 28 50 ${templeY}${edge}C149 28 129 12 100 12Z`;
@@ -297,7 +224,7 @@ function frontHair(L: Look): string {
   const seams = L.bangs
     .slice(0, -1)
     .map(([x], i) => {
-      const nx = Math.round((x + L.bangs[i + 1][0]) / 2);
+      const nx = Math.round((x + L.bangs[i + 1]![0]) / 2);
       const top = 28 + (i % 2) * 7;
       return `<path d="M${nx} ${top}C${nx - 2} ${top + 12} ${nx - 1} 48 ${nx} 56" fill="none" stroke="${s}" stroke-width=".8" opacity=".3"/>`;
     })
@@ -313,18 +240,28 @@ function frontHair(L: Look): string {
       `<path d="M62 62C59 88 59 114 60 138" fill="none" stroke="${L.hairHi}" stroke-width="1.2" opacity=".22" stroke-linecap="round"/>`;
     return flip ? `<g transform="translate(200 0) scale(-1 1)">${el}</g>` : el;
   };
-  return (
-    side(false) + side(true) +
-    `<path d="${under}" fill="${s}" opacity=".9"/>` +
-    `<path d="${fringe}" fill="${g}" stroke="${s}" stroke-width="1" stroke-linejoin="round"/>` +
-    seams + hi + L.accessory
-  );
+  return side(false) + side(true) + `<path d="${under}" fill="${s}" opacity=".9"/>` + `<path d="${fringe}" fill="${g}" stroke="${s}" stroke-width="1" stroke-linejoin="round"/>` + seams + hi;
 }
 
 /* ------------------------------------------------------------------- bust */
 
-function bust(L: Look): string {
+/**
+ * 组件按挂载点注入。`at()` 是唯一知道"哪块标记插在哪"的地方——造型本身不知
+ * 道有什么组件，组件也不知道自己被插在哪里，两边只认挂载点这个名字。
+ */
+function mountMap(comps: readonly MascotComponent<unknown, unknown>[]): (m: MascotMount) => string {
+  const byMount = new Map<MascotMount, string>();
+  for (const c of comps) {
+    for (const part of c.parts({ uid: c.id, subject: undefined })) {
+      byMount.set(part.mount, (byMount.get(part.mount) ?? '') + part.html);
+    }
+  }
+  return (m) => byMount.get(m) ?? '';
+}
+
+function bust(L: Look, comps: readonly MascotComponent<unknown, unknown>[]): string {
   const id = L.id;
+  const at = mountMap(comps);
   const mirror = 'translate(200 0) scale(-1 1)';
   const happy = `<path d="M71.5 83Q80 71 88.5 83" fill="none" stroke="${L.lash}" stroke-width="2.8" stroke-linecap="round"/>`;
   return `<svg class="mascot-svg ms-anime" viewBox="0 0 200 250" aria-hidden="true" focusable="false">
@@ -337,7 +274,7 @@ function bust(L: Look): string {
     <mask id="${id}-mask" maskUnits="userSpaceOnUse" x="-40" y="-60" width="280" height="310"><rect x="-40" y="-60" width="280" height="310" fill="url(#${id}-fade)"/></mask>
   </defs>
   <g mask="url(#${id}-mask)">
-    ${L.behind ?? ''}
+    ${at('behind')}${L.behind ?? ''}
     <g class="ms-breath">
       ${backHair(L)}
       <path d="${NECK}" fill="url(#${id}-skin)" stroke="${SKIN.line}" stroke-width=".9"/>
@@ -363,18 +300,77 @@ function bust(L: Look): string {
           <path d="M75.6 99.2l2.2-3.2 M79.4 99.2l2.2-3.2 M83.2 99.2l2.2-3.2 M115.6 99.2l2.2-3.2 M119.4 99.2l2.2-3.2 M123.2 99.2l2.2-3.2" stroke="#ee7890" stroke-width=".85" opacity=".4" stroke-linecap="round"/>
         </g>
         ${frontHair(L)}
+        ${at('head')}
       </g>
     </g>
   </g>
 </svg>`;
 }
 
-/* -------------------------------------------------------------- characters */
+/* ------------------------------------------------------------------ chibi */
 
-const sakuraFlower = (x: number, y: number, s: number) =>
-  `<g transform="translate(${x} ${y}) scale(${s})">${[0, 72, 144, 216, 288]
-    .map((a) => `<path transform="rotate(${a})" d="M0 0 C-4.4 -4 -3.6 -10.4 -1 -11.6 L0 -10 L1 -11.6 C3.6 -10.4 4.4 -4 0 0Z" fill="#ffd0e0" stroke="#ee8aaa" stroke-width=".6"/>`)
-    .join('')}<circle r="1.9" fill="#ffd877"/></g>`;
+/**
+ * Q 版。160×200 的画布，全身而不是半身，所以它没有 `ms-breath`/`ms-head` 那
+ * 套半身结构——呼吸与摆头挂在 `ms-body` / `ms-head` 上，幅度也更小。
+ */
+function chibi(comps: readonly MascotComponent<unknown, unknown>[]): string {
+  const at = mountMap(comps);
+  return `<svg class="mascot-svg ms-chibi" viewBox="0 0 160 200" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="chibi-skin" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe9dc"/><stop offset="1" stop-color="#f3c9b8"/></linearGradient>
+    <linearGradient id="chibi-shirt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#dfe6f6"/></linearGradient>
+    <linearGradient id="chibi-skirt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3d4c96"/><stop offset="1" stop-color="#2a3468"/></linearGradient>
+  </defs>
+  ${at('behind')}
+  <ellipse class="ms-shadow" cx="80" cy="192" rx="42" ry="6"/>
+  <g class="ms-body">
+    <path class="ms-hair" d="M30 70 q-22 26 -10 64 q6 -20 18 -30 z"/>
+    <path class="ms-hair" d="M130 70 q22 26 10 64 q-6 -20 -18 -30 z"/>
+    <circle class="ms-ribbon" cx="34" cy="66" r="7"/><circle class="ms-ribbon" cx="126" cy="66" r="7"/>
+    <rect class="ms-skin" x="62" y="160" width="10" height="24" rx="4"/><rect class="ms-skin" x="88" y="160" width="10" height="24" rx="4"/>
+    <path class="ms-shoe" d="M58 182 h18 v6 h-20z M86 182 h18 v6 h-20z"/>
+    <path class="ms-skirt" d="M52 146 h56 l10 22 h-76z"/>
+    <path class="ms-pleat" d="M66 148 l-4 20 M80 148 v20 M94 148 l4 20"/>
+    <path class="ms-shirt" d="M54 116 q26 -10 52 0 l4 32 h-60z"/>
+    <path class="ms-collar" d="M58 116 q22 18 44 0 l-6 14 q-16 8 -32 0z"/>
+    <path class="ms-scarf" d="M76 128 l4 8 l4 -8 l-4 -3z"/>
+    <path class="ms-skin" d="M52 122 q-10 16 0 28 l8 -4 q-6 -10 0 -20z"/>
+    <path class="ms-skin" d="M108 122 q10 16 0 28 l-8 -4 q6 -10 0 -20z"/>
+    <ellipse class="ms-cuff" cx="52" cy="148" rx="5" ry="4"/>
+    <ellipse class="ms-cuff" cx="108" cy="148" rx="5" ry="4"/>
+    ${at('body')}
+    <g class="ms-head">
+      <circle class="ms-skin" cx="80" cy="74" r="40"/>
+      <ellipse class="ms-face-shade" cx="80" cy="99" rx="32" ry="23"/>
+      <ellipse class="ms-earring" cx="42" cy="97" rx="2.4" ry="2.4"/>
+      <ellipse class="ms-earring" cx="118" cy="97" rx="2.4" ry="2.4"/>
+      <path class="ms-hair" d="M40 76 q-2 -46 40 -48 q42 2 40 48 q-8 -22 -22 -26 q-6 12 -20 14 q4 -8 2 -14 q-14 14 -40 26z"/>
+      <path class="ms-hair-hi" d="M58 40 q10 -6 22 -6"/>
+      <g class="ms-eyes">
+        <ellipse class="ms-eye" cx="64" cy="82" rx="6.5" ry="8"/><ellipse class="ms-eye" cx="96" cy="82" rx="6.5" ry="8"/>
+        <circle class="ms-shine" cx="66" cy="79" r="2.3"/><circle class="ms-shine" cx="98" cy="79" r="2.3"/>
+      </g>
+      <g class="ms-eyes-shut"><path d="M57.5 82.6q6.5 4.2 13 0"/><path d="M89.5 82.6q6.5 4.2 13 0"/></g>
+      <g class="ms-happy"><path d="M57.5 82.4q6.5-4.6 13 0"/><path d="M89.5 82.4q6.5-4.6 13 0"/></g>
+      <g class="ms-cheeks">
+        <ellipse class="ms-blush" cx="56" cy="96" rx="6" ry="3"/><ellipse class="ms-blush" cx="104" cy="96" rx="6" ry="3"/>
+      </g>
+      <path class="ms-mouth ms-mouth-idle" style="fill:none;stroke:#b5546f;stroke-width:2" d="M75 98q5 5 10 0"/>
+      <path class="ms-mouth ms-mouth-talk" style="fill:#c25a6a;stroke:none" d="M76.6 97.4q3.4 6.4 6.8 0q-3.4 2.6-6.8 0z"/>
+      <g class="ms-mouth ms-mouth-grin">
+        <path style="fill:#c25a6a;stroke:none" d="M75.4 97.2q4.6 7.6 9.2 0q-4.6 3 -9.2 0z"/>
+        <path style="fill:#f8eef1;stroke:none" d="M76.6 97.8q3.4 1.2 6.8 0l-.3 1.4q-3.1 1 -6.2 0z"/>
+      </g>
+      <ellipse class="ms-mouth ms-mouth-pout" style="fill:#c25a6a;stroke:none" cx="80" cy="98.6" rx="1.7" ry="2.1"/>
+      <path class="ms-mouth ms-mouth-sleep" style="fill:none;stroke:#b5546f;stroke-width:1.8" d="M76.2 98.8q3.8 2.4 7.6 0"/>
+      <path class="ms-clip" d="M106 50 l8 -4 l2 6z"/>
+      ${at('head')}
+    </g>
+  </g>
+</svg>`;
+}
+
+/* -------------------------------------------------------------- characters */
 
 const HARU: Look = {
   id: 'haru',
@@ -398,7 +394,6 @@ const HARU: Look = {
       <path d="M100 218L94 246L99 246Z" fill="#d84a73"/>
       <path d="M100 218L106 246L101 246Z" fill="#d84a73"/>
       <ellipse cx="100" cy="216" rx="4.4" ry="3.8" fill="#c93f68"/>`,
-  accessory: sakuraFlower(132, 60, 0.95) + sakuraFlower(140, 70, 0.6),
 };
 
 const SORA: Look = {
@@ -410,13 +405,6 @@ const SORA: Look = {
   lash: '#161a2a',
   backW: [39, 45, 51],
   bangs: [[66, 58], [90, 53], [112, 53], [138, 59]],
-  behind: `<g class="ms-umb">
-      <path d="M54 44C58 130 62 190 68 244" fill="none" stroke="#b9c3d2" stroke-width="2.4" stroke-linecap="round"/>
-      <path d="M4 46Q54 -12 104 46Q91 38 79 46Q66 38 54 46Q41 38 29 46Q16 38 4 46Z" fill="#e8f4ff" fill-opacity=".5" stroke="#fff" stroke-opacity=".9" stroke-width="1.3"/>
-      <path d="M54 -6V46M54 -6Q38 12 29 46M54 -6Q70 12 79 46M54 -6Q24 18 4 46M54 -6Q84 18 104 46" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width=".7"/>
-      <g fill="#fff" opacity=".85"><circle cx="30" cy="16" r="1.4"/><circle cx="70" cy="10" r="1.2"/><circle cx="86" cy="30" r="1.5"/><circle cx="44" cy="4" r="1"/><circle cx="14" cy="34" r="1.1"/></g>
-      <path d="M54 -8V-14" stroke="#b9c3d2" stroke-width="1.8" stroke-linecap="round"/>
-    </g>`,
   outfitBase: '#7cc0ec',
   outfit: `<path d="${BODY}" fill="#7cc0ec" stroke="#4f97c9" stroke-width="1"/>
       <path d="M100 138C80 138 64 150 58 168C72 160 86 156 100 156C114 156 128 160 142 168C136 150 120 138 100 138Z" fill="#5fa9dc" stroke="#3f88bc" stroke-width="1"/>
@@ -433,16 +421,12 @@ const SORA: Look = {
       <path d="M139 189q-3 8 0 12q3-4 4-12z"/>
       <rect x="136.5" y="186" width="9" height="3.4" rx="1.6" fill="#ffcf5a" stroke="#d9a42e"/>
     </g>`,
-  accessory: `<g transform="translate(72 58)"><g stroke="#f0a92a" stroke-width="1.2" stroke-linecap="round">${[0, 45, 90, 135, 180, 225, 270, 315]
-    .map((a) => `<path transform="rotate(${a})" d="M0 -6.4V-8.8"/>`)
-    .join('')}</g><circle r="4.6" fill="#ffd45e" stroke="#e59e1f" stroke-width=".8"/><path d="M-1.8 -.6h.01M1.8 -.6h.01" stroke="#9a5a12" stroke-width="1.2" stroke-linecap="round"/><path d="M-1.6 1.4Q0 2.8 1.6 1.4" fill="none" stroke="#9a5a12" stroke-width=".8"/></g>`,
 };
 
 /**
- * 蕾西亚 — an original hIE in the visual language of BEATLESS: lavender-silver
- * long hair, ice-blue eyes, a white/black bodysuit with a thin ice-blue seam,
- * and a fragment of a black monolith floating behind her shoulder.
- * This is a homage, NOT a reproduction of the official character design.
+ * 蕾西亚的平涂版 — 视觉语言取自 BEATLESS 的 hIE：淡紫银发、冰蓝眼睛、白黑紧身
+ * 衣带一道冰蓝缝线，肩后浮着一片黑色装置。这是致敬，**不是**官方立绘的复刻。
+ * 角落里她用的是骨架版，这里只作后台预览的兜底。
  */
 const LACIA: Look = {
   id: 'lacia',
@@ -469,17 +453,26 @@ const LACIA: Look = {
       <path d="M100 190L107 201L100 212L93 201Z" fill="none" stroke="#9ed8ff" stroke-width="1.3"/>
       <path d="M84 160Q92 168 100 162Q108 168 116 160" fill="none" stroke="#9ed8ff" stroke-width=".9" opacity=".5"/>
       <path d="M64 238Q68 246 66 250M136 238Q132 246 134 250" fill="none" stroke="#c8c9d8" stroke-width="1.2"/>`,
-  accessory: `<g transform="translate(129 58)"><path d="M0 0L8-5L16 0L8 5Z" fill="#171826" stroke="#9ed8ff" stroke-width=".9"/><path d="M8-5V5" stroke="#9ed8ff" stroke-width=".6" opacity=".75"/></g>`,
 };
 
-const SVGS: Record<MascotId, string> = { chibi: CHIBI, haru: bust(HARU), sora: bust(SORA), lacia: bust(LACIA) };
+const LOOKS: Record<MascotId, Look> = { haru: HARU, sora: SORA, lacia: LACIA, chibi: HARU };
 
-export function mascotSvg(id: string): string {
-  return SVGS[isMascotId(id) ? id : 'haru'];
+/**
+ * 造型标记。`components` 省略 = 用这个角色自带的组件（`SVG_COMPONENT_DEFAULTS`），
+ * 传空数组 = 一件都不挂。
+ *
+ * 组件在这里就定型了，客户端拿不到几何——服务端按参数生成标记，浏览器只收到
+ * 结果。这是"动态参数注入"：换角色换组件不增加任何下载，只换 HTML 里的那段。
+ */
+export function mascotSvg(id: string, components?: readonly string[]): string {
+  const key: MascotId = isMascotId(id) ? id : 'haru';
+  const comps = resolveComponents(SVG_COMPONENTS, components ?? SVG_COMPONENT_DEFAULTS[key] ?? []) as MascotComponent<
+    unknown,
+    unknown
+  >[];
+  if (key === 'chibi') return chibi(comps);
+  return bust(LOOKS[key], comps);
 }
-
-/** Kept for callers that only need the default artwork. */
-export const MASCOT_SVG = SVGS.haru;
 
 export const MASCOT_LINES: Record<MascotId, string[]> = {
   chibi: ['今天也一起读一点吧。', '累了就看看窗外的云。', '这篇写得真好，慢慢读～', '记得喝水哦。', '有不懂的地方，记下来就好。', '我在这里陪你。'],

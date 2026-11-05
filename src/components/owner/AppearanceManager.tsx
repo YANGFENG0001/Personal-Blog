@@ -4,12 +4,13 @@ import { BG_EFFECTS, EGG_SETS, PRESETS, getPreset, paletteVars, type ThemePreset
 import { resolveAppearance, cursorCss } from '../../lib/appearance';
 import { SHAPE_LAYOUTS, dialHtml, effectiveLayout } from '../../lib/dial';
 import { SCENES, sceneHtml, type SceneId } from '../../lib/scenes';
-import { MASCOTS, mascotSvg, isMascotId } from '../../lib/mascot';
+import { MASCOTS, isMascotId } from '../../lib/mascot/meta';
+import { mascotSvg } from '../../lib/mascot/svg';
+import { componentCatalog, defaultComponentIds, selfActionCount } from '../../lib/mascot/catalog';
 import type { StoredMascotPack } from '../../lib/mascot-pack';
 import type { StoredTheme } from '../../lib/custom-theme';
 import { mergeCustom } from '../../lib/appearance';
-import { COMPONENT_IDS, LACIA_COMPONENTS, SKIN_COMPONENT_DEFAULTS } from '../../lib/lacia/registry';
-import { SLOT_LABELS } from '../../lib/lacia/components';
+import { SLOT_LABELS } from '../../lib/mascot/model';
 import { MascotPacks } from './MascotPacks';
 import '../../styles/scenes.css';
 import '../../styles/scenes-anime.css';
@@ -247,14 +248,20 @@ function MascotPanel({ a, setA, uploads, packs, setPacks, studioUrl }: { a: AS; 
   const thumb = MASCOTS.find((c) => c.id === character)?.thumb;
   const withMascot = PRESETS.filter((p) => p.mascot).map((p) => `“${p.name}”`).join('、');
   const images = uploads.filter((u) => /\.(png|webp|gif|svg)$/i.test(u.filename));
-  /* Components: the stored list wins, otherwise the outfit's own default. The
-     two are different states on purpose — "unset" keeps following the outfit,
-     an explicit list survives an outfit change. */
-  const picked = m.components ?? SKIN_COMPONENT_DEFAULTS[m.skin ?? 'suit'] ?? [];
+  /* Components: the stored list wins, otherwise the character's own default.
+     Switching character clears it on purpose — an explicit list is expressed in
+     *that* character's component ids, and carrying it across would silently
+     unmount everything the new character ships with (haru would lose her
+     hairpin because 'monolith' means nothing to her).
+     The two are different states on purpose — "unset" keeps following the
+     character (or, for the rig, the outfit), an explicit list survives a
+     change of either. */
+  const picked = m.components ?? defaultComponentIds(character, m.skin ?? 'suit');
+  const catalog = componentCatalog(character);
   const toggleComponent = (list: readonly string[], id: string) =>
     list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
   const countActions = (list: readonly string[]) =>
-    1 + list.reduce((n, id) => n + (LACIA_COMPONENTS[id]?.actions?.length ?? 0), 0);
+    selfActionCount(character) + list.reduce((n, id) => n + (catalog.find((c) => c.id === id)?.actions ?? 0), 0);
   return (
     <section class="panel">
       <div class="panel-head">
@@ -266,7 +273,7 @@ function MascotPanel({ a, setA, uploads, packs, setPacks, studioUrl }: { a: AS; 
       <div class="mascot-cfg">
         <div class={`mascot-stage ${shown ? '' : 'is-off'}`} data-pos={m.position}>
           <div class="mascot-demo" data-size={m.size} data-kind={pack || m.imageUrl || thumb ? 'image' : character === 'chibi' ? 'chibi' : 'anime'}>
-            {pack?.urls.idle ? <img src={pack.urls.idle} alt="" /> : m.imageUrl ? <img src={m.imageUrl} alt="" /> : thumb ? <img src={thumb} alt="" /> : <span dangerouslySetInnerHTML={{ __html: mascotSvg(isMascotId(character) ? character : 'haru') }} />}
+            {pack?.urls.idle ? <img src={pack.urls.idle} alt="" /> : m.imageUrl ? <img src={m.imageUrl} alt="" /> : thumb ? <img src={thumb} alt="" /> : <span dangerouslySetInnerHTML={{ __html: mascotSvg(isMascotId(character) ? character : 'haru', picked) }} />}
           </div>
           {!shown && <span class="mascot-off">当前主题下不显示</span>}
         </div>
@@ -279,12 +286,12 @@ function MascotPanel({ a, setA, uploads, packs, setPacks, studioUrl }: { a: AS; 
           <div class="field">
             <span class="label">角色</span>
             <div class="mascot-picks" role="radiogroup" aria-label="角色">
-              <button type="button" role="radio" aria-checked={m.character === 'preset'} class={`mascot-pick ${m.character === 'preset' ? 'on' : ''}`} onClick={() => set({ character: 'preset' })}>
+              <button type="button" role="radio" aria-checked={m.character === 'preset'} class={`mascot-pick ${m.character === 'preset' ? 'on' : ''}`} onClick={() => set({ character: 'preset', components: undefined })}>
                 <span class="mascot-pick-art is-auto"><Icon name="palette" size={18} /></span>
                 <strong>跟随主题</strong><small>由当前主题决定</small>
               </button>
               {MASCOTS.map((c) => (
-                <button type="button" role="radio" aria-checked={m.character === c.id} class={`mascot-pick ${m.character === c.id ? 'on' : ''}`} onClick={() => set({ character: c.id })}>
+                <button type="button" role="radio" aria-checked={m.character === c.id} class={`mascot-pick ${m.character === c.id ? 'on' : ''}`} onClick={() => set({ character: c.id, components: undefined })}>
                   <span class="mascot-pick-art">
                     {c.thumb ? <img src={c.thumb} alt="" loading="lazy" /> : <span dangerouslySetInnerHTML={{ __html: mascotSvg(c.id) }} />}
                   </span>
@@ -315,27 +322,26 @@ function MascotPanel({ a, setA, uploads, packs, setPacks, studioUrl }: { a: AS; 
               <p class="hint">
                 两套是同一副 30 层骨架，关节、表情、口型、武器接触都在——换的只是衣服。素材包不一样：那是单张静态图，选中会丢掉全部分层动画。
               </p>
-              <span class="label" style={{ marginTop: '14px', display: 'block' }}>
-                挂载组件
-              </span>
-              {COMPONENT_IDS.map((id) => {
-                const c = LACIA_COMPONENTS[id];
-                return (
-                  <Switch
-                    key={id}
-                    checked={picked.includes(id)}
-                    onChange={() => set({ components: toggleComponent(picked, id) })}
-                    label={`${c.label.name}（${SLOT_LABELS[c.slot]}）${c.label.note ? ` — ${c.label.note}` : ''}`}
-                  />
-                );
-              })}
+            </div>
+          )}
+          {catalog.length > 0 && (
+            <div class="field">
+              <span class="label">挂载组件</span>
+              {catalog.map((c) => (
+                <Switch
+                  key={c.id}
+                  checked={picked.includes(c.id)}
+                  onChange={() => set({ components: toggleComponent(picked, c.id) })}
+                  label={`${c.name}（${SLOT_LABELS[c.slot]}）${c.note ? ` — ${c.note}` : ''}`}
+                />
+              ))}
               <p class="hint">
-                组件是可选的：不带组件就不渲染它的画面，它的动作也不进动作表。每个组件自带一套动作模组（这套里共 {picked.length} 件、{countActions(picked)} 个动作），同一时刻只跑一个；动作可以临时隐藏别的槽位，规则写在动作自己身上。
+                组件是可选的：不带组件就不渲染它的画面，它的动作也不进动作表。每个组件自带一套动作模组（{character === 'lacia' ? '这套衣服' : '这个角色'}里共 {picked.length} 件、{countActions(picked)} 个动作），同一时刻只跑一个；动作可以临时隐藏别的槽位，规则写在动作自己身上。
               </p>
               {m.components && (
                 <p class="hint">
                   <button type="button" class="btn" onClick={() => set({ components: undefined })}>
-                    恢复这套衣服的默认挂载
+                    恢复默认挂载
                   </button>
                 </p>
               )}

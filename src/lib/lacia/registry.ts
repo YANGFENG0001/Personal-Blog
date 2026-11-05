@@ -1,31 +1,32 @@
 /**
- * The components that actually ship.
+ * 骨架真正出厂的组件。
  *
- * A component is hardware that may or may not be mounted: the rig renders it
- * only when it is enabled, and its actions join the action list only then. That
- * is what makes "the blue dress has no weapon" a one-line fact instead of a
- * special case — the dress simply enables nothing.
+ * 组件是**可能装、也可能不装**的硬件：骨架只在它启用时渲染它，它的动作也只
+ * 在那时进入动作表。这就是"蓝裙没有武器"能写成一行事实而不是一个特例的原因
+ * ——那条裙子什么都不启用。
  *
- * Adding a component is one object here. It does not require touching any
- * action that already exists: if the new piece cannot coexist with something,
- * it says so in its own `hideIn`.
+ * 加一个组件就是在这里加一个对象。不需要动任何已有动作：新东西若不能与什么
+ * 共存，它自己在 `hideIn` 里说。
  */
 import { LACIA_FORM_LABELS, LACIA_FORM_ORDER, type LaciaForm } from './lines';
 import { monolithSvg } from './monolith';
-import type { ComponentContext, LaciaAction, LaciaComponent, LaciaSlot, RigHandle } from './components';
+import type { RigHandle } from './handle';
+import type { ComponentContext, MascotAction, MascotComponent, MascotSlot } from '../mascot/model';
+import { resolveComponents as resolve } from '../mascot/model';
+import type { LaciaSkin } from './rig';
 
-/** Attributes every part root carries so the rig can toggle it without DOM surgery. */
-const attrs = (comp: string, slot: LaciaSlot) => `data-comp="${comp}" data-slot="${slot}" data-on="1"`;
+/** 每个部件根元素都带的属性，骨架靠它切可见性而不动 DOM 结构。 */
+const attrs = (comp: string, slot: MascotSlot) => `data-comp="${comp}" data-slot="${slot}" data-on="1"`;
+
+type Comp = MascotComponent<RigHandle, LaciaSkin>;
 
 /* ── lock ──────────────────────────────────────────────────────────────────
  *
- * The four wing plates on her waist. It is a *component*, not part of the
- * device markup, for two reasons: it lives on her body while the device hangs
- * behind her, so it has to mount to the hips bone and inherit that transform;
- * and it is the one piece whose position depends on what she wears (see
- * `LaciaSkin.lock`).
+ * 腰间四片翼状板。它是**组件**而不是装置标记的一部分，有两个理由：它长在她
+ * 身上而装置悬在她身后，所以必须挂到髋骨上继承那段变换；并且它是唯一一件位置
+ * 取决于穿什么的部件（见 `LaciaSkin.lock`）。
  */
-function lockSvg(pos: readonly [number, number] | undefined, slot: LaciaSlot): string {
+function lockSvg(pos: readonly [number, number] | undefined, slot: MascotSlot): string {
   const style = pos ? `left:${pos[0]}px;top:${pos[1]}px` : '';
   return `<svg class="lr-device-lock" viewBox="0 0 200 90" aria-hidden="true" ${attrs('lock', slot)}${style ? ` style="${style}"` : ''}>
             <g class="lr-dl-plate"><path d="M100 45 L58 31 L40 42 L60 54 Z"/></g>
@@ -36,45 +37,45 @@ function lockSvg(pos: readonly [number, number] | undefined, slot: LaciaSlot): s
           </svg>`;
 }
 
-const LOCK: LaciaComponent = {
+const LOCK: Comp = {
   id: 'lock',
   slot: 'waist',
+  /* 骨架的组件只可能挂在蕾西亚身上：她用的是骨架，别的角色是平涂造型。不写
+     这一行，后台就会给小春列出"DEVICE LOCK"。 */
+  fits: ['lacia'],
   label: { name: 'DEVICE LOCK', code: 'WAIST', note: '腰间四片翼状板，需物主同意' },
-  parts: ({ skin }: ComponentContext) => [{ mount: 'hips', html: lockSvg(skin.lock, 'waist') }],
+  parts: ({ subject }: ComponentContext<LaciaSkin>) => [{ mount: 'hips', html: lockSvg(subject.lock, 'waist') }],
 };
 
 /* ── BLACK MONOLITH ────────────────────────────────────────────────────────
  *
- * Four configurations, four actions. A form is persistent state (it stays until
- * another form is chosen); the action is the *motion* of getting there, which
- * is why it has a duration and why the body reaction lives in it.
+ * 四种构型，四个动作。构型是持续状态（直到选另一个），动作是**去往**那里的
+ * 过程——所以它有长有时长，身体反应也写在里面。
  */
 const FORM_REACTION: Record<LaciaForm, (h: RigHandle) => void> = {
-  /* Closing up has no impulse: the plates fold in under their own drive. */
+  /* 合上没有冲量：板子在自己的驱动下收回去。 */
   coffin: () => {},
 
-  /* The rails throw; she absorbs it — hips back, chest back, both arms pushed,
-     and the head snaps a beat later once the slug has left. */
+  /* 导轨抛出，她吸收后坐力——髋向后、胸向后、两臂被推、头在弹丸离膛后慢半拍
+     甩一下。 */
   railgun: (h) => {
     h.kick('monRecoil', 420);
     h.kick('hipsX', -11);
     h.kick('chestR', -3.4);
     h.kick('armRR', 5);
     h.kick('armLR', -7);
-    /* She drops her weight to take the recoil. Without this the upper body
-       braces while the legs stay in the neutral standing pose, and the pose
-       reads as pasted-on above the waist. */
+    /* 她把重心压下去吃这一下。没有这一句，上半身在支撑而腿还站着不动，腰以上
+       看着像贴上去的。 */
     h.impulse('kneeRR', 3.4);
     h.impulse('kneeLR', 2.6);
     h.impulse('monHit', -3.2);
     h.after(260, () => h.kick('headR', -13));
   },
 
-  /* Nothing is thrown, so nothing recoils — it just settles. */
+  /* 什么都没抛出去，所以没有后坐——只是稳定下来。 */
   shield: () => {},
 
-  /* Eight plates lock out at once: the heaviest impulse of the four, so the
-     biggest swing. */
+  /* 八片同时锁出去，四种里最重的一下，所以摆幅最大。 */
   unfold: (h) => {
     h.impulse('monHit', -4.4);
     h.kick('headR', -5);
@@ -83,21 +84,19 @@ const FORM_REACTION: Record<LaciaForm, (h: RigHandle) => void> = {
   },
 };
 
-/** How long each configuration takes to settle, in ms. The longest spring
- *  (monHit at 1.1 Hz) needs ~1.6 s to stop being visible. */
+/** 每种构型稳定下来要多久，ms。最长的弹簧（monHit 1.1 Hz）要约 1.6 秒才看不
+ *  出还在动。 */
 const FORM_DURATION: Record<LaciaForm, number> = { coffin: 900, railgun: 1600, shield: 1200, unfold: 1600 };
 
-function formAction(form: LaciaForm): LaciaAction {
+function formAction(form: LaciaForm): MascotAction<RigHandle> {
   return {
     id: `monolith:${form}`,
     owner: 'monolith',
     label: { name: LACIA_FORM_LABELS[form].name, code: LACIA_FORM_LABELS[form].code },
     duration: FORM_DURATION[form],
-    /* Deploying locks the eight plates out of the hub, and the lock's four
-       plates are the retaining clips on that mount — they disengage for the
-       swing and re-engage when it settles. This is the only cross-component
-       rule in the shipped set, and it is transient: the action restores every
-       slot when it ends, so the clips come back on their own. */
+    /* 展开会把八片从轮毂里锁出去，而锁扣那四片正是这个基座上的固定卡榫——它们
+       在摆开时脱开、稳定后重新咬合。这是出厂规则里唯一一条跨组件的规则，而且是
+       瞬时的：动作结束时会恢复所有槽位，所以卡榫自己会回来。 */
     visibility: form === 'unfold' ? { waist: false } : undefined,
     onStart: (h) => {
       h.setDeviceForm(form);
@@ -106,22 +105,20 @@ function formAction(form: LaciaForm): LaciaAction {
   };
 }
 
-const MONOLITH: LaciaComponent = {
+const MONOLITH: Comp = {
   id: 'monolith',
   slot: 'device',
+  fits: ['lacia'],
   label: { name: 'BLACK MONOLITH', code: 'DEVICE', note: '黑色秘棺 · 四种构型' },
-  parts: ({ uid }: ComponentContext) => [
-    { mount: 'stage', html: monolithSvg(uid, attrs('monolith', 'device')) },
-  ],
+  parts: ({ uid }: ComponentContext<LaciaSkin>) => [{ mount: 'stage', html: monolithSvg(uid, attrs('monolith', 'device')) }],
   actions: LACIA_FORM_ORDER.map(formAction),
 };
 
-/* ── the character's own modules ───────────────────────────────────────────
+/* ── 角色自带的模组 ─────────────────────────────────────────────────────────
  *
- * Owner `self`, and not a component: she is always there, so the settings panel
- * never offers to unmount her. No visibility row, which is exactly what makes
- * her modules "show everything" — the default the design calls for. */
-export const SELF_ACTIONS: readonly LaciaAction[] = [
+ * owner 是 `self`，且不是组件：她永远在，所以设置面板从不提供"卸下她"。没有
+ * 可见性行，这正是"她自带的模组全都显示"——设计要的默认值。 */
+export const SELF_ACTIONS: readonly MascotAction<RigHandle>[] = [
   {
     id: 'self:poke',
     owner: 'self',
@@ -130,23 +127,20 @@ export const SELF_ACTIONS: readonly LaciaAction[] = [
     onStart: (h) => {
       h.kick('headR', -11);
       h.kick('headY', 4);
-      /* A poke used to move only her head, which is the whole reason she read
-         as a bobblehead on a stick. Weight drops into one knee, the hips take a
-         small shove, and the knees take it unevenly — she catches herself. */
+      /* 只动头是"棍子上的摇头娃娃"的根源。重心落到一边膝盖，髋吃一下，两腿
+         不等量地接住——她自己稳住了。 */
       h.impulse('kneeRR', 2.8);
       h.impulse('kneeLR', -1.5);
       h.kick('hipsX', 1.6);
-      /* The device is socketed to her, so a jolt through her body reaches it
-         too. 2.6° is ~50 units at the muzzle, which is the smallest swing that
-         reads at the corner-mascot size. On an outfit with no device the spring
-         simply drives nothing. */
+      /* 装置插在她身上，所以过身体的冲击也会到它那儿。2.6° 在枪口是约 50 单位，
+         是角落尺寸下还能看出来的最小摆幅。没有装置的衣服上这根弹簧空转。 */
       h.impulse('monHit', -2.6);
     },
   },
 ];
 
-/** Everything that can be mounted. Order here is the order in the settings panel. */
-export const LACIA_COMPONENTS: Record<string, LaciaComponent> = {
+/** 能装的都在这里。顺序即设置面板的列出顺序。 */
+export const LACIA_COMPONENTS: Record<string, Comp> = {
   monolith: MONOLITH,
   lock: LOCK,
 };
@@ -156,31 +150,18 @@ export type LaciaComponentId = keyof typeof LACIA_COMPONENTS;
 export const COMPONENT_IDS = Object.keys(LACIA_COMPONENTS) as LaciaComponentId[];
 
 /**
- * What each outfit mounts by default.
+ * 每套衣服默认挂什么。
  *
- * Lives here rather than inline on the skins so the admin panel can read it
- * without pulling the whole engine into its bundle: the settings UI needs the
- * defaults to show "what this outfit would mount", and importing `rig.ts` for
- * that would drag the springs, the IK and the markup builder along with it.
+ * 放在这里而不是写在皮肤上，是为了让后台不拉引擎也能读到：设置面板要显示
+ * "这套衣服会挂哪些"，而为这个 import `rig.ts` 会把弹簧、IK、标记生成器一起
+ * 拖进包体。
  */
 export const SKIN_COMPONENT_DEFAULTS: Record<string, readonly string[]> = {
   suit: ['monolith', 'lock'],
   dress: [],
 };
 
-/** Resolve ids to components, in slot order, dropping unknown ids.
- *
- * Slot order (not the caller's order) so the server-rendered markup and the
- * hydrated markup cannot disagree about paint order. */
-export function resolveComponents(ids: readonly string[]): LaciaComponent[] {
-  const want = new Set(ids);
-  const out = COMPONENT_IDS.filter((id) => want.has(id)).map((id) => LACIA_COMPONENTS[id]);
-  const rank = (c: LaciaComponent) => {
-    const i = SLOT_RANK.indexOf(c.slot);
-    return i < 0 ? SLOT_RANK.length : i;
-  };
-  return out.sort((a, b) => rank(a) - rank(b));
+/** id 列表 → 组件数组，按槽位排序，丢掉不认识的 id。 */
+export function resolveComponents(ids: readonly string[]): Comp[] {
+  return resolve(LACIA_COMPONENTS, ids);
 }
-
-/** Paint order for mounted parts. Body-outward: the device layer first. */
-const SLOT_RANK: readonly LaciaSlot[] = ['device', 'back', 'aura', 'waist', 'torso', 'neck', 'arm', 'hand', 'head', 'face', 'leg', 'foot', 'weapon'];

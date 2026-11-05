@@ -13,7 +13,7 @@
 | 粒子效果 | `data`：向上飘的数据光丝，像永不拉平的心电图 | `src/lib/scene-effects.ts` |
 | 光标 | 菱形 + 冰蓝芯 + 上下刻线 | 主题的 `cursorGlyph` |
 | 彩蛋集 | `lacia`（秘棺之钥）：菱形/菱形实心/星形粒子；台词全部换成她的口吻 | `src/lib/eggs/effects.ts`、`src/lib/eggs/index.ts` |
-| 看板娘 | `lacia`：淡紫长发、冰蓝眼眸、黑白连体衣 + 冰蓝接缝，身后浮着黑色秘棺 | `src/lib/mascot.ts` |
+| 看板娘 | `lacia`：淡紫长发、冰蓝眼眸、黑白连体衣 + 冰蓝接缝，身后浮着黑色秘棺 | `src/lib/mascot/svg.ts`（角落用的是骨架 `src/lib/lacia/rig.ts`） |
 | 看板娘台词 | 8 句，可拖动、点击、按时段变化 | `MASCOT_LINES.lacia` |
 
 ### 背景：三版，以及每一版错在哪
