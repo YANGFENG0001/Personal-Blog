@@ -46,6 +46,14 @@ _ap.add_argument(
     default="",
     help="the aligned full figure (e.g. docs/seethrough-x/source.png); enables orphan recovery",
 )
+_ap.add_argument(
+    "--punch-leg",
+    action="store_true",
+    help=(
+        "clear topwear's alpha wherever the depth maps put the legs in front of it; "
+        "for an open coat or a slit gown, not for a garment that really covers the thighs"
+    ),
+)
 _args = _ap.parse_args()
 
 SRC, META, OUT, TS = _args.src, _args.meta, _args.out, _args.ts
@@ -62,13 +70,90 @@ def slug(name):
     return name.replace(" ", "-")
 
 
-# 1. build the full canvas once to find the character bbox
-full = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+# 1. load every layer, then fix up the ones the split got the depth of
 loaded = {}
 for layer in meta["layers"]:
-    im = Image.open(os.path.join(SRC, layer["filename"])).convert("RGBA")
-    loaded[layer["name"]] = im
-    full.alpha_composite(im, (layer["left"], layer["top"]))
+    loaded[layer["name"]] = Image.open(os.path.join(SRC, layer["filename"])).convert("RGBA")
+
+# 1a. A garment can hide a limb that the artwork draws *in front of it*.
+#
+# See-through hands back one closed surface per semantic layer, so the evening
+# gown's `topwear` is opaque straight across the slit and the techwear coat's is
+# opaque across its open front: the interior shadow is real pixels in that
+# layer. A garment belongs in front of the legs, so painted there that shadow
+# covers the very thing the opening exists to show, and she reads as having no
+# legs -- a grey panel where a thigh should be.
+#
+# The split does carry the answer, per pixel, in the depth maps it already
+# writes: `*_depth.png` is 0 = nearest. Where the leg's depth is nearer than the
+# top's, the illustration had the leg in front of the fabric, so the fabric has
+# to be transparent there. Nothing is invented and nothing is redrawn -- the
+# hole is punched in the alpha and the leg, which the rig paints over the
+# skirt's lining, shows through it.
+#
+# **Opt-in, not automatic.** On the battle suit the same test reports the legs
+# as nearer across the whole pelvis (rows 543-700 of a bodice that ends at 701),
+# where the hip armour is genuinely in front and must stay. A per-pixel depth
+# comparison cannot tell "armour over thigh" from "thigh over lining" when the
+# two surfaces are nearly coplanar, so the call is made per skin.
+def _punch_under(lower, upper, margin=8, solid=200):
+    """Clear `upper`'s alpha wherever `lower` is solid and nearer than it.
+
+    Both sides are compared in full-canvas space: the depth maps are cropped to
+    their own layer's box (the leg's is 178x612, the top's 499x1044), so they are
+    not even the same shape and cannot be compared directly.
+
+    `margin` is half a depth quantum -- the maps are uint8 in steps of about 16,
+    so without it a soft edge would punch a ragged hole along its own contour.
+    `solid` keeps the punch off the limb's feathered rim, which is where the
+    fabric behind it is still the correct thing to see.
+    """
+    by_name = {L["name"]: L for L in meta["layers"]}
+    if lower not in loaded or upper not in loaded:
+        return
+    if not (by_name[lower].get("depth_filename") and by_name[upper].get("depth_filename")):
+        return
+    lo_im, up_im = loaded[lower], loaded[upper]
+
+    def full(name, arr, fill):
+        canvas = np.full((H, W), fill, dtype=arr.dtype)
+        l, t = by_name[name]["left"], by_name[name]["top"]
+        h, w = arr.shape[:2]
+        canvas[t:t + h, l:l + w] = arr
+        return canvas
+
+    d_lo = np.array(Image.open(os.path.join(SRC, by_name[lower]["depth_filename"])).convert("L"), dtype=np.int16)
+    d_up = np.array(Image.open(os.path.join(SRC, by_name[upper]["depth_filename"])).convert("L"), dtype=np.int16)
+    a_lo = np.array(lo_im)[:, :, 3]
+    if d_lo.shape != a_lo.shape or d_up.shape != (up_im.height, up_im.width):
+        print(f"  ! depth map does not match its own layer for {lower}/{upper}, not punching")
+        return
+
+    mask = (full(lower, a_lo, 0) > solid) & (
+        full(lower, d_lo, 255) < full(upper, d_up, 255) - margin
+    )
+    # back to the upper layer's own box
+    l, t = by_name[upper]["left"], by_name[upper]["top"]
+    mask = mask[t:t + up_im.height, l:l + up_im.width]
+    if not mask.any():
+        print(f"  {upper}: nothing to punch, {lower} is behind it everywhere")
+        return
+    # One pixel of feather so the hole's rim does not keep a hairline of the old
+    # shadow, which would read as a drawn outline around the leg.
+    keep = Image.fromarray(np.where(mask, 0, 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(1.0))
+    out = np.array(up_im).copy()
+    out[:, :, 3] = (out[:, :, 3].astype(np.float32) * (np.array(keep).astype(np.float32) / 255.0)).astype(np.uint8)
+    loaded[upper] = Image.fromarray(out)
+    print(f"  {upper}: punched {int(mask.sum())} px where {lower} is in front")
+
+
+if _args.punch_leg:
+    _punch_under("legwear", "topwear")
+
+# 2. build the full canvas once to find the character bbox
+full = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+for layer in meta["layers"]:
+    full.alpha_composite(loaded[layer["name"]], (layer["left"], layer["top"]))
 
 x0, y0, x1, y1 = full.getbbox()
 CW, CH = x1 - x0, y1 - y0
@@ -593,12 +678,28 @@ def _frame():
     # separate neck layer at all — a chibi's collar swallows it — and inventing
     # a horizontal offset from a layer that does not exist is not an option.
     neck_x = _cx(nk) if nk else _cx(fc)
+
+    # The bust pivot, i.e. where the `torso` spring hangs the topwear layer.
+    #
+    # `topwear`'s bbox centre is only a proxy for the ribcage while the top ends
+    # at the hip. On a bodice it lands there; on a floor-length gown it lands at
+    # her knees (y=729 against a pelvis at 536), and on the techwear coat at
+    # y=620 against 471. A pivot *inside* the skirt is not a cosmetic error: the
+    # `torsoR` spring then rotates the bodice one way and the hem the other, so
+    # the whole figure reads as rocking on a hidden hinge -- measured head/hem
+    # correlation -0.96 where a standing figure should be positive. The clamp
+    # puts the pivot back on the ribcage: between a fifth and a little over half
+    # of the way up from the pelvis to the chin.
+    span = max(1.0, hip_y - face_bottom)
+    torso_y = tw["y"] + tw["h"] / 2.0
+    torso_y = min(torso_y, hip_y - 0.20 * span)
+    torso_y = max(torso_y, hip_y - 0.55 * span)
     return {
         "root": (hip_x, hip_y),
         "hips": (hip_x, hip_y),
         "spine": (hip_x, hip_y),
         "chest": (hip_x, hip_y - 40 * k),
-        "torso": (_cx(tw), tw["y"] + tw["h"] / 2.0),
+        "torso": (_cx(tw), torso_y),
         "neck": (neck_x, face_bottom + 24 * k),
         "head": (_cx(fc), face_bottom - 4 * k),
         "hairFront": (_cx(fc), face_bottom - 30 * k),

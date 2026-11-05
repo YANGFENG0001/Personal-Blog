@@ -53,7 +53,7 @@ export const TECH_FRAME: Record<string, readonly [number, number]> = {
   hips: [261.8, 471.0],
   spine: [261.8, 471.0],
   chest: [261.8, 431.3],
-  torso: [240.5, 620.5],
+  torso: [240.5, 414.6],
   neck: [235.0, 212.8],
   head: [238.0, 185.0],
   hairFront: [238.0, 159.2],

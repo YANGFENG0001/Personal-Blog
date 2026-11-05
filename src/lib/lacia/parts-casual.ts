@@ -53,7 +53,7 @@ export const CASUAL_FRAME: Record<string, readonly [number, number]> = {
   hips: [257.8, 432.0],
   spine: [257.8, 432.0],
   chest: [257.8, 392.3],
-  torso: [260.0, 419.5],
+  torso: [260.0, 383.4],
   neck: [236.5, 212.8],
   head: [238.0, 185.0],
   hairFront: [238.0, 159.2],

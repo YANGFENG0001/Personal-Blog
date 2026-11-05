@@ -84,6 +84,18 @@
 .lr-torso { z-index: 5; }
 .lr-neck { z-index: 7; }
 .lr-head { z-index: 9; }
+/* A lower garment the artwork puts *behind* the legs — the evening gown's
+   lining, which the slit shows the leg through. Not a bone: it never rotates,
+   it only inherits the hips, so it is a plain box at z-index 0 inside them and
+   the leg bones at 1 paint over it. The z-index is what matters: a part's own
+   `z` only orders it against its siblings inside one bone, so the skirt had to
+   change parent to change sides of the leg.
+ *
+ * It still has to carry the bone's *box*. Left as a bare `left/top` div it
+ * collapses to zero width, and the reset's `img { max-width: 100% }` then
+ * squeezes every part inside it to zero as well — the garment vanished while
+ * the height, which nothing constrains, stayed correct. */
+.lr-under { z-index: 0; }
 /* The barrier pose crosses the left forearm over her body, so that arm has to
    paint in front of the torso. Only this form: at rest the arms hang at her
    sides and belong behind the hip armour, and raising them globally puts the

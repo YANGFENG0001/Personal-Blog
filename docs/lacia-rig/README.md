@@ -960,10 +960,11 @@ python docs/lacia-rig/pipeline/prep_alpha.py <in> <out.png> [--fill-height]
 python docs/lacia-rig/pipeline/run_st.py <source.png> <comfy 输入名> <前缀>
 
 # 4. 导出部件 + 坐标表（--source 必填：脸皮回收和孤层回收都靠它）
+#    --punch-leg：开襟风衣 / 开衩长裙才加，见坑 10
 python docs/lacia-rig/export_assets.py \
     --src docs/seethrough-<x>/layers --meta docs/seethrough-<x>/layers/<前缀>_layers.json \
     --out public/lacia-rig/<x> --ts src/lib/lacia/parts-<x>.ts \
-    --name <X> --source docs/seethrough-<x>/source.png
+    --name <X> --source docs/seethrough-<x>/source.png [--punch-leg]
 
 # 5. 表情变体（读上一步导出的 eyebrow-*/mouth，写到同一个目录）
 python docs/lacia-rig/gen_face_variants.py --src public/lacia-rig/<x> --out public/lacia-rig/<x>
@@ -1005,10 +1006,39 @@ python docs/lacia-rig/gen_face_variants.py --src public/lacia-rig/<x> --out publ
 9. **Q 版的骨架是部分为真的。** 大腿贴合 → 拆层找不到两条腿 → 没有膝盖可测。
    `export_assets.py` 把膝盖钉在髋上（`KNEES["r"] = FRAME["legR"]`），而不是在没有收窄的
    形状上按 45% 猜——后者正是 `JOINT_BANDS` 那套搜索窗口存在的理由。
+10. **衣服会把该露的腿盖住，而拆层自己是不知道的。** See-through 每个语义层都是一张
+   **闭合曲面**：礼服的开衩、机能装的前襟在 `topwear` 里是实心像素（那是衣服内壁的阴影，
+   不是洞）。衣服画在腿前面（这是对的），于是腿被这层阴影盖死——她看起来没有腿，
+   开衩处只有一块灰板。判据藏在拆层已经写出来的 `*_depth.png` 里：0 = 最近。
+   腿的深度比 `topwear` 近的地方，原画就是腿在布前面，布在那里必须透明。
+   `--punch-leg` 就干这件事：按深度图在 `topwear` 的 alpha 上挖洞，腿从洞里露出来。
+   **不默认开**：战服的髋甲本来就该在腿前面，而深度图在骨盆这一段把两者判成近共面，
+   自动挖会把髋甲挖掉。这是每套衣服自己说了算的事。
+11. **`torso` 枢轴不能落在骨盆以下。** 它原本取 `topwear` 包围盒的纵向中心——上衣到腰
+   时那是胸口，礼服的 `topwear` 一直到脚踝，中心就落到 y=729（骨盆在 536），机能装
+   620 对 471。枢轴落在裙子里不是小误差：`torsoR` 会让上半身朝一边、下摆朝另一边，
+   整个人像绕着一根藏在裙子里的铰链晃。实测头/下摆相关系数 −0.96（正常站立该是正的）。
+   现在把它夹在"骨盆到下巴的 20%–55%"之间，战服（444 对骨盆 700）落进带内、数值不变。
 
 **已知缺口**：`docs/seethrough-sora/` 与 `docs/seethrough-chibi/` 只留了 `source.png`，
 拆层结果没有归档（haru 的 46 层、casual/tech/gown 的 21–22 层都在）。要重新导出这两个
 角色必须重跑第 3 步（各约 5 分钟 GPU）。
+
+### 6.6.1 下摆画在腿前面还是后面，由数据决定
+
+`bottomwear` 可以挂在腿的**任意一侧**，而且这是逐层的属性，不是逐皮肤的——所以骨骼表
+（`LaciaSkin.bone`）表达不了它。
+
+- 判据是**拆层的 z 序**（`export_assets.py` 按 See-through 输出的深度顺序递增编号）：
+  礼服的 `bottomwear` 是 z 2、`legwear` 是 z 5 → 衬裙在腿后面，开衩就是为了露出腿；
+  百褶裙是 z 9 对 6 → 在腿前面，裙子本来就包住大腿。
+- 实现：`partsFor()` 比一次 z，`bottomwear.z < legwear.z` 就把这层塞进 `.lr-under`。
+  那不是一个骨骼，是 `.lr-hips` 里 z-index 0 的一个普通盒子——部件自己的 `z` 只在同一个
+  骨骼的兄弟之间排序，所以裙子必须**换父节点**才能换到腿的另一侧。
+- `.lr-under` 必须带 `.lr-bone` 的盒子尺寸。只写 `left/top` 会塌成 0 宽，而 reset 里的
+  `img { max-width: 100% }` 会把里面每个部件一起压成 0 宽——高度不受约束所以还是对的，
+  结果是衣服整个消失而检查全绿。
+
 
 ### 6.7 加载：把"参数"留在服务端
 

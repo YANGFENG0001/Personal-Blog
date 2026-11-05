@@ -53,7 +53,7 @@ export const GOWN_FRAME: Record<string, readonly [number, number]> = {
   hips: [255.0, 536.0],
   spine: [255.0, 536.0],
   chest: [255.0, 496.1],
-  torso: [249.5, 729.0],
+  torso: [249.5, 467.2],
   neck: [228.5, 215.9],
   head: [231.0, 188.0],
   hairFront: [231.0, 162.1],

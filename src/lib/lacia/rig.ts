@@ -545,14 +545,42 @@ export function laciaActions(skin: LaciaSkinId, override?: readonly string[]): M
   return [...SELF_ACTIONS, ...actionList(skinComponents(skin, override))];
 }
 
+/**
+ * The paint slot a lower garment goes in when the artwork puts it *behind* the
+ * legs. It is not a bone: it never rotates, it only inherits the hips, so it
+ * needs no spring and no entry in `LaciaBone`. All it does is sit at a lower
+ * z-index than `.lr-leg`.
+ */
+const UNDER_SLOT = 'underwear';
+
+/** Lowest z among the leg layers, or null when the skin has no legs. */
+function legZ(parts: readonly LaciaPart[]): number | null {
+  const zs = parts.filter((p) => p.id.startsWith('legwear')).map((p) => p.z);
+  return zs.length ? Math.min(...zs) : null;
+}
+
 function partsFor(skin: LaciaSkin): Record<string, string> {
   const out: Record<string, string> = {};
   const boneOf = skin.bone ? { ...BONE_OF, ...skin.bone } : BONE_OF;
+  /* A skirt can hang on either side of the legs, and the artwork decides which
+     — the bone map cannot, because it is written per skin and this is a
+     per-*layer* fact.
+   *
+   * See-through hands its layers back in depth order, so the generated `z` is
+   * the depth: on the evening gown the skirt's lining is z 2 against the
+   * legwear's 5, i.e. behind the legs, and the slit exists precisely to show
+   * the leg through it. On the pleated skirt it is z 9 against 6 — in front,
+   * as a wrap skirt is. Binding both to the torso put the gown's lining over
+   * the thigh and hid the one thing the slit is for: the leg read as a grey
+   * panel of cloth. */
+  const legMinZ = legZ(skin.parts);
+  const bottom = skin.parts.find((p) => p.id === 'bottomwear');
+  const skirtUnder = bottom !== undefined && legMinZ !== null && bottom.z < legMinZ;
   for (const p of skin.parts) {
     /* Brows and mouth are replaced by the variant stack below — the raw
        exports would otherwise sit under it and show through the cross-fade. */
     if (FACE_IDS.has(p.id)) continue;
-    const bone = boneOf[p.id] ?? 'head';
+    const bone = p.id === 'bottomwear' && skirtUnder ? UNDER_SLOT : (boneOf[p.id] ?? 'head');
     const img =
       `<img class="lr-part" src="${skin.base}${p.file}" alt="" draggable="false" decoding="async"` +
       ` width="${p.w}" height="${p.h}"` +
@@ -677,6 +705,7 @@ export function laciaMarkup(
         <div class="lr-bone lr-root" data-bone="root">
           <div class="lr-bone lr-hips" data-bone="hips">
             ${p.hips ?? ''}${at('hips')}
+            <div class="lr-bone lr-under">${p.underwear ?? ''}</div>
             <div class="lr-bone lr-leg" data-bone="legR">
               <div class="lr-bone lr-knee" data-bone="kneeR">
                 <div class="lr-bone lr-ankle" data-bone="ankleR">${p.ankleR ?? ''}</div>${p.kneeR ?? ''}
@@ -889,6 +918,25 @@ const ENERGY: Record<LaciaState, number> = { idle: 1, talk: 1.15, happy: 1.3, he
  * amplitude, so what is left reads as breathing and weight rather than rocking.
  */
 const IDLE = 0.6;
+
+/**
+ * Torso-chain budget — how much of the idle motion is allowed to *rotate* the
+ * torso, as opposed to expanding it.
+ *
+ * The hem hangs about 700 canvas px below the waist, so a rotation there is not
+ * a local detail: 2° of breath is a 25 px arc at the hem, and the breath, the
+ * micro-tremor, the sway and the bust spring all add up because they are all
+ * about the same two pivots. Measured on the stage, a point near her ankles
+ * travelled 6–7.8% of the figure's height — on a standing figure that is a
+ * skirt swinging ±5 cm, which is not breathing, it is rocking.
+ *
+ * This is the same trade the `IDLE` comment above describes, taken one step
+ * further down: the rotation comes out, the *expansion* (`torsoY`/`torsoX`) and
+ * the late motion (neck drift, head look-around, arm hang) stay. The pointer
+ * term is deliberately not scaled — `look` is the user moving the mouse, and
+ * shrinking it would make her feel deaf rather than calm.
+ */
+const TORSO = 0.5;
 
 /**
  * How her body answers each device form, in degrees (and canvas px for rootY).
@@ -1597,10 +1645,15 @@ export class LaciaRig implements RigHandle {
       const S = this.S;
       S.rootY.step(breath * 0.7 * e + P.rootY, FIXED);
       S.hipsX.step(sway * IDLE * 2.3 * e + P.hipsX, FIXED);
+      /* The pelvis is deliberately *not* scaled by `TORSO`. It is the base of
+         the chain — damping it damps the legs too, and the leg swing is the one
+         part of the idle motion that should stay: it is what reads as shifting
+         weight from foot to foot. What `TORSO` takes out is the chain *above*
+         it, which is what swings the hem. */
       S.hipsR.step(sway * IDLE * 0.42 * e, FIXED);
       /* `spineR` is stepped *below*, after `monAim`, because the device's
          reaction feeds into it. */
-      S.chestR.step((breath * 1.5 + micro * 0.45 + sway * IDLE * 0.5) * e + P.chest, FIXED);
+      S.chestR.step((breath * 1.5 + micro * 0.45 + sway * IDLE * 0.5) * TORSO * e + P.chest, FIXED);
       S.torsoY.step(1 + breath * 0.018 * e, FIXED);
       S.torsoX.step(1 - breath * 0.007 * e, FIXED);
       /* ── bust ───────────────────────────────────────────────────────────
@@ -1628,7 +1681,7 @@ export class LaciaRig implements RigHandle {
        * exactly still, not that anything visibly swings. */
       S.torsoR.step(
         (S.chestR.x - P.chest) * 0.35 +
-          (0.6 * Math.sin(t * TAU * 0.19 + 2.3) + 0.3 * Math.sin(t * TAU * 0.063 + 1.1)) * e,
+          (0.6 * Math.sin(t * TAU * 0.19 + 2.3) + 0.3 * Math.sin(t * TAU * 0.063 + 1.1)) * TORSO * e,
         FIXED,
       );
       /* Only the *dynamic* part of the pelvis is fed back. `hipsX` carries the
@@ -1921,7 +1974,10 @@ export class LaciaRig implements RigHandle {
          `S.monAim.v` is in degrees/second and the aim spring is soft, so the
          coefficient stays small. */
       S.spineR.step(
-        (-sway * IDLE * 0.85 + weight * IDLE * 0.5 + breath * 0.6 + look * 0.45) * e + P.spine - S.monAim.v * 0.045,
+        (-sway * IDLE * 0.85 + breath * 0.6) * TORSO * e +
+          (weight * IDLE * 0.5 + look * 0.45) * e +
+          P.spine -
+          S.monAim.v * 0.045,
         FIXED,
       );
       /* Only the *dynamic* part of her head goes into the aim: the idle

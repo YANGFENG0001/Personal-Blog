@@ -30,6 +30,14 @@
    `docs/seethrough-casual/README.md` 第 2 条）。
 4. **`handwear` 是两只独立的袖子**，不需要按连通域分——拆层直接给了 `handwear-l` /
    `handwear-r`，各切上臂 / 前臂 / 手三段。
+5. **风衣前襟在 `topwear` 里是实心的，腿被它盖死了。** 原画是敞开的风衣，两条腿从腰下就
+   看得见；拆层给的 `topwear` 是一张闭合曲面，前襟填的是衣服内壁的阴影（69933 px）。
+   衣服画在腿前面是对的，但那层阴影让她看起来只有小腿以下有腿。`--punch-leg` 按拆层
+   写出来的深度图判"腿比布近"的像素，在 `topwear` 的 alpha 上挖掉，腿就露出来了。
+   这套的 `topwear` 包围盒从 499×1044 缩到 423×891——少掉的那块本来就不该属于风衣。
+6. **`torso` 枢轴同样被长下摆带跑。** `topwear` 中心落在 y=620，骨盆在 471，枢轴掉到
+   风衣里；`torsoR` 于是让上半身和下摆反向摆。现在夹在骨盆到下巴的 20%–55% 之间，
+   落在 415。
 
 ## 怎么重做
 
@@ -41,7 +49,7 @@ python docs/lacia-rig/export_assets.py \
     --src docs/seethrough-tech/layers \
     --meta docs/seethrough-tech/layers/<prefix>_layers.json \
     --out public/lacia-rig/tech --ts src/lib/lacia/parts-tech.ts \
-    --name TECH --source docs/seethrough-tech/source.png
+    --name TECH --source docs/seethrough-tech/source.png --punch-leg
 python docs/lacia-rig/gen_face_variants.py --src public/lacia-rig/tech --out public/lacia-rig/tech
 ```
 
