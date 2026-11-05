@@ -264,6 +264,68 @@ for layer in meta["layers"]:
 
 parts.sort(key=lambda p: p["z"])
 
+# 3. the body frame.
+#
+# The four joints above are measured; the other thirteen pivots (hips, chest,
+# shoulders, neck, head, hair) used to be hand-placed constants for one figure.
+# That works only while every skin is the same character: a second character is
+# narrower and has her shoulders somewhere else, so `rig.ts` would swing the
+# arms about a point in mid-air.
+#
+# The rules below are ratios read off the battle suit, expressed against the
+# layers that actually define each landmark -- the shoulder pivot sits at 11% of
+# the upper arm's height, the hips sit on the bottom edge of the top, and so on.
+# Same rules, any figure.
+_by_id = {p["id"]: p for p in parts}
+
+
+def _need(pid):
+    p = _by_id.get(pid)
+    if p is None:
+        raise SystemExit(f"frame: layer {pid!r} missing — the split did not produce it")
+    return p
+
+
+def _cx(p):
+    return p["x"] + p["w"] / 2.0
+
+
+def _frame():
+    bw = _need("bottomwear")
+    tw = _need("topwear")
+    nk = _need("neck")
+    fc = _need("face")
+    bh = _need("back hair")
+    ar = _need("handwear-r-up")
+    al = _need("handwear-l-up")
+    lr_ = _need("legwear-r-up")
+    ll = _need("legwear-l-up")
+
+    hip_y = tw["y"] + tw["h"]
+    hip_x = (_cx(lr_) + _cx(ll)) / 2.0
+    face_bottom = fc["y"] + fc["h"]
+    return {
+        "root": (hip_x, hip_y),
+        "hips": (hip_x, hip_y),
+        "spine": (hip_x, hip_y),
+        "chest": (hip_x, hip_y - 40),
+        "torso": (_cx(tw), tw["y"] + tw["h"] / 2.0),
+        "neck": (_cx(nk), face_bottom + 24),
+        "head": (_cx(fc), face_bottom - 4),
+        "hairFront": (_cx(fc), face_bottom - 30),
+        "hairBack": (_cx(fc), face_bottom),
+        "armR": (ar["x"] + ar["w"] * 0.75, ar["y"] + ar["h"] * 0.11),
+        "armL": (al["x"] + al["w"] * 0.25, al["y"] + al["h"] * 0.11),
+        "legR": (_cx(lr_), lr_["y"] + 16),
+        "legL": (_cx(ll), ll["y"] + 16),
+    }
+
+
+FRAME = _frame()
+print("\nframe:")
+for k, v in FRAME.items():
+    print(f"  {k:10s} ({v[0]:.1f}, {v[1]:.1f})")
+
 # Reuse another skin's pivots.
 #
 # A joint is a property of the *body*, not of the clothes, and `cut_at` only
@@ -347,8 +409,15 @@ lines = [
     f"  l: [{ANKLES['l'][0]}, {ANKLES['l'][1]}],",
     "} as const;",
     "",
-    f"export const {NAME}_PARTS: readonly LaciaPart[] = [",
+    "/** The rest of the skeleton, derived from the layers rather than hand-placed:",
+    " *  a second character is a different width and her shoulders are somewhere",
+    " *  else, so one global table would swing her arms about thin air. */",
+    f"export const {NAME}_FRAME: Record<string, readonly [number, number]> = {{",
 ]
+for _k, _v in FRAME.items():
+    lines.append(f"  {_k}: [{_v[0]:.1f}, {_v[1]:.1f}],")
+lines += ["};", ""]
+lines.append(f"export const {NAME}_PARTS: readonly LaciaPart[] = [")
 for p in parts:
     lines.append(
         "  { id: %s, file: %s, x: %d, y: %d, w: %d, h: %d, z: %d },"

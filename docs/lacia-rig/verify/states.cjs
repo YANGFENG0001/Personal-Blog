@@ -13,6 +13,9 @@
  */
 const { chromium } = require('playwright');
 
+/** 换皮肤/角色时传 LACIA_URL，例如 .../lacia?skin=haru。 */
+const PAGE = process.env.LACIA_URL || 'http://localhost:4321/lacia';
+
 const STATES = ['idle', 'talk', 'happy', 'held', 'sleep'];
 const FORMS = ['coffin', 'railgun', 'shield', 'unfold'];
 
@@ -23,7 +26,7 @@ const FORMS = ['coffin', 'railgun', 'shield', 'unfold'];
   p.on('pageerror', (e) => errs.push(e.message));
   p.on('console', (m) => m.type() === 'error' && errs.push(m.text()));
 
-  await p.goto('http://localhost:4321/lacia', { waitUntil: 'domcontentloaded' });
+  await p.goto(PAGE, { waitUntil: 'domcontentloaded' });
   await p.waitForFunction(() => !!document.querySelector('.lr-face[data-face="mouth"]'), null, { timeout: 10000 });
   /* The stage page types her opening line ~900ms after hydration and ends it
      ~1.5s later. Dispatching a state during that window is useless: the rig is
@@ -92,8 +95,13 @@ const FORMS = ['coffin', 'railgun', 'shield', 'unfold'];
     if (shots) await p.screenshot({ path: `.ref/state-${s}.png`, clip: await faceClip() });
   }
 
+  /* Forms belong to the device, and the device is an optional component: a
+     character with no weapon mounts none, so there is no console to click and
+     no form face to check. Skipping the loop is the honest reading — asserting
+     four forms on a rig that has none would fail for the wrong reason. */
+  const hasDevice = await p.evaluate(() => !!document.querySelector('nav.ls-console button'));
   const forms = [];
-  for (let i = 0; i < FORMS.length; i++) {
+  for (let i = 0; hasDevice && i < FORMS.length; i++) {
     await setForm(i);
     forms.push({ kind: 'form', name: FORMS[i], ...(await read()) });
     if (shots) await p.screenshot({ path: `.ref/form-${FORMS[i]}.png`, clip: await faceClip() });
@@ -105,7 +113,7 @@ const FORMS = ['coffin', 'railgun', 'shield', 'unfold'];
 
   console.log('states');
   for (const r of rows) console.log('  ' + fmt(r));
-  console.log('forms (after the last state, i.e. idle)');
+  console.log(hasDevice ? 'forms (after the last state, i.e. idle)' : 'forms — skipped, this rig mounts no device');
   for (const r of forms) console.log('  ' + fmt(r));
 
   // Uniqueness: a state is "the same face" as another if brow + mouth + blush match.

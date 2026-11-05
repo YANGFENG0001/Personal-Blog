@@ -10,6 +10,9 @@
  */
 const { chromium } = require('playwright');
 
+/** 换皮肤/角色时传 LACIA_URL，例如 .../lacia?skin=haru。 */
+const PAGE = process.env.LACIA_URL || 'http://localhost:4321/lacia';
+
 (async () => {
   const b = await chromium.launch();
   const p = await b.newPage({ viewport: { width: 1440, height: 1300 } });
@@ -17,7 +20,7 @@ const { chromium } = require('playwright');
   p.on('pageerror', (e) => errs.push(e.message));
   p.on('console', (m) => m.type() === 'error' && errs.push(m.text()));
 
-  await p.goto('http://localhost:4321/lacia', { waitUntil: 'domcontentloaded' });
+  await p.goto(PAGE, { waitUntil: 'domcontentloaded' });
   await p.waitForFunction(() => !!document.querySelector('.lr-face[data-face="mouth"]'), null, { timeout: 10000 });
 
   /* Sample the opening line, which fires on its own ~900ms after hydration.

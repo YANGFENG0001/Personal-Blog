@@ -23,11 +23,21 @@ that, the three brow images would have different heights and `transform-origin:
 50% 50%` would rotate them about different points, making them drift apart
 mid-tilt.
 
+The shift amounts below were tuned on Lacia's 45x7 brow and 20x7 mouth. They are
+absolute canvas pixels — a tilt of 3.6 px reads the same on a 27 px eye no matter
+how thick the brow is — so the same numbers transfer to a second character.
+What does *not* transfer is the mouth's painted opening: a 29x11 mouth needs a
+bigger ellipse than a 20x7 one for the same "parted" reading, so `opening()`
+scales its radii by the source mouth's size. That is the only per-character
+number here, and it is measured, not guessed.
+
 Run:  python docs/lacia-rig/gen_face_variants.py
+      python docs/lacia-rig/gen_face_variants.py --src public/lacia-rig/haru --out public/lacia-rig/haru
 """
 
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
 
 import numpy as np
@@ -35,6 +45,7 @@ from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "public" / "lacia-rig" / "parts"
+OUT = SRC
 
 # Canvas px of transparent margin added above and below every variant.
 PAD = 6
@@ -42,13 +53,16 @@ PAD = 6
 # edges that match the source art's softness.
 SS = 8
 
+# Reference mouth the radii below were tuned on.
+MOUTH_REF = (20.0, 7.0)
+
 
 def load(name: str) -> Image.Image:
     return Image.open(SRC / f"{name}.webp").convert("RGBA")
 
 
 def save(im: Image.Image, name: str) -> None:
-    im.save(SRC / f"{name}.webp", lossless=True, quality=100)
+    im.save(OUT / f"{name}.webp", lossless=True, quality=100)
     print(f"  {name}.webp  {im.width}x{im.height}")
 
 
@@ -142,6 +156,17 @@ def gen_brows() -> None:
 # ── mouth ────────────────────────────────────────────────────────────────
 
 
+def mouth_scale(src: Image.Image) -> float:
+    """How much bigger this character's mouth is than the reference 20x7 one.
+
+    One number for both axes, because the opening is an ellipse: scaling the
+    axes independently would turn a wide mouth's "oh" into a slit. The mean of
+    the two ratios keeps the ellipse's proportions and is 1.0 on Lacia, so her
+    variants come out byte-identical to before.
+    """
+    return (src.width / MOUTH_REF[0] + src.height / MOUTH_REF[1]) / 2.0
+
+
 def opening(src: Image.Image, rx: float, ry: float, dy: float, corner: float = -1.1) -> Image.Image:
     """Bend the mouth at the corners, then paint a dark opening in it.
 
@@ -149,15 +174,22 @@ def opening(src: Image.Image, rx: float, ry: float, dy: float, corner: float = -
     them (smile / grin / open), positive lets them sag (asleep). `dy` moves the
     opening itself — a sleeping mouth parts low, a surprised one parts centred.
 
+    Radii are given for the reference 20x7 mouth and scaled to whatever mouth
+    this character has, so a wider mouth does not get an opening that reads as a
+    pinhole. Scaling by area's square root would shrink the *tall* axis on a
+    wide mouth; the mean of the two ratios keeps the ellipse's shape.
+
     Drawn at SS× and reduced so the rim is as soft as the surrounding art — a
     hard-edged ellipse at 20px wide reads as a sticker.
     """
     w, h = src.size
-    opened = bend(src, curve(w, corner))
+    k = mouth_scale(src)
+    rx, ry = rx * k, ry * k
+    opened = bend(src, curve(w, corner * k))
     big = opened.resize((w * SS, h * SS), Image.LANCZOS)
     layer = Image.new("RGBA", big.size, (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)
-    cx, cy = w * SS / 2, h * SS / 2 + dy * SS
+    cx, cy = w * SS / 2, h * SS / 2 + dy * k * SS
     # Kept small: at 20px wide the whole mouth is ~9 display px, so an opening
     # much bigger than this reads as a shout rather than a parted mouth.
     d.ellipse((cx - rx * SS, cy - ry * SS, cx + rx * SS, cy + ry * SS), fill=(*darkest(src), 240))
@@ -168,13 +200,14 @@ def gen_mouth() -> None:
     print("mouth")
     src = load("mouth")
     w, h = src.size
+    k = mouth_scale(src)
 
     neutral = pad(src)
     save(neutral, "mouth-neutral")
 
     # Smile: corners up, middle held. The corner shadows travel with the ends,
     # which is what actually reads as a smile at 20px wide.
-    smile = pad(bend(src, curve(w, -2.6)))
+    smile = pad(bend(src, curve(w, -2.6 * k)))
     save(smile, "mouth-smile")
 
     save(pad(opening(src, 3.6, 2.2, 0.4)), "mouth-open")
@@ -186,8 +219,8 @@ def gen_mouth() -> None:
     big = wide.resize((w * SS, h * SS), Image.LANCZOS)
     layer = Image.new("RGBA", big.size, (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)
-    cx, cy = w * SS / 2, h * SS / 2 + 0.2 * SS
-    rx, ry = 4.8 * SS, 2.9 * SS
+    cx, cy = w * SS / 2, h * SS / 2 + 0.2 * k * SS
+    rx, ry = 4.8 * k * SS, 2.9 * k * SS
     # Upper teeth: a pale band hugging the top lip, inset so the dark rim still
     # frames it. `bbox` clipping keeps it inside the opening.
     d.rectangle(
@@ -216,6 +249,14 @@ def gen_mouth() -> None:
 
 
 def main() -> None:
+    global SRC, OUT
+    ap = argparse.ArgumentParser(description="Bake the expression variant bitmaps for one character.")
+    ap.add_argument("--src", default=str(SRC), help="directory holding this character's part bitmaps")
+    ap.add_argument("--out", default=None, help="where the variants go; defaults to --src")
+    args = ap.parse_args()
+    SRC = Path(args.src)
+    OUT = Path(args.out) if args.out else SRC
+    print(f"src {SRC}\nout {OUT}")
     gen_brows()
     gen_mouth()
     print("done")

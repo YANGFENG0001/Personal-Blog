@@ -1,15 +1,23 @@
 ---
 import PublicLayout from '../layouts/PublicLayout.astro';
 import LaciaRigIsland from '../components/public/LaciaRigIsland';
+import { LACIA_SKINS, type LaciaSkinId } from '../lib/lacia/rig';
 import { resolveAppearance } from '../lib/appearance';
 import { activeAppearance } from '../server/services/active-theme';
 import '../styles/lacia-stage.css';
 
 /* The stage shows whichever outfit the corner mascot wears. Reading it here
    rather than duplicating a constant keeps one source of truth: change the
-   outfit in 外观 → 看板娘 and both figures follow. */
+   outfit in 外观 → 看板娘 and both figures follow.
+
+   `?skin=haru` overrides it in dev only. A second character is a *skin* to this
+   engine, so comparing two of them side by side needs no second route — and
+   comparing them is the only way to tell whether the second one actually
+   reaches the first one's quality. */
 const look = resolveAppearance(activeAppearance(new Date(), null, null).appearance, 'auto');
-const skin = look.mascot?.skin ?? 'suit';
+const asked = Astro.url.searchParams.get('skin');
+const devSkin = import.meta.env.DEV && asked && asked in LACIA_SKINS ? (asked as LaciaSkinId) : null;
+const skin = devSkin ?? look.mascot?.skin ?? 'suit';
 const components = look.mascot?.components;
 ---
 

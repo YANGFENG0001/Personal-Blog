@@ -8,6 +8,9 @@
  */
 const { chromium } = require('playwright');
 
+/** 换皮肤/角色时传 LACIA_URL，例如 .../lacia?skin=haru。 */
+const PAGE = process.env.LACIA_URL || 'http://localhost:4321/lacia';
+
 (async () => {
   const b = await chromium.launch();
   for (const w of [1440, 1400, 1200, 1024, 900, 760, 600, 420]) {
@@ -15,7 +18,7 @@ const { chromium } = require('playwright');
     const errs = [];
     p.on('pageerror', (e) => errs.push(e.message));
     p.on('console', (m) => m.type() === 'error' && errs.push(m.text()));
-    await p.goto('http://localhost:4321/lacia', { waitUntil: 'networkidle' });
+    await p.goto(PAGE, { waitUntil: 'networkidle' });
     await p.waitForTimeout(2300);
     await p.evaluate(() => document.querySelector('nav.ls-console').querySelectorAll('button')[3].click());
     await p.waitForTimeout(1500);

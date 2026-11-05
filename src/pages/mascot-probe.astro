@@ -19,10 +19,13 @@ const dev = import.meta.env.DEV;
 if (!dev) Astro.response.status = 404;
 
 /* `?c=sora` picks the look, so the component test can mount the umbrella and
-   the book instead of adding a second fixture page. The rigged character is
-   excluded on purpose: it has its own probe (`/lacia`) and its own verifier. */
-const asked = Astro.url.searchParams.get('c') ?? 'haru';
-const character = isMascotId(asked) && asked !== 'lacia' ? asked : 'haru';
+   the book instead of adding a second fixture page. `lacia` is excluded because
+   it has its own probe (`/lacia`) and its own verifier. A character that is
+   *rigged* (haru, from the moment she got a skeleton) renders the rig here
+   instead of the flat SVG — the component forks on the character, not on the
+   page, so this fixture stays honest by doing nothing special. */
+const asked = Astro.url.searchParams.get('c') ?? 'sora';
+const character = isMascotId(asked) && asked !== 'lacia' ? asked : 'sora';
 ---
 {
   dev && (

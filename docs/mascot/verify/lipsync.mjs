@@ -30,7 +30,10 @@
 import { chromium } from 'playwright';
 
 const BASE = process.env.BASE || 'http://localhost:4321';
-const URL = `${BASE}/mascot-probe`;
+/* The fixture has to be a *flat* look: 小春 is now a layered rig, whose mouth is
+   driven by the rig engine and verified by `docs/lacia-rig/verify/lip.cjs`.
+   `?c=sora` pins this check to a look that still goes through `mascotSvg()`. */
+const URL = `${BASE}/mascot-probe?c=sora`;
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });

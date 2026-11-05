@@ -41,7 +41,7 @@
 
 const { chromium } = require('playwright');
 
-const PAGE = 'http://localhost:4321/lacia';
+const PAGE = process.env.LACIA_URL || 'http://localhost:4321/lacia';
 const SAMPLE_MS = 20000;
 
 /** Rotation (deg, world) and translation (px, *local*) of a bone.
@@ -114,8 +114,13 @@ function bestLag(a, b, maxLag) {
   /* Pin the form: a form switch changes every pose offset at once, and a trace
      that spans one reports "range" for links that are still, plus a lag of 0
      because the offsets all step together. Same reason as joints.cjs. */
-  await page.click('.ls-console button:first-of-type');
-  await page.waitForTimeout(1600);
+  /* A rig with no device has no console — and nothing to pin: the form cycler
+     only exists because there are forms. Clicking is the only public way to
+     reach setAutoForms(false), so it is conditional rather than unconditional. */
+  if (await page.$('.ls-console button')) {
+    await page.click('.ls-console button:first-of-type');
+    await page.waitForTimeout(1600);
+  }
 
   const trace = await page.evaluate(
     ({ ms, read }) => {

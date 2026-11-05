@@ -1,8 +1,9 @@
 ---
 /**
  * Corner mascot. Three sources:
- *  - built-in characters: haru / sora / chibi as inline SVG, lacia as the
- *    layered rig (a real skeleton over 24 split layers, see lib/lacia/rig.ts),
+ *  - built-in characters: lacia / haru as a layered rig (a real skeleton over
+ *    the layers See-through split, see lib/lacia/rig.ts), sora / chibi as
+ *    inline SVG,
  *  - a mascot pack (state images + anchors + lines, see lib/mascot-pack.ts),
  *  - a legacy single image URL.
  *
@@ -15,13 +16,14 @@ import { mascotSvg, MASCOT_LINES } from '../../lib/mascot/svg';
 import { isMascotId } from '../../lib/mascot/meta';
 import { MASCOT_STATES, type StoredMascotPack } from '../../lib/mascot-pack';
 import { LACIA_LINES } from '../../lib/lacia/lines';
+import { skinForCharacter, type LaciaSkinId } from '../../lib/lacia/rig';
 import LaciaRigIsland from './LaciaRigIsland';
 import '../../styles/mascot.css';
 
 interface Props {
   character: string;
   /** Outfit for the rigged character; ignored by flat packs. */
-  skin?: 'suit' | 'dress';
+  skin?: LaciaSkinId;
   /** Optional components to mount; undefined = whatever the outfit ships with. */
   components?: readonly string[];
   pack?: StoredMascotPack | null;
@@ -33,14 +35,18 @@ interface Props {
 }
 const { character, skin = 'suit', components, pack = null, draggable, imageUrl, position, size, page } = Astro.props;
 const builtin = isMascotId(character) ? character : 'haru';
-// 蕾西亚 is the only built-in with a rigged skeleton; everything else is a
-// flat image, so the renderer forks here and nowhere else.
-const rigged = !pack && !imageUrl && builtin === 'lacia';
+// Which built-ins are a real skeleton over split layers rather than a flat
+// drawing. This is the only place that forks on it — everything downstream
+// (canvas size, pivots, face variants, mounted components) is skin data.
+const RIGGED = new Set<string>(['lacia', 'haru']);
+const rigged = !pack && !imageUrl && RIGGED.has(builtin);
+const rigSkin = skinForCharacter(builtin, skin);
 const kind = pack ? 'pack' : imageUrl ? 'image' : rigged ? 'rig' : builtin === 'chibi' ? 'chibi' : 'anime';
-// Packs without their own generic lines still get something to say.
+// Packs without their own generic lines still get something to say. The rigged
+// character keeps her own voice: only 蕾西亚 has a written line set.
 const lines = pack
   ? { ...pack.lines, click: pack.lines.click?.length ? pack.lines.click : MASCOT_LINES.haru }
-  : rigged
+  : builtin === 'lacia'
     ? LACIA_LINES
     : { click: MASCOT_LINES[builtin] };
 const display = pack?.display;
@@ -113,7 +119,7 @@ const payload = JSON.stringify({
           // displayed. A media query that does not match never even fetches
           // the chunk — and the server-rendered markup is still there, so the
           // figure is visible with no JS at all.
-          <LaciaRigIsland client:media="(min-width: 901px)" variant="mascot" skin={skin} components={components} autoForms />
+          <LaciaRigIsland client:media="(min-width: 901px)" variant="mascot" skin={rigSkin} components={components} autoForms />
         ) : (
           <Fragment set:html={mascotSvg(builtin, components)} />
         )

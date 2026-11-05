@@ -135,12 +135,14 @@
 /* ---------- Chibi (original) ---------- */
 .mascot-svg .ms-shadow { fill: color-mix(in srgb, var(--ink) 14%, transparent); }
 .ms-chibi .ms-skin { fill: url(#chibi-skin); stroke: #d9988c; stroke-width: .35; }
-.ms-chibi .ms-hair { fill: light-dark(#4a3b5c, #2c2340); }
-.ms-chibi .ms-hair-hi { fill: none; stroke: #ffffff55; stroke-width: 3; stroke-linecap: round; }
-.ms-chibi .ms-ribbon { fill: var(--ms-accent); }
+.ms-chibi .ms-hair { fill: url(#chibi-hair); }
+.ms-chibi .ms-hair-back { fill: #2f2540; }
+.ms-chibi .ms-hair-hi { fill: none; stroke: #ffffff66; stroke-width: 3; stroke-linecap: round; }
+.ms-chibi .ms-ribbon { fill: var(--ms-accent); stroke: color-mix(in srgb, var(--ms-accent) 70%, #000); stroke-width: .5; }
 .ms-chibi .ms-clip { fill: #ffd36e; }
 .ms-chibi .ms-eye { fill: light-dark(#3a2f5a, #2a2448); }
 .ms-chibi .ms-shine { fill: #fff; }
+.ms-chibi .ms-shine-sm { fill: #fff; opacity: .7; }
 .ms-chibi .ms-blush { fill: #ff9fb8; opacity: 0.55; }
 .ms-chibi .ms-mouth { stroke-linecap: round; }
 .ms-chibi .ms-eyes-shut path { fill: none; stroke: light-dark(#3a2f5a, #2a2448); stroke-width: 2; stroke-linecap: round; }
@@ -151,11 +153,18 @@
 .ms-chibi .ms-skirt { fill: url(#chibi-skirt); stroke: #404a89; stroke-width: .8; }
 .ms-chibi .ms-pleat { stroke: #9eabd9; stroke-width: 1; fill: none; opacity: .8; }
 .ms-chibi .ms-cuff { fill: url(#chibi-shirt); stroke: #bfc6e6; stroke-width: .6; }
+/* 四肢是圆头描边，不是多边形：Q 版的胳膊只有 10 单位宽，多边形一画就露直角。 */
+.ms-chibi .ms-leg, .ms-chibi .ms-arm { fill: none; stroke: #f9d2be; stroke-linecap: round; }
+.ms-chibi .ms-leg { stroke-width: 10; }
+.ms-chibi .ms-arm { stroke-width: 9.5; }
+.ms-chibi .ms-sock { fill: none; stroke: #fbfcff; stroke-width: 11; stroke-linecap: round; }
+.ms-chibi .ms-hand { fill: #fbd8c6; stroke: #d9988c; stroke-width: .35; }
 .ms-chibi .ms-face-shade { fill: #e7a8a4; opacity: .13; }
 .ms-chibi .ms-earring { fill: #ffd36e; stroke: #c9912f; stroke-width: .5; }
 .ms-chibi .ms-shoe { fill: #3d3a67; stroke: #252447; stroke-width: .8; }
 .ms-chibi .ms-cover { fill: var(--ms-accent); }
-.ms-chibi .ms-pages { stroke: #ffffffaa; stroke-width: 1.5; }
+.ms-chibi .ms-page { fill: #fdfbf7; }
+.ms-chibi .ms-pages { stroke: #cbbfd2; stroke-width: .8; fill: none; }
 .ms-chibi .ms-eyes { transform-box: fill-box; transform-origin: center; }
 .ms-chibi .ms-body, .ms-chibi .ms-head { transform-box: fill-box; }
 

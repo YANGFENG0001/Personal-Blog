@@ -1,0 +1,238 @@
+{
+  "prefix": "haru",
+  "timestamp": "20261105_155153_5c6be82e",
+  "layers": [
+    {
+      "name": "back hair",
+      "filename": "haru_20261105_155153_5c6be82e_back hair.png",
+      "left": 475,
+      "top": 2,
+      "right": 803,
+      "bottom": 578,
+      "depth_median": 0.95703125,
+      "depth_filename": "haru_20261105_155153_5c6be82e_back hair_depth.png"
+    },
+    {
+      "name": "handwear-l",
+      "filename": "haru_20261105_155153_5c6be82e_handwear-l.png",
+      "left": 706,
+      "top": 280,
+      "right": 791,
+      "bottom": 739,
+      "depth_median": 0.8515625,
+      "depth_filename": "haru_20261105_155153_5c6be82e_handwear-l_depth.png"
+    },
+    {
+      "name": "handwear-r",
+      "filename": "haru_20261105_155153_5c6be82e_handwear-r.png",
+      "left": 494,
+      "top": 280,
+      "right": 579,
+      "bottom": 750,
+      "depth_median": 0.84765625,
+      "depth_filename": "haru_20261105_155153_5c6be82e_handwear-r_depth.png"
+    },
+    {
+      "name": "legwear",
+      "filename": "haru_20261105_155153_5c6be82e_legwear.png",
+      "left": 535,
+      "top": 682,
+      "right": 752,
+      "bottom": 1210,
+      "depth_median": 0.81640625,
+      "depth_filename": "haru_20261105_155153_5c6be82e_legwear_depth.png"
+    },
+    {
+      "name": "footwear",
+      "filename": "haru_20261105_155153_5c6be82e_footwear.png",
+      "left": 555,
+      "top": 1184,
+      "right": 728,
+      "bottom": 1279,
+      "depth_median": 0.80859375,
+      "depth_filename": "haru_20261105_155153_5c6be82e_footwear_depth.png"
+    },
+    {
+      "name": "neck",
+      "filename": "haru_20261105_155153_5c6be82e_neck.png",
+      "left": 590,
+      "top": 187,
+      "right": 699,
+      "bottom": 310,
+      "depth_median": 0.7265625,
+      "depth_filename": "haru_20261105_155153_5c6be82e_neck_depth.png"
+    },
+    {
+      "name": "bottomwear",
+      "filename": "haru_20261105_155153_5c6be82e_bottomwear.png",
+      "left": 513,
+      "top": 508,
+      "right": 776,
+      "bottom": 783,
+      "depth_median": 0.70703125,
+      "depth_filename": "haru_20261105_155153_5c6be82e_bottomwear_depth.png"
+    },
+    {
+      "name": "topwear",
+      "filename": "haru_20261105_155153_5c6be82e_topwear.png",
+      "left": 531,
+      "top": 243,
+      "right": 757,
+      "bottom": 545,
+      "depth_median": 0.6640625,
+      "depth_filename": "haru_20261105_155153_5c6be82e_topwear_depth.png"
+    },
+    {
+      "name": "ears-r",
+      "filename": "haru_20261105_155153_5c6be82e_ears-r.png",
+      "left": 555,
+      "top": 148,
+      "right": 593,
+      "bottom": 196,
+      "depth_median": 0.6484375,
+      "depth_filename": "haru_20261105_155153_5c6be82e_ears-r_depth.png"
+    },
+    {
+      "name": "ears-l",
+      "filename": "haru_20261105_155153_5c6be82e_ears-l.png",
+      "left": 690,
+      "top": 131,
+      "right": 723,
+      "bottom": 184,
+      "depth_median": 0.6484375,
+      "depth_filename": "haru_20261105_155153_5c6be82e_ears-l_depth.png"
+    },
+    {
+      "name": "face",
+      "filename": "haru_20261105_155153_5c6be82e_face.png",
+      "left": 566,
+      "top": 64,
+      "right": 703,
+      "bottom": 233,
+      "depth_median": 0.470703125,
+      "depth_filename": "haru_20261105_155153_5c6be82e_face_depth.png"
+    },
+    {
+      "name": "nose",
+      "filename": "haru_20261105_155153_5c6be82e_nose.png",
+      "left": 630,
+      "top": 165,
+      "right": 650,
+      "bottom": 183,
+      "depth_median": 0.469703125,
+      "depth_filename": "haru_20261105_155153_5c6be82e_nose_depth.png"
+    },
+    {
+      "name": "mouth",
+      "filename": "haru_20261105_155153_5c6be82e_mouth.png",
+      "left": 628,
+      "top": 199,
+      "right": 657,
+      "bottom": 210,
+      "depth_median": 0.469703125,
+      "depth_filename": "haru_20261105_155153_5c6be82e_mouth_depth.png"
+    },
+    {
+      "name": "eyebrow-l",
+      "filename": "haru_20261105_155153_5c6be82e_eyebrow-l.png",
+      "left": 651,
+      "top": 108,
+      "right": 694,
+      "bottom": 115,
+      "depth_median": 0.34375,
+      "depth_filename": "haru_20261105_155153_5c6be82e_eyebrow-l_depth.png"
+    },
+    {
+      "name": "eyewhite-r",
+      "filename": "haru_20261105_155153_5c6be82e_eyewhite-r.png",
+      "left": 580,
+      "top": 143,
+      "right": 619,
+      "bottom": 170,
+      "depth_median": 0.3212890625,
+      "depth_filename": "haru_20261105_155153_5c6be82e_eyewhite-r_depth.png"
+    },
+    {
+      "name": "eyewhite-l",
+      "filename": "haru_20261105_155153_5c6be82e_eyewhite-l.png",
+      "left": 657,
+      "top": 135,
+      "right": 694,
+      "bottom": 162,
+      "depth_median": 0.3212890625,
+      "depth_filename": "haru_20261105_155153_5c6be82e_eyewhite-l_depth.png"
+    },
+    {
+      "name": "irides-r",
+      "filename": "haru_20261105_155153_5c6be82e_irides-r.png",
+      "left": 590,
+      "top": 142,
+      "right": 614,
+      "bottom": 169,
+      "depth_median": 0.3125,
+      "depth_filename": "haru_20261105_155153_5c6be82e_irides-r_depth.png"
+    },
+    {
+      "name": "eyebrow-r",
+      "filename": "haru_20261105_155153_5c6be82e_eyebrow-r.png",
+      "left": 573,
+      "top": 115,
+      "right": 615,
+      "bottom": 131,
+      "depth_median": 0.306640625,
+      "depth_filename": "haru_20261105_155153_5c6be82e_eyebrow-r_depth.png"
+    },
+    {
+      "name": "eyelash-r",
+      "filename": "haru_20261105_155153_5c6be82e_eyelash-r.png",
+      "left": 572,
+      "top": 134,
+      "right": 619,
+      "bottom": 167,
+      "depth_median": 0.291015625,
+      "depth_filename": "haru_20261105_155153_5c6be82e_eyelash-r_depth.png"
+    },
+    {
+      "name": "irides-l",
+      "filename": "haru_20261105_155153_5c6be82e_irides-l.png",
+      "left": 661,
+      "top": 134,
+      "right": 685,
+      "bottom": 161,
+      "depth_median": 0.28125,
+      "depth_filename": "haru_20261105_155153_5c6be82e_irides-l_depth.png"
+    },
+    {
+      "name": "eyelash-l",
+      "filename": "haru_20261105_155153_5c6be82e_eyelash-l.png",
+      "left": 654,
+      "top": 127,
+      "right": 701,
+      "bottom": 155,
+      "depth_median": 0.26953125,
+      "depth_filename": "haru_20261105_155153_5c6be82e_eyelash-l_depth.png"
+    },
+    {
+      "name": "front hair",
+      "filename": "haru_20261105_155153_5c6be82e_front hair.png",
+      "left": 549,
+      "top": 2,
+      "right": 720,
+      "bottom": 315,
+      "depth_median": 0.095703125,
+      "depth_filename": "haru_20261105_155153_5c6be82e_front hair_depth.png"
+    },
+    {
+      "name": "headwear",
+      "filename": "haru_20261105_155153_5c6be82e_headwear.png",
+      "left": 675,
+      "top": 42,
+      "right": 729,
+      "bottom": 118,
+      "depth_median": 0.0078125,
+      "depth_filename": "haru_20261105_155153_5c6be82e_headwear_depth.png"
+    }
+  ],
+  "width": 1280,
+  "height": 1280
+}

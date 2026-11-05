@@ -9,7 +9,12 @@
 export type MascotId = 'chibi' | 'haru' | 'sora' | 'lacia';
 
 export const MASCOTS: { id: MascotId; name: string; desc: string; thumb?: string }[] = [
-  { id: 'haru', name: '小春', desc: '樱色发卡、长发、水手服，安静地陪你读书。' },
+  {
+    id: 'haru',
+    name: '小春',
+    desc: '樱色发卡、长发、水手服。分层骨架立绘：30 个语义图层挂在关节上，会转头、眨眼、摆臂、呼吸。',
+    thumb: '/lacia-rig/haru/thumb.webp',
+  },
   { id: 'sora', name: '小晴', desc: '短发侧辫、太阳发夹，撑着透明雨伞的晴天少女。' },
   {
     id: 'lacia',

@@ -28,7 +28,7 @@
 import { chromium } from 'playwright';
 import { actionVisible, visibilityMatrix } from '../../../src/lib/mascot/model.ts';
 
-const PAGE = 'http://localhost:4321/lacia';
+const PAGE = process.env.LACIA_URL || 'http://localhost:4321/lacia';
 const errs = [];
 
 /* ── 2. the resolver, against synthetic components ───────────────────────── */

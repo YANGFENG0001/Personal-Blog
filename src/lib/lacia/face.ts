@@ -32,6 +32,30 @@ const BROW_BASE: Record<FaceSide, LaciaPart> = {
 };
 const MOUTH_BASE: LaciaPart = { id: 'mouth', file: 'mouth.webp', x: 230, y: 162, w: 20, h: 7, z: 12 };
 
+/**
+ * Where a character's brows and mouth sit on her own canvas.
+ *
+ * These used to be constants, which was only true while there was one character:
+ * the variant files are baked per character (`gen_face_variants.py` bends that
+ * character's own brow bitmap), so both the directory and the box are skin data.
+ */
+export interface FaceBases {
+  brow: Record<FaceSide, LaciaPart>;
+  mouth: LaciaPart;
+}
+
+export const LACIA_FACE_BASES: FaceBases = { brow: BROW_BASE, mouth: MOUTH_BASE };
+
+/** Read the three base boxes straight out of a skin's part table. */
+export function faceBasesOf(parts: readonly LaciaPart[]): FaceBases {
+  const pick = (id: string) => {
+    const p = parts.find((x) => x.id === id);
+    if (!p) throw new Error(`face: part ${id} missing`);
+    return p;
+  };
+  return { brow: { r: pick('eyebrow-r'), l: pick('eyebrow-l') }, mouth: pick('mouth') };
+}
+
 /** Ids that `parts.ts` still exports but the face stack now owns. */
 export const FACE_IDS = new Set(['eyebrow-r', 'eyebrow-l', 'mouth']);
 
@@ -41,13 +65,13 @@ const padded = (p: LaciaPart): LaciaPart => ({
   h: p.h + FACE_PAD * 2,
 });
 
-export function browParts(side: FaceSide): { v: BrowVariant; part: LaciaPart }[] {
-  const geo = padded(BROW_BASE[side]);
+export function browParts(side: FaceSide, bases: FaceBases = LACIA_FACE_BASES): { v: BrowVariant; part: LaciaPart }[] {
+  const geo = padded(bases.brow[side]);
   return BROW_VARIANTS.map((v) => ({ v, part: { ...geo, file: `brow-${side}-${v}.webp` } }));
 }
 
-export function mouthParts(): { v: MouthVariant; part: LaciaPart }[] {
-  const geo = padded(MOUTH_BASE);
+export function mouthParts(bases: FaceBases = LACIA_FACE_BASES): { v: MouthVariant; part: LaciaPart }[] {
+  const geo = padded(bases.mouth);
   return MOUTH_VARIANTS.map((v) => ({ v, part: { ...geo, file: `mouth-${v}.webp` } }));
 }
 

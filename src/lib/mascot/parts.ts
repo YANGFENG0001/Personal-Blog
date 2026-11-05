@@ -82,22 +82,31 @@ export const SUNCLIP: MascotComponent<unknown, unknown> = {
  * 伞面单独包一层 `.ms-umb-canopy`，是为了让"转伞"不跟"随风轻摆"抢同一个
  * 元素：`.ms-umb` 上已经挂着 `ms-umb` 摇摆动画，再往同一个元素写 `animation`
  * 会把它顶掉，伞就只在点击时动、平时死着。
+ *
+ * 上一版伞面是 `fill-opacity .5` 的白 + 白描边，在浅色底上等于不存在，只剩
+ * 一根伞柄悬在头顶。半透明不是问题，**缺一条有色描边**才是：现在伞面是淡蓝
+ * 实色 + `#8fa8c4` 描边 + 可见伞骨，任何底色上都读得出来。
+ *
+ * 位置也挪了：伞面完全落在左上方（x 0–72 / y -16–50），只跟头的左缘压一点点，
+ * 伞杆从伞尖一路落到 y≈196 的弯把手上——这样"她撑着一把伞"整件事在剪影上
+ * 成立，而不是头顶飘着一片白。
  */
 export const UMBRELLA: MascotComponent<SvgHandle, unknown> = {
   id: 'umbrella',
   slot: 'back',
   fits: ['sora'],
-  label: { name: '透明雨伞', code: 'BACK', note: '磨砂白伞面，点伞面会转一圈' },
+  label: { name: '透明雨伞', code: 'BACK', note: '淡蓝伞面、可见伞骨，点伞面会转一圈' },
   parts: () =>
     one(
       'behind',
       `<g class="ms-umb" ${attrs('umbrella', 'back')} data-action="umbrella:twirl">
-      <path d="M54 44C58 130 62 190 68 244" fill="none" stroke="#b9c3d2" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M36 -2C33 60 30 130 28 192" fill="none" stroke="#b3c1d4" stroke-width="2.6" stroke-linecap="round"/>
+      <path d="M28 192C28 204 18 208 12 201C8 196 9 190 14 187" fill="none" stroke="#b3c1d4" stroke-width="2.6" stroke-linecap="round"/>
       <g class="ms-umb-canopy">
-        <path d="M4 46Q54 -12 104 46Q91 38 79 46Q66 38 54 46Q41 38 29 46Q16 38 4 46Z" fill="#e8f4ff" fill-opacity=".5" stroke="#fff" stroke-opacity=".9" stroke-width="1.3"/>
-        <path d="M54 -6V46M54 -6Q38 12 29 46M54 -6Q70 12 79 46M54 -6Q24 18 4 46M54 -6Q84 18 104 46" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width=".7"/>
-        <g fill="#fff" opacity=".85"><circle cx="30" cy="16" r="1.4"/><circle cx="70" cy="10" r="1.2"/><circle cx="86" cy="30" r="1.5"/><circle cx="44" cy="4" r="1"/><circle cx="14" cy="34" r="1.1"/></g>
-        <path d="M54 -8V-14" stroke="#b9c3d2" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M0 50Q36 -8 72 50Q59 42 48 50Q37 42 24 50Q11 42 0 50Z" fill="#dcecfb" fill-opacity=".92" stroke="#8fa8c4" stroke-width="1.4" stroke-linejoin="round"/>
+        <path d="M36 -4V50M36 -4Q22 12 24 50M36 -4Q50 12 48 50M36 -4Q10 22 0 50M36 -4Q62 22 72 50" fill="none" stroke="#9fb5cc" stroke-width=".9" opacity=".8"/>
+        <path d="M8 42Q19 14 37 5" fill="none" stroke="#fff" stroke-width="2.6" opacity=".75" stroke-linecap="round"/>
+        <path d="M36 -8V-16" stroke="#8fa8c4" stroke-width="2.2" stroke-linecap="round"/>
       </g>
     </g>`,
     ),
@@ -124,7 +133,11 @@ export const BOOK: MascotComponent<SvgHandle, unknown> = {
   parts: () =>
     one(
       'body',
-      `<g class="ms-book" ${attrs('book', 'hand')}><path class="ms-cover" d="M58 136 l22 6 l22 -6 v18 l-22 6 l-22 -6z"/><path class="ms-pages" d="M80 142 v18"/></g>`,
+      `<g class="ms-book" ${attrs('book', 'hand')}>
+      <path class="ms-cover" d="M58 134Q80 127 102 134L102 153Q80 146 58 153Z"/>
+      <path class="ms-page" d="M61.4 137.4Q80 131.4 98.6 137.4L98.6 149.4Q80 143.4 61.4 149.4Z"/>
+      <path class="ms-pages" d="M80 134.4V150.4"/>
+    </g>`,
     ),
   hideIn: ['svg:held', 'svg:sleep'],
 };

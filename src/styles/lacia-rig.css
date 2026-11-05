@@ -1,13 +1,27 @@
 /* ============================================================
    Lacia rig — layered articulation + BLACK MONOLITH
    ------------------------------------------------------------
-   One canvas unit = one pixel of the extracted 493x1276 figure.
-   The whole rig is laid out in those units and then scaled once,
-   so every bone and part coordinate in parts.ts is literal.
+   One canvas unit = one pixel of the extracted figure. The whole
+   rig is laid out in those units and then scaled once, so every
+   bone and part coordinate in parts.ts is literal.
 
    Sizing: the host sets --lr-u (figure height, unitless) and the
    rig derives its own width from --lr-ar. Nothing is measured in
    JS, which is why the figure can be server-rendered.
+
+   The canvas is *not* a constant. Lacia's figure is 493x1276 and
+   haru's is 328x1277 — same height, different width, because the
+   two illustrations have different poses. So the four numbers that
+   describe the canvas come from the skin (see `canvasCss()` in
+   rig.ts) and every rule below reads them:
+
+     --lr-cw / --lr-ch   canvas size, canvas units
+     --lr-cp-x/-y        transform origin — her root pivot, i.e. the
+                         hip. Not the canvas centre: a figure is not
+                         centred on her hips.
+     --lr-k              1 / --lr-ch, so `--lr-u * --lr-k` is the scale.
+                         Precomputed as a plain number because CSS
+                         division needs a literal, not a var().
    ============================================================ */
 
 .lr {
@@ -19,7 +33,7 @@
   --lr-mon-x: 246; /* hub position, in canvas units (her waist) */
   --lr-mon-y: 700;
   --lr-mon-k: 1; /* device scale about the hub */
-  --lr-s: calc(var(--lr-u, 320) / 1276);
+  --lr-s: calc(var(--lr-u, 320) * var(--lr-k, 0.000784));
   --lr-ice: #8fe3ff;
   --lr-ice-dim: #4c8ba8;
   position: relative;
@@ -37,8 +51,8 @@
   position: absolute;
   left: 0;
   top: 0;
-  width: 493px;
-  height: 1276px;
+  width: calc(var(--lr-cw, 493) * 1px);
+  height: calc(var(--lr-ch, 1276) * 1px);
   transform: scale(var(--lr-s));
   transform-origin: 0 0;
 }
@@ -53,9 +67,9 @@
   position: absolute;
   left: 0;
   top: 0;
-  width: 493px;
-  height: 1276px;
-  transform-origin: 246px 700px;
+  width: calc(var(--lr-cw, 493) * 1px);
+  height: calc(var(--lr-ch, 1276) * 1px);
+  transform-origin: calc(var(--lr-cp-x, 246) * 1px) calc(var(--lr-cp-y, 700) * 1px);
   will-change: transform;
 }
 

@@ -37,7 +37,7 @@
 
 const { chromium } = require('playwright');
 
-const PAGE = 'http://localhost:4321/lacia';
+const PAGE = process.env.LACIA_URL || 'http://localhost:4321/lacia';
 const SAMPLE_MS = 12000;
 
 /** Degrees of rotation encoded in a computed transform matrix. */
@@ -86,8 +86,13 @@ function corr(a, b) {
      still, and a positive wrist/elbow correlation that is really just the two
      offsets moving together. Clicking a form button is the only public way to
      reach `setAutoForms(false)`. */
-  await page.click('.ls-console button:first-of-type');
-  await page.waitForTimeout(1600);
+  /* A rig with no device has no console — and nothing to pin: the form cycler
+     only exists because there are forms. Clicking is the only public way to
+     reach setAutoForms(false), so it is conditional rather than unconditional. */
+  if (await page.$('.ls-console button')) {
+    await page.click('.ls-console button:first-of-type');
+    await page.waitForTimeout(1600);
+  }
 
   const trace = await page.evaluate(
     ({ ms, read }) => {

@@ -26,8 +26,21 @@
  */
 import { LACIA_ANKLE, LACIA_CANVAS, LACIA_ELBOW, LACIA_KNEE, LACIA_PARTS, LACIA_WRIST } from './parts';
 import { DRESS_ANKLE, DRESS_ELBOW, DRESS_KNEE, DRESS_PARTS, DRESS_WRIST } from './parts-dress';
+import { HARU_ANKLE, HARU_CANVAS, HARU_ELBOW, HARU_FRAME, HARU_KNEE, HARU_PARTS, HARU_WRIST } from './parts-haru';
 import type { LaciaPart } from './parts';
-import { FACE_IDS, FACE_PAD, FORM_FACE, STATE_FACE, BLUSH_STATES, browParts, mouthParts, type BrowVariant, type MouthVariant } from './face';
+import {
+  FACE_IDS,
+  FACE_PAD,
+  FORM_FACE,
+  STATE_FACE,
+  BLUSH_STATES,
+  browParts,
+  faceBasesOf,
+  mouthParts,
+  type BrowVariant,
+  type FaceBases,
+  type MouthVariant,
+} from './face';
 import { buildScript, type SayLine, type VisemeCue } from '../viseme';
 import { LACIA_FORM_ORDER, type LaciaForm } from './lines';
 import {
@@ -129,6 +142,17 @@ export interface LaciaSkin {
    */
   components?: readonly string[];
   /**
+   * Refuse a caller-supplied component list.
+   *
+   * A skin cut from an illustration that has no device in it cannot be given
+   * one: there are no mount points to hang it on, so a `monolith` mounted on
+   * haru would be a fan of black plates floating beside a schoolgirl. The corner
+   * mascot's component setting is authored for 蕾西亚's rig and must not travel
+   * when the user switches character — `noOverride` says exactly that, so no
+   * code anywhere has to ask who the character is.
+   */
+  noOverride?: boolean;
+  /**
    * Where the device lock sits, in canvas px (top-left of its 200x90 box).
    *
    * Only consulted when the `lock` component is mounted. It is a skin property
@@ -138,6 +162,28 @@ export interface LaciaSkin {
    * torn in the cloth. An outfit that mounts no lock ignores this.
    */
   lock?: readonly [number, number];
+  /**
+   * Layer canvas size, in canvas px. Defaults to Lacia's 493x1276.
+   *
+   * A character is not a costume: her figure is a different width, so the export
+   * crops the layer space to *her* content box and the canvas comes out narrower.
+   * The stage is sized from this, which is the only reason a second character
+   * does not sit off-centre in a 493px box.
+   */
+  canvas?: { readonly w: number; readonly h: number };
+  /**
+   * The thirteen pivots that are not joints (hips, chest, shoulders, neck, head,
+   * hair). Derived from the layers by `export_assets.py`; the global table below
+   * is only the battle suit's copy of them.
+   */
+  frame?: Readonly<Record<string, readonly [number, number]>>;
+  /**
+   * Directory holding the 14 baked expression variants. Defaults to Lacia's.
+   *
+   * A variant is a *bent copy of one character's own bitmap*, so it cannot be
+   * shared between characters the way it is shared between Lacia's two outfits.
+   */
+  faceBase?: string;
 }
 
 const SUIT_SKIN: LaciaSkin = {
@@ -170,8 +216,81 @@ const DRESS_SKIN: LaciaSkin = {
   components: SKIN_COMPONENT_DEFAULTS.dress,
 };
 
-export const LACIA_SKINS = { suit: SUIT_SKIN, dress: DRESS_SKIN } as const;
+/**
+ * A second character, not a second outfit.
+ *
+ * She is a rig skin like the others because a skin is exactly "bitmap directory +
+ * coordinates + four joints + which optional components are mounted" — and that
+ * list has nothing to do with who the person is. The differences that *are*
+ * about her (canvas width, the thirteen body pivots) live in `canvas` / `frame`,
+ * which is why this is a data entry and not a branch in the engine.
+ *
+ * She mounts no device: `components: []` is the whole statement of that.
+ */
+export const HARU_SKIN: LaciaSkin = {
+  base: '/lacia-rig/haru/',
+  parts: HARU_PARTS,
+  knee: HARU_KNEE,
+  elbow: HARU_ELBOW,
+  wrist: HARU_WRIST,
+  ankle: HARU_ANKLE,
+  canvas: HARU_CANVAS,
+  frame: HARU_FRAME,
+  faceBase: '/lacia-rig/haru/',
+  /* See-through cut her skirt as its own `bottomwear` layer instead of welding
+     it to the blouse, exactly as it did on the blue dress. A skirt hangs from
+     the waist, so it rides the torso — unlisted ids default to the head, which
+     would make the pleats turn with her chin. */
+  bone: { bottomwear: 'torso' },
+  components: [],
+  noOverride: true,
+};
+
+export const LACIA_SKINS = { suit: SUIT_SKIN, dress: DRESS_SKIN, haru: HARU_SKIN } as const;
 export type LaciaSkinId = keyof typeof LACIA_SKINS;
+
+/** Which skin a corner mascot should wear. A character with only one outfit
+ *  ignores the outfit setting rather than silently wearing someone else's. */
+export function skinForCharacter(character: string, outfit: string): LaciaSkinId {
+  if (character === 'haru') return 'haru';
+  return outfit === 'dress' ? 'dress' : 'suit';
+}
+
+/** Canvas size of a skin, falling back to the original figure. */
+export function canvasOf(skin: LaciaSkin): { readonly w: number; readonly h: number } {
+  return skin.canvas ?? LACIA_CANVAS;
+}
+
+/**
+ * The custom properties that describe a skin's canvas, for the host to put on
+ * `.lr` as an inline style.
+ *
+ * These used to be constants in `lacia-rig.css` (493x1276, origin 246/700), which
+ * was fine while every skin was Lacia in a different outfit: the export aligns
+ * skins to the same alpha box, so a second *costume* really does share the
+ * canvas. A second *character* does not — haru's figure is 328 wide at the same
+ * height — so the four numbers have to travel with the skin.
+ *
+ * The origin is her root pivot, not the canvas centre. On Lacia those coincide
+ * (246 vs 493/2) and that is a coincidence of her pose, not a rule: haru's hips
+ * sit at y=543 of 1277, nowhere near the middle, and rotating her about the
+ * canvas centre would swing her feet instead of her waist.
+ */
+export function canvasCss(skin: LaciaSkin): Record<string, string> {
+  const c = canvasOf(skin);
+  const [rx, ry] = pivotTable(skin).root;
+  return {
+    '--lr-cw': String(c.w),
+    '--lr-ch': String(c.h),
+    '--lr-cp-x': String(rx),
+    '--lr-cp-y': String(ry),
+    '--lr-k': (1 / c.h).toFixed(8),
+    '--lr-ar': (c.w / c.h).toFixed(4),
+    /* The device's hub is her waist, so it moves with the root pivot. */
+    '--lr-mon-x': String(rx),
+    '--lr-mon-y': String(ry),
+  };
+}
 
 /** Joint positions, in canvas px. */
 type JointBone = 'kneeR' | 'kneeL' | 'elbowR' | 'elbowL' | 'wristR' | 'wristL' | 'ankleR' | 'ankleL';
@@ -196,6 +315,7 @@ const FIXED_PIVOT: Record<Exclude<LaciaBone, JointBone>, readonly [number, numbe
 function pivotTable(skin: LaciaSkin): Record<LaciaBone, readonly [number, number]> {
   return {
     ...FIXED_PIVOT,
+    ...((skin.frame ?? {}) as Partial<Record<LaciaBone, readonly [number, number]>>),
     kneeR: skin.knee.r,
     kneeL: skin.knee.l,
     elbowR: skin.elbow.r,
@@ -239,7 +359,11 @@ export interface LaciaRigOptions {
  * otherwise the skin's own.
  */
 export function skinComponents(skin: LaciaSkinId, override?: readonly string[]): MascotComponent<RigHandle, LaciaSkin>[] {
-  return resolveComponents(override ?? LACIA_SKINS[skin].components ?? []);
+  const s = LACIA_SKINS[skin];
+  /* `noOverride` is a skin that was cut from art with no device in it — the
+     caller's list belongs to a different character's rig, so it is dropped
+     rather than mounted into thin air. */
+  return resolveComponents((s.noOverride ? s.components : (override ?? s.components)) ?? []);
 }
 
 /** The action list for an outfit — what the device console and any settings
@@ -269,36 +393,48 @@ function partsFor(skin: LaciaSkin): Record<string, string> {
  *  change cross-fades instead of flashing an unloaded file. */
 /**
  * The feature variants (4 brows x 2 sides, 6 mouths) are *character* assets, not
- * costume ones: they are the same person's eyebrows in either outfit, and
- * `face.ts` hard-codes their canvas positions from the battle-suit split. Every
- * skin shares the original directory and coordinates.
+ * costume ones: they are the same person's eyebrows in either outfit.
  *
- * That works because the skins are pose- and canvas-aligned: on the blue dress
- * the brow lands at (187,94) against (185,93) and the mouth at (231,163) against
+ * On the battle suit and the blue dress that means they are *shared* files. The
+ * dress was generated from the suit sheet as a structural reference, so its brow
+ * lands at (187,94) against (185,93) and its mouth at (231,163) against
  * (230,162) — 1–2 px, invisible at the 9 px the feature is actually drawn at.
- * Re-cutting 14 variant files per outfit would buy nothing.
+ * Re-cutting 14 variant files per outfit would buy nothing, so both point here.
+ *
+ * A second *character* is different: her brow is 42x16 where Lacia's is 45x7,
+ * so the bent variants have to be baked from her own bitmap. That is what
+ * `LaciaSkin.faceBase` is for — it defaults to this directory and haru overrides
+ * it. Nothing branches on the character id.
  */
 const FACE_BASE = '/lacia-rig/parts/';
 
-function faceStack(): string {
+function faceStack(base: string, bases: FaceBases): string {
   const img = (p: { file: string; x: number; y: number; w: number; h: number; z: number }, v: string, group: string, on: boolean) =>
     `<img class="lr-part lr-face" data-face="${group}" data-v="${v}"${on ? ' data-on' : ''}` +
-    ` src="${FACE_BASE}${p.file}" alt="" draggable="false" decoding="async"` +
+    ` src="${base}${p.file}" alt="" draggable="false" decoding="async"` +
     ` width="${p.w}" height="${p.h}"` +
     ` style="left:${p.x}px;top:${p.y}px;width:${p.w}px;height:${p.h}px;z-index:${p.z}">`;
 
   return [
     ...(['r', 'l'] as const).flatMap((side) =>
-      browParts(side).map(({ v, part }) => img(part, v, `brow-${side}`, v === 'neutral')),
+      browParts(side, bases).map(({ v, part }) => img(part, v, `brow-${side}`, v === 'neutral')),
     ),
-    ...mouthParts().map(({ v, part }) => img(part, v, 'mouth', v === 'neutral')),
+    ...mouthParts(bases).map(({ v, part }) => img(part, v, 'mouth', v === 'neutral')),
   ].join('');
 }
 
 /** Cheek flush: two soft gradients, painted between the face and the eyes.
- *  Canvas coords — the face spans x 171–305, the eyes sit at y 108–130. */
-const blush = `<div class="lr-blush" style="left:188px;top:141px;width:34px;height:16px"></div>
-                  <div class="lr-blush" style="left:256px;top:141px;width:34px;height:16px"></div>`;
+ *  Placed as fractions of the face box, which is where the 188/141 pair on the
+ *  battle suit came from in the first place. */
+function blushOf(face: LaciaPart): string {
+  const x = face.x + face.w * 0.13;
+  const y = face.y + face.h * 0.74;
+  const w = face.w * 0.25;
+  const h = face.h * 0.09;
+  const one = (left: number) =>
+    `<div class="lr-blush" style="left:${left.toFixed(0)}px;top:${y.toFixed(0)}px;width:${w.toFixed(0)}px;height:${h.toFixed(0)}px"></div>`;
+  return one(x) + '\n                  ' + one(face.x + face.w * 0.64);
+}
 
 /**
  * Server-renderable skeleton. The island renders this string so the figure is
@@ -312,6 +448,14 @@ export function laciaMarkup(
   const base = opts.base ?? skin.base;
   const uid = opts.uid ?? 'lacia-mono';
   const p = partsFor({ ...skin, base });
+
+  /* Where the brow and mouth sit is a property of her face, so it is read from
+     her own part table rather than from the constants `face.ts` used to hold. */
+  const bases = faceBasesOf(skin.parts);
+  const faceDir = skin.faceBase ?? FACE_BASE;
+  const face = skin.parts.find((x) => x.id === 'face');
+  if (!face) throw new Error('rig: skin has no face layer');
+  const blush = blushOf(face);
 
   /* Components are rendered into their mount points. Nothing here knows what a
      component is — an outfit with no device simply contributes no markup. */
@@ -354,7 +498,7 @@ export function laciaMarkup(
                 </div>
                 <div class="lr-bone lr-torso" data-bone="torso">${p.torso ?? ''}</div>
                 <div class="lr-bone lr-neck" data-bone="neck">${p.neck ?? ''}
-                  <div class="lr-bone lr-head" data-bone="head">${p.head ?? ''}${blush}${faceStack()}${at('head')}
+                  <div class="lr-bone lr-head" data-bone="head">${p.head ?? ''}${blush}${faceStack(faceDir, bases)}${at('head')}
                     <div class="lr-bone lr-hairfront" data-bone="hairFront">${p.hairFront ?? ''}</div>
                   </div>
                 </div>

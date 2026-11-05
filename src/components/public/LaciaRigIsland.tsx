@@ -12,7 +12,7 @@
  * before hydration; the class then adopts the same nodes instead of rebuilding.
  */
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { LaciaRig, laciaActions, laciaMarkup, type LaciaForm, type LaciaSkinId } from '../../lib/lacia/rig';
+import { LaciaRig, LACIA_SKINS, canvasCss, laciaActions, laciaMarkup, type LaciaForm, type LaciaSkinId } from '../../lib/lacia/rig';
 import { LACIA_FORMS, LACIA_QUOTES } from '../../lib/lacia/lines';
 import '../../styles/lacia-rig.css';
 
@@ -125,6 +125,11 @@ export default function LaciaRigIsland({ variant = 'mascot', skin = 'suit', comp
   }, [variant, skin, components, autoForms]);
 
   const markup = laciaMarkup({ uid: `lacia-${variant}`, skin, components });
+  /* The canvas size and the transform origin are skin data, so they go on the
+     host element as custom properties rather than into the stylesheet. Server-
+     rendered with the markup, so the figure is laid out correctly on first
+     paint — no measuring, no layout pass after hydration. */
+  const css = canvasCss(LACIA_SKINS[skin]) as Record<string, string>;
 
   /* ── corner mascot ────────────────────────────────────────────────── */
   if (variant === 'mascot') {
@@ -134,6 +139,7 @@ export default function LaciaRigIsland({ variant = 'mascot', skin = 'suit', comp
         data-variant="mascot"
         data-interactive
         ref={hostRef}
+        style={css}
         dangerouslySetInnerHTML={{ __html: markup }}
       />
     );
@@ -251,6 +257,7 @@ export default function LaciaRigIsland({ variant = 'mascot', skin = 'suit', comp
             tabindex={0}
             aria-label={hasDevice ? '蕾西亚 · 24 层刚体骨架立绘。点击换一句台词，点击身后的 BLACK MONOLITH 切换形态。' : '蕾西亚 · 24 层刚体骨架立绘。点击换一句台词。'}
             ref={hostRef}
+            style={css}
             onClick={nextQuote}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
