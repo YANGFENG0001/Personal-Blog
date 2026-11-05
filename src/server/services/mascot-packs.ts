@@ -1,7 +1,8 @@
 import { unzipSync, strFromU8 } from 'fflate';
 import { getDb, newId, now } from '../db';
 import { badRequest, notFound } from '../errors';
-import { MASCOT_STATES, mascotPackSchema, type MascotPack, type MascotState, type StoredMascotPack } from '../../lib/mascot-pack';
+import { MASCOT_STATES, type MascotPack, type MascotState, type StoredMascotPack } from '../../lib/mascot-pack';
+import { mascotPackSchema } from '../../lib/mascot-pack-schema';
 import { getSetting, setSetting } from './settings';
 import { deletePackFiles, hasTransparency, MAX_UPLOAD, saveUpload, sniff } from './uploads';
 

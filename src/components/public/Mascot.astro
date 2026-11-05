@@ -107,7 +107,19 @@ const payload = JSON.stringify({
         pack ? (
           <span class="mascot-frames">
             {MASCOT_STATES.filter((s) => pack.urls[s]).map((s) => (
-              <img class="mascot-frame" data-frame={s} src={pack.urls[s]} alt="" draggable="false" decoding="async" loading={s === 'idle' ? 'eager' : 'lazy'} width={pack.width} height={pack.height} />
+              s === 'idle' ? (
+                /* `loading="lazy"` on purpose: below 900px the mascot is
+                   `display: none`, and a lazy image with no box never
+                   intersects the viewport, so phones do not fetch her at all.
+                   On desktop she is in view from the first layout, so this
+                   costs nothing there. */
+                <img class="mascot-frame" data-frame={s} src={pack.urls[s]} alt="" draggable="false" decoding="async" loading="lazy" width={pack.width} height={pack.height} />
+              ) : (
+                /* `data-src`, not `src`: the frame is fetched when that state is
+                   first used (or during idle time). Three frames are 200–240 KB
+                   of WebP and only one is on screen at a time. */
+                <img class="mascot-frame" data-frame={s} data-src={pack.urls[s]} alt="" draggable="false" decoding="async" width={pack.width} height={pack.height} />
+              )
             ))}
           </span>
         ) : imageUrl ? (
@@ -157,9 +169,18 @@ const payload = JSON.stringify({
     // How hard the per-part motion runs in each state: asleep she barely
     // breathes, held she swings freely.
     let warpHandle: WarpHandle | null = null;
+    /* Only the idle frame ships with a `src`. A pack's frames are 60–90 KB each
+       and the mascot shows one at a time, so the other two are a `data-src`
+       until something actually asks for that state — that is 160 KB of WebP
+       taken off first paint on every page. Idle keeps its `src` so a reader
+       without JS still sees her. */
+    const hydrateFrame = (s: string) => {
+      const img = root.querySelector<HTMLImageElement>(`.mascot-frame[data-frame="${s}"]`);
+      if (img && !img.getAttribute('src') && img.dataset.src) img.src = img.dataset.src;
+      return img;
+    };
     const energyFor = (s: string) => (s === 'held' ? 1.7 : s === 'sleep' ? 0.4 : 1);
-    const setState = (s: string, ms = 0) => {
-      clearTimeout(stateTimer);
+    const commit = (s: string, ms: number) => {
       root.dataset.state = s;
       /* A pack is a stack of bitmaps and the rig renders itself, so neither has
          anything to run here: the state is a `data-state` for the pack's CSS and
@@ -169,6 +190,27 @@ const payload = JSON.stringify({
       // Fall back to held, not idle, if she is still being carried — otherwise
       // a long drag drops the motion back to idle mid-air after the line ends.
       if (ms) stateTimer = window.setTimeout(() => setState(root.classList.contains('is-dragging') ? 'held' : 'idle'), ms);
+    };
+    const setState = (s: string, ms = 0) => {
+      clearTimeout(stateTimer);
+      /* The frame for this state may still be on its way (it is only fetched
+         when first needed). Flipping `data-state` now would fade idle out and
+         fade in an image with no pixels yet, so hold the switch until it can
+         paint — capped, because a slow frame must not swallow the state. */
+      const img = hydrateFrame(s);
+      if (img && !img.complete && root.dataset.state !== s) {
+        let done = false;
+        const go = () => {
+          if (done) return;
+          done = true;
+          commit(s, ms);
+        };
+        img.addEventListener('load', go, { once: true });
+        img.addEventListener('error', go, { once: true });
+        setTimeout(go, 250);
+        return;
+      }
+      commit(s, ms);
     };
     const line = (group: LineGroup): string | undefined => {
       const list = pickLines({ lines: data.lines }, group);
@@ -210,8 +252,14 @@ const payload = JSON.stringify({
       const every = (data.motion?.blinkEvery ?? 5) * 1000;
       const blink = () => {
         if (root.dataset.state === 'idle' && !document.hidden) {
-          root.dataset.state = 'blink';
-          setTimeout(() => { if (root.dataset.state === 'blink') root.dataset.state = 'idle'; }, 140);
+          /* Skip the cycle while the blink frame is still loading — a 140 ms
+             flash is not worth showing an empty box, and the next one is 5 s
+             away, by which time it is decoded. */
+          const img = hydrateFrame('blink');
+          if (img && img.complete) {
+            root.dataset.state = 'blink';
+            setTimeout(() => { if (root.dataset.state === 'blink') root.dataset.state = 'idle'; }, 140);
+          }
         }
         setTimeout(blink, every * (0.6 + Math.random() * 0.8));
       };
@@ -226,6 +274,20 @@ const payload = JSON.stringify({
     };
     ['pointermove', 'keydown', 'scroll'].forEach((e) => addEventListener(e, wake, { passive: true }));
     wake();
+
+    /* Bring the remaining frames in when the browser has nothing better to do —
+       after first paint, before the reader is likely to click her. Skipped
+       entirely below 901px: the CSS hides the mascot there, so those bytes
+       would be spent on an element that is never painted. */
+    const prefetchFrames = () => {
+      if (!matchMedia('(min-width: 901px)').matches) return;
+      for (const img of root.querySelectorAll<HTMLImageElement>('.mascot-frame[data-src]')) {
+        if (!img.getAttribute('src') && img.dataset.src) img.src = img.dataset.src;
+      }
+    };
+    const idleCb = (window as unknown as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => void }).requestIdleCallback;
+    if (document.readyState === 'complete') idleCb ? idleCb(prefetchFrames, { timeout: 3000 }) : setTimeout(prefetchFrames, 1500);
+    else addEventListener('load', () => (idleCb ? idleCb(prefetchFrames, { timeout: 3000 }) : setTimeout(prefetchFrames, 1500)), { once: true });
 
     /* ---------------- per-part motion (displacement warp) ---------------- */
     // A pack is one flat bitmap, so the head, hair and torso are warped by an

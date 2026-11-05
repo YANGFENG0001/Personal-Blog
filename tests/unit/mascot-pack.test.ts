@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { analyze, removeBackground, measure } from '../../tools/asset-studio/lib/matte.mjs';
-import { mascotPackSchema, pickLines } from '../../src/lib/mascot-pack';
+import { pickLines } from '../../src/lib/mascot-pack';
+import { mascotPackSchema } from '../../src/lib/mascot-pack-schema';
 
 /** Build an RGBA image: a checkerboard (or solid colour) with a coloured rectangle "character". */
 function image(w: number, h: number, bg: 'checker' | [number, number, number], fig = { x: 20, y: 10, w: 24, h: 50 }) {
