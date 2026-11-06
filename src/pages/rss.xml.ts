@@ -2,9 +2,10 @@ import type { APIRoute } from 'astro';
 import { listPublicPosts, getPublicPost } from '../server/services/posts';
 import { getSetting } from '../server/services/settings';
 import { escapeXml, postUrl } from '../lib/format';
+import { publicOrigin } from '../lib/origin';
 
 export const GET: APIRoute = ({ site, url }) => {
-  const base = site ?? url;
+  const base = publicOrigin(site, url);
   const s = getSetting('site');
   const items = listPublicPosts({ limit: 30 }).items;
   const body = items

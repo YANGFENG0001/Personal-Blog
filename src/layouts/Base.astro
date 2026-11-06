@@ -10,6 +10,7 @@ import { layerStyle, resolveAppearance } from '../lib/appearance';
 import { activeAppearance } from '../server/services/active-theme';
 import '../styles/custom-theme.css';
 import { sceneHtml, type SceneId } from '../lib/scenes';
+import { publicOrigin } from '../lib/origin';
 
 interface Props {
   title: string;
@@ -42,7 +43,7 @@ const customParticles = ambient && custom?.particles.use === 'image' && custom.p
 const attrs = ambient ? look.attrs : { ...look.attrs, 'data-bg': 'none', 'data-cursor': 'system' };
 const fullTitle = title === site.title ? title : `${title} · ${site.title}`;
 const desc = description || site.intro;
-const canonicalUrl = canonical ? new URL(canonical, Astro.site ?? Astro.url).href : undefined;
+const canonicalUrl = canonical ? new URL(canonical, publicOrigin(Astro.site, Astro.url)).href : undefined;
 ---
 
 <!doctype html>

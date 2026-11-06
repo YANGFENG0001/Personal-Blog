@@ -3,9 +3,10 @@ import { listPublicArchive, listPublicTags } from '../server/services/posts';
 import { publicSiteTree } from '../server/services/sites';
 import { publicKnowledgeTree, type KnowledgeNode } from '../server/services/knowledge';
 import { escapeXml, postUrl } from '../lib/format';
+import { publicOrigin } from '../lib/origin';
 
 export const GET: APIRoute = ({ site, url }) => {
-  const base = site ?? url;
+  const base = publicOrigin(site, url);
   const entries: { loc: string; lastmod?: string }[] = [
     { loc: '/' }, { loc: '/archive' }, { loc: '/tags' }, { loc: '/knowledge' },
   ];

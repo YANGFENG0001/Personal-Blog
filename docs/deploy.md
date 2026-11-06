@@ -34,6 +34,11 @@ DOMAIN=blog.example.com
 SITE_URL=https://blog.example.com
 ```
 
+`SITE_URL` 在**请求时**读取（`src/lib/origin.ts`），不用重新构建镜像就能改域名；它决定
+canonical、`og:url`、sitemap、RSS 里的绝对地址。改完 `docker compose up -d` 让容器重启即可。
+（`astro.config.mjs` 里的 `site` 是构建期常量，只作兜底——CI 构建镜像时没有 `.env`，
+它永远是 `http://localhost:4321`，别指望它。）
+
 ## 3. 启动
 
 ```bash
