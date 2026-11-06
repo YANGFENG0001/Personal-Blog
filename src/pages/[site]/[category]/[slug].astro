@@ -55,9 +55,11 @@ const host = (u: string) => { try { return new URL(u).host.replace(/^www\./, '')
         <h1 id="post-title">{post.title}</h1>
         {post.summary && <p class="lead">{post.summary}</p>}
         <div class="meta">
-          <time datetime={post.publishedAt}>{fmtDate(post.publishedAt)}</time>
+          {/* "发布于" / "阅读约" are not decoration: without them the bare
+              "约 1 分钟" next to the date reads as "published about 1 minute ago". */}
+          <span>发布于 <time datetime={post.publishedAt}>{fmtDate(post.publishedAt)}</time></span>
           {post.updatedAt.slice(0, 10) !== post.publishedAt?.slice(0, 10) && <span>更新于 {fmtDate(post.updatedAt)}</span>}
-          <span>约 {post.readingMinutes} 分钟</span>
+          <span>阅读约 {post.readingMinutes} 分钟</span>
           {post.progress && <span class="pill pill-accent">{post.progress}</span>}
         </div>
         {post.coverUrl && <img class="cover" src={post.coverUrl} alt="" loading="eager" />}

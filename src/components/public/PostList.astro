@@ -38,7 +38,8 @@ const { posts, layout = 'list', showSite = false, empty = '这里还没有公开
             </div>
             <div class="post-side">
               <time datetime={p.publishedAt ?? undefined}>{fmtDate(p.publishedAt)}</time>
-              {layout !== 'compact' && <span>{p.readingMinutes} 分钟</span>}
+              {/* "阅读" prefix: a bare "1 分钟" under the date reads as a relative time. */}
+              {layout !== 'compact' && <span>阅读 {p.readingMinutes} 分钟</span>}
             </div>
           </a>
         </li>
